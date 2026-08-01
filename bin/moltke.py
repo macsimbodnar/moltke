@@ -930,7 +930,8 @@ def run_validate(root, config, marker_violations):
     return EXIT_OK
 
 
-def main(argv=None):
+def build_parser():
+    """The public surface, in one place so the golden test can read it (DEC-010)."""
     parser = argparse.ArgumentParser(prog="moltke.py", description=__doc__)
     modes = parser.add_mutually_exclusive_group(required=True)
     modes.add_argument("--session-start", action="store_true", help="SessionStart hook (S005)")
@@ -948,7 +949,11 @@ def main(argv=None):
                        help="audit reports: new <type> | list")
     parser.add_argument("--goal", default="", help="goal line for --step new")
     parser.add_argument("--stamp", default="", help="completion stamp for --step done")
-    args = parser.parse_args(argv)
+    return parser
+
+
+def main(argv=None):
+    args = build_parser().parse_args(argv)
 
     # Setup modes run before the marker gate: they exist to create it (DEC-017).
     if args.scaffold:

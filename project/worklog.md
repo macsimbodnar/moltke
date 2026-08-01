@@ -136,3 +136,7 @@ appended by hand.
 - Not done here: the reviewer cannot actually be spawned until the plugin is installed (S010); no audit report was created in this repo, because a report nobody ran would be fabricated evidence.
 - README/MANUAL: checked, absent by plan (S011).
 - Commit: see below.
+
+## 2026-08-01T19:45+02:00 prompt (hand-logged)
+
+> next

@@ -1,0 +1,13 @@
+--audit OP...  ops: list,new
+--decline
+--goal VALUE
+--help/-h
+--log-prompt
+--post-write
+--pre-write [PATH]
+--scaffold
+--session-start
+--stamp VALUE
+--step OP...  ops: block,done,new,start,status
+--stop
+--validate

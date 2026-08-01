@@ -134,6 +134,17 @@ same prompt it allows the stop with a warning (state in
 `--stop`'s README/MANUAL gate is mechanical: a step file newly moved into
 `plan_done/` must mention README and MANUAL in its `done:` stamp.
 
+2026-08-01 (S009): the surface guard (`surface_guard: "cli"`, DEC-010) is
+`tests/test_s009_surface.py`, holding `tests/golden/cli_surface.txt`. It reads
+argparse's actions rather than `--help` prose, so help wording can change but a
+flag or `--step`/`--audit` operation cannot be added, renamed, or removed
+silently. A separate check requires every flag and operation to appear in the
+specs CLI table, and an operation counts only where its own mode is described,
+so refreshing the golden alone never makes the suite green. Refresh, after
+updating the docs, with `python3 tests/test_s009_surface.py --refresh`. The
+same check runs against `MANUAL.md` and is skipped until that file exists in
+S011; closing that gap is part of S011.
+
 2026-08-01 (S008): **template guidance is never data.** Every scanner reads
 its input through `strip_guidance`, which drops fenced blocks and HTML
 comments, so a commented example step is not planned, an example finding is
