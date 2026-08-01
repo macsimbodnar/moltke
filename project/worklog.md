@@ -72,3 +72,12 @@ appended by hand.
 - INV-7 interpretation recorded in specs (git HEAD baseline, additions legal, abstain without git). INV-3 strengthened: missing plan.md in an enabled repo is a violation; re-targeted test_valid_marker_passes from bare marker to plan tree (strengthening, not weakening).
 - README/MANUAL: checked, absent by plan (S011).
 - Commit: 70f7e2b
+
+## 2026-08-01 recap S004
+
+- Step: S004 invariants 8-10.
+- Changed: bin/moltke.py (inv_8 byte-prefix vs git HEAD, inv_9 unique DEC ids, inv_10 finding statuses and open-finding references); tests/fixtures.py (decisions/worklog in workflow_repo, audit_report helper); tests/test_s004_invariants.py (9 tests).
+- Red observed: 6 failures ("AssertionError: 0 != 1") before implementation; 33/33 green after. Dogfood --validate passes on this repo.
+- INV-10 fixed the finding format ahead of S008 (### <report>-F<nn> + Status: line); noted in specs and the S008 step file.
+- README/MANUAL: checked, absent by plan (S011).
+- Commit: 21b27d0
