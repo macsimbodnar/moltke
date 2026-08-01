@@ -63,3 +63,12 @@ appended by hand.
 - Flagged: INV-11 vs --scaffold tension (scaffold must run unmarked); routed to S006 step file and status parked.
 - README/MANUAL: checked, absent by plan (S011).
 - Commit: 2a50f1d
+
+## 2026-08-01 recap S003
+
+- Step: S003 invariants 1-7.
+- Changed: bin/moltke.py (step parsing, plan_steps, inv_1..inv_7 registered); tests/fixtures.py (step_file, workflow_repo); tests/test_s003_invariants.py (12 tests).
+- Red observed: empty registry -> 9 failures ("AssertionError: 0 != 1"), then implemented, 24/24 green. Dogfood --validate passes on this repo.
+- INV-7 interpretation recorded in specs (git HEAD baseline, additions legal, abstain without git). INV-3 strengthened: missing plan.md in an enabled repo is a violation; re-targeted test_valid_marker_passes from bare marker to plan tree (strengthening, not weakening).
+- README/MANUAL: checked, absent by plan (S011).
+- Commit: 70f7e2b
