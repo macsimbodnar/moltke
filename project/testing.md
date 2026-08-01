@@ -27,3 +27,8 @@ never after. Append only.
 | S004 | INV-8: rewriting earlier bytes of `decisions.md` or `worklog.md`, or deleting either, is a violation; appending is legal; no git baseline means abstain | test_s004_invariants.py TestAppendOnly (4 tests) | pass 2026-08-01 |
 | S004 | INV-9: duplicate `DEC-<nnn>` ids in decisions.md are a violation | TestDecisionIds.test_duplicate_dec_id_fails | pass 2026-08-01 |
 | S004 | INV-10: a finding status outside open/planned/closed/accepted is a violation; an open finding with no step `closes:` reference and no decisions.md mention is a violation; referenced or accepted findings pass | TestAuditFindings (4 tests) | pass 2026-08-01 |
+| S005 | `--log-prompt` appends the verbatim prompt with a timestamp and never exits non-zero, even on damaged stdin (exit 2 would erase the prompt) | test_s005_hooks.py TestLogPrompt (2 tests) | pass 2026-08-01 |
+| S005 | `--pre-write` exits 2 for writes under `plan_done/` and for step files outside the three plan directories; ordinary writes pass; path arrives as argument or hook stdin JSON | TestPreWrite (4 tests) | pass 2026-08-01 |
+| S005 | `--session-start` reports the `plan_current/` stack and the derived next step as `additionalContext` JSON, and flags a stale `status.md` | TestSessionStart (2 tests) | pass 2026-08-01 |
+| S005 | `--post-write` surfaces cheap-scan violations on stderr with non-blocking semantics; clean repos stay silent | TestPostWrite (2 tests) | pass 2026-08-01 |
+| S005 | `--stop` exits 2 on invariant violations, stale status.md, and source changes without a worklog recap; a recap unblocks; after 3 consecutive blocks it allows the stop (no-deadlock cap) | TestStop (6 tests) | pass 2026-08-01 |

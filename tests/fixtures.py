@@ -76,6 +76,10 @@ def workflow_repo(root):
     (project / "worklog.md").write_text(
         "# Worklog\n\n## 2026-08-01 prompt\n\n> base\n", encoding="utf-8",
     )
+    (project / "status.md").write_text(
+        "# Status\n\n- Last done: S001\n- In progress: S003\n- Next: S002\n",
+        encoding="utf-8",
+    )
     return root
 
 

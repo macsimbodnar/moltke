@@ -120,6 +120,17 @@ which is the only enforcement available outside Claude Code.
 Every mode exits 0 immediately when `.moltke.json` is absent or `enabled` is
 false (INV-11).
 
+2026-08-01 (S005), verified against live hook docs: `--pre-write`'s PATH is
+optional; hooks pass the path via stdin JSON (`tool_input.file_path`).
+`--log-prompt` always exits 0 because UserPromptSubmit exit 2 erases the
+user's prompt. `--session-start` emits `hookSpecificOutput.additionalContext`
+JSON, the only channel that reaches the model. Stop has no documented block
+cap anymore, so `--stop` imposes its own: after 3 consecutive blocks for the
+same prompt it allows the stop with a warning (state in
+`.git/moltke_stop_state.json`), preserving the DEC-006 no-deadlock property.
+`--stop`'s README/MANUAL gate is mechanical: a step file newly moved into
+`plan_done/` must mention README and MANUAL in its `done:` stamp.
+
 Language: Python, standard library only. It runs on every prompt, so startup
 cost matters and dependencies are unacceptable.
 

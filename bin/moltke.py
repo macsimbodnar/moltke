@@ -6,6 +6,7 @@ INV-11: every mode exits 0 immediately when .moltke.json is absent or enabled is
 """
 
 import argparse
+import datetime
 import json
 import re
 import subprocess
@@ -272,6 +273,197 @@ INVARIANT_CHECKS = [
 ]
 
 
+def hook_input():
+    """Hook payload from stdin; {} when run manually or on damage (fail open)."""
+    if sys.stdin.isatty():
+        return {}
+    try:
+        data = json.load(sys.stdin)
+        return data if isinstance(data, dict) else {}
+    except (json.JSONDecodeError, OSError):
+        return {}
+
+
+def derived_next(root):
+    """First step in plan.md order not yet in plan_done/ (AGENTS.md §1)."""
+    plan_path = root / "project" / "plan.md"
+    if not plan_path.is_file():
+        return None
+    done = {s for s, _p, _f in plan_steps(root)["plan_done"]}
+    seen = set()
+    for step_id in re.findall(r"\bS\d{3}\b", plan_path.read_text(encoding="utf-8")):
+        if step_id not in seen:
+            seen.add(step_id)
+            if step_id not in done:
+                return step_id
+    return None
+
+
+def status_next(root):
+    status_path = root / "project" / "status.md"
+    if not status_path.is_file():
+        return None
+    match = re.search(r"Next:.*?\b(S\d{3})\b", status_path.read_text(encoding="utf-8"))
+    return match.group(1) if match else None
+
+
+def mode_session_start(root, config):
+    lines = []
+    current = plan_steps(root)["plan_current"]
+    if current:
+        lines.append("moltke stack (plan_current/):")
+        for step_id, _path, fields in current:
+            paused = f" [paused by {fields['paused_by']}]" if fields.get("paused_by") else ""
+            lines.append(f"  {step_id}: {fields.get('goal', '')}{paused}")
+    else:
+        lines.append("moltke: plan_current/ is empty.")
+    nxt = derived_next(root)
+    if nxt:
+        lines.append(f"Derived next step: {nxt} (first in plan.md order not in plan_done/).")
+    stated = status_next(root)
+    if stated != nxt:
+        lines.append(f"status.md is stale (says Next: {stated}, filesystem says {nxt}); "
+                     f"regenerate it from plan_current/ before working.")
+    print(json.dumps({"hookSpecificOutput": {
+        "hookEventName": "SessionStart",
+        "additionalContext": "\n".join(lines),
+    }}))
+    return EXIT_OK
+
+
+def mode_log_prompt(root, config):
+    # UserPromptSubmit exit 2 erases the user's prompt (live docs 2026-08-01):
+    # logging must fail open, always exit 0.
+    prompt = hook_input().get("prompt", "")
+    if not prompt:
+        return EXIT_OK
+    stamp = datetime.datetime.now().astimezone().isoformat(timespec="minutes")
+    quoted = "\n".join(f"> {line}" for line in prompt.splitlines())
+    try:
+        with open(root / "project" / "worklog.md", "a", encoding="utf-8") as worklog:
+            worklog.write(f"\n## {stamp} prompt\n\n{quoted}\n")
+    except OSError as exc:
+        print(f"moltke --log-prompt: {exc}", file=sys.stderr)
+    return EXIT_OK
+
+
+def mode_pre_write(root, config, path_arg):
+    path = path_arg or hook_input().get("tool_input", {}).get("file_path", "")
+    if not path:
+        return EXIT_OK
+    try:
+        rel = Path(path).resolve().relative_to(root) if Path(path).is_absolute() else Path(path)
+    except ValueError:
+        return EXIT_OK  # outside this repo, not ours to police
+    parts = rel.parts
+    if parts[:2] == ("project", "plan_done"):
+        print(f"moltke: {rel} is under plan_done/, which is immutable history. "
+              f"Completed steps are moved there with mv/git mv as the last action of a step; "
+              f"nothing inside is ever edited.", file=sys.stderr)
+        return EXIT_BLOCK
+    if STEP_FILE_RE.match(rel.name) and parts[:2] not in (
+            ("project", "plan_todo"), ("project", "plan_current"), ("project", "plan_done")):
+        print(f"moltke: {rel.name} looks like a step file but {rel} is outside the three "
+              f"plan directories. Create step files only in project/plan_todo/ or "
+              f"project/plan_current/.", file=sys.stderr)
+        return EXIT_BLOCK
+    return EXIT_OK
+
+
+CHEAP_CHECKS = ("INV-1", "INV-2", "INV-3", "INV-4", "INV-5", "INV-6", "INV-9", "INV-10")
+
+
+def mode_post_write(root, config, marker_violations):
+    # Non-blocking by contract (the tool already ran); exit 2 only surfaces
+    # stderr to Claude. Git-based checks are skipped to keep this cheap.
+    violations = list(marker_violations)
+    for name, fn in INVARIANT_CHECKS:
+        if name in CHEAP_CHECKS:
+            violations.extend(fn(root, config))
+    if violations:
+        for violation in violations:
+            print(f"moltke: {violation}", file=sys.stderr)
+        return EXIT_BLOCK
+    return EXIT_OK
+
+
+STOP_CAP = 3
+
+
+def _stop_state_path(root):
+    git_dir = root / ".git"
+    return git_dir / "moltke_stop_state.json" if git_dir.is_dir() else None
+
+
+def _git_lines(root, *args):
+    result = subprocess.run(["git", "-C", str(root), *args], capture_output=True, text=True)
+    return result.stdout.splitlines() if result.returncode == 0 else None
+
+
+def mode_stop(root, config, marker_violations):
+    problems = list(marker_violations)
+    for _name, fn in INVARIANT_CHECKS:
+        problems.extend(fn(root, config))
+
+    nxt = derived_next(root)
+    if nxt and status_next(root) != nxt:
+        problems.append(f"status.md is stale or missing: the derived next step is {nxt}. "
+                        f"Rewrite project/status.md from plan_current/ before ending the turn.")
+
+    porcelain = _git_lines(root, "status", "--porcelain")
+    if porcelain is not None:
+        changed_source = [line for line in porcelain
+                          if not line[3:].startswith(("project/", ".claude"))]
+        if changed_source:
+            shown = subprocess.run(["git", "-C", str(root), "show", "HEAD:project/worklog.md"],
+                                   capture_output=True)
+            worklog = root / "project" / "worklog.md"
+            current = worklog.read_bytes() if worklog.is_file() else b""
+            if shown.returncode == 0 and len(current) <= len(shown.stdout):
+                problems.append("source changed but project/worklog.md gained no recap; "
+                                "append a recap (step id, what changed, files, tests, commit) "
+                                "before ending the turn.")
+        for line in porcelain:
+            entry = line[3:]
+            if line[:2] in ("??", "A ") and entry.startswith("project/plan_done/"):
+                fields = parse_step_file(root / entry)
+                stamp = fields.get("done", "")
+                if "README" not in stamp or "MANUAL" not in stamp:
+                    problems.append(f"{entry} was completed without the README and MANUAL "
+                                    f"check recorded; check both files and note it in the "
+                                    f"done: stamp (checking with no change needed is valid).")
+
+    state_path = _stop_state_path(root)
+    if problems:
+        prompt_id = hook_input().get("prompt_id", "")
+        count = 1
+        if state_path:
+            try:
+                state = json.loads(state_path.read_text(encoding="utf-8"))
+                if state.get("prompt_id") == prompt_id:
+                    count = state.get("count", 0) + 1
+            except (OSError, json.JSONDecodeError):
+                pass
+            state_path.write_text(json.dumps({"prompt_id": prompt_id, "count": count}),
+                                  encoding="utf-8")
+        if count > STOP_CAP:
+            # Live docs (2026-08-01) document no built-in cap; this one keeps
+            # the no-deadlock property of DEC-006 / INV-12.
+            print(f"moltke: still blocked after {STOP_CAP} attempts; allowing stop so the "
+                  f"session is not deadlocked. Run bin/moltke.py --validate and fix by hand.",
+                  file=sys.stderr)
+            return EXIT_OK
+        for problem in problems:
+            print(f"moltke: {problem}", file=sys.stderr)
+        return EXIT_BLOCK
+    if state_path and state_path.is_file():
+        try:
+            state_path.unlink()
+        except OSError:
+            pass
+    return EXIT_OK
+
+
 def run_validate(root, config, marker_violations):
     violations = list(marker_violations)
     for _name, fn in INVARIANT_CHECKS:
@@ -290,7 +482,8 @@ def main(argv=None):
     modes = parser.add_mutually_exclusive_group(required=True)
     modes.add_argument("--session-start", action="store_true", help="SessionStart hook (S005)")
     modes.add_argument("--log-prompt", action="store_true", help="UserPromptSubmit hook (S005)")
-    modes.add_argument("--pre-write", metavar="PATH", help="PreToolUse hook for Write and Edit (S005)")
+    modes.add_argument("--pre-write", metavar="PATH", nargs="?", const="",
+                       help="PreToolUse hook for Write and Edit; PATH falls back to hook stdin JSON")
     modes.add_argument("--post-write", action="store_true", help="PostToolUse hook (S005)")
     modes.add_argument("--stop", action="store_true", help="Stop hook (S005)")
     modes.add_argument("--validate", action="store_true", help="run every invariant, report all violations")
@@ -306,9 +499,17 @@ def main(argv=None):
 
     if args.validate:
         return run_validate(root, config, marker_violations)
-    # Hook modes never block on a broken marker (DEC-006: no deadlock without an
-    # actionable path); --validate is where marker damage must surface.
-    return EXIT_OK  # remaining modes are wired in S005/S006
+    if args.session_start:
+        return mode_session_start(root, config)
+    if args.log_prompt:
+        return mode_log_prompt(root, config)
+    if args.pre_write is not None:
+        return mode_pre_write(root, config, args.pre_write)
+    if args.post_write:
+        return mode_post_write(root, config, marker_violations)
+    if args.stop:
+        return mode_stop(root, config, marker_violations)
+    return EXIT_OK  # --scaffold lands in S006
 
 
 if __name__ == "__main__":
