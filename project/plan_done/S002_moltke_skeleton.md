@@ -4,4 +4,4 @@ accepts:    Python standard library only; every mode exits 0 immediately when .m
 touches:    bin/moltke.py, tests/
 excludes:   individual invariant checks (S003, S004), hook wiring (S005)
 decisions:  DEC-005, DEC-006
-done:
+done:       2026-08-01 suite green 12/12; red observed against the S002 stub (9 failures, recorded in worklog recap); testing.md rows added; README and MANUAL checked, absent by plan (S011)
