@@ -149,7 +149,7 @@ A planning session ends in a commit exactly like a coding session. Do not hold a
 
 ## 8. Decisions
 
-`project/decisions.md`, append only, newest last (DEC-013: appends are free and INV-8 stays literal byte-append; recency is `tail`, lookup is grep). Every entry has a stable id `DEC-<nnn>` and topic tags, so a question like "what did we decide about retries" is one grep, not a read of the whole file. Entry format:
+`project/decisions.md`, append only, newest last: appending costs no read, append-only stays literal (earlier bytes never move), recency is `tail`, lookup is grep. Every entry has a stable id `DEC-<nnn>` and topic tags, so a question like "what did we decide about retries" is one grep, not a read of the whole file. Entry format:
 
 ```
 ## DEC-012  2026-08-01  short title

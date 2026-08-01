@@ -90,3 +90,7 @@ appended by hand.
 - Red observed: 8 failures + 2 errors before implementation; 49/49 green after. Dogfood --validate passes.
 - README/MANUAL: checked, absent by plan (S011).
 - Commit: 3f9b649
+
+## 2026-08-01T17:30+02:00 prompt (hand-logged)
+
+> next

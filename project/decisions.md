@@ -121,3 +121,17 @@ Context:      before S002, Max asked whether an existing tool makes this redunda
 Decision:     proceed with moltke as planned. (Max, after agent-supplied evaluation)
 Rejected:     Spec Kit or GSD Core plus Beads (~70% coverage — planning structure and task state — at zero build cost, but compliance stays advisory and the evidence discipline is absent); adopting project-memory (no enforcement, no plan lifecycle, no testing ledger).
 Consequences: the differentiator to protect is DEC-006 enforcement plus the evidence discipline; AGENTS.md as single source (DEC-003) matches the now-standard convention; the S002..S011 plan stands unchanged.
+
+## DEC-017  2026-08-01  Setup modes are exempt from the INV-11 marker gate
+Tags:         marker, cli, invariants
+Context:      INV-11 requires every mode to exit 0 immediately when the marker is absent, but `--scaffold` exists precisely to create the marker in a repository that has none. Surfaced during S002, resolved at S006.
+Decision:     INV-11 applies to every mode except the setup modes `--scaffold` and `--decline`, which run before the gate. `--decline` is added to the surface so declining is mechanical and durable rather than hand-written JSON. (Max, agent-supplied analysis)
+Rejected:     dropping the gate for all modes (unmarked third-party checkouts would gain friction, defeating DEC-005); having the skill hand-write the declined marker (untestable, and the decline path is exactly what must be reliable).
+Consequences: specs INV-11 carries a dated amendment; the CLI surface grows `--decline`, which the S009 golden test must cover; both setup modes still refuse to touch a repository whose marker says `enabled: false`.
+
+## DEC-018  2026-08-01  Cursor pointer kept thin; Cursor reads AGENTS.md natively
+Tags:         cursor, tools, templates
+Context:      DEC-003 planned a `.cursor/rules` pointer. Cursor documentation checked 2026-08-01 states Cursor reads `AGENTS.md` natively and calls it a simple alternative to `.cursor/rules`; the legacy `.cursorrules` file is gone and project rules are `.cursor/rules/*.mdc` with `description`, `globs`, `alwaysApply` frontmatter.
+Decision:     scaffold a minimal always-applied `.cursor/rules/moltke.mdc` that points at `AGENTS.md` and states no rules of its own. (agent-supplied analysis and choice, low-stakes; reversible by deleting the template)
+Rejected:     dropping the pointer entirely (native support makes it redundant, but the pointer costs five lines and covers Cursor versions or configurations where native reading is off); a full parallel ruleset for Cursor (DEC-003 forbids it: guaranteed drift).
+Consequences: the pointer must never carry rule content, only a reference, so `AGENTS.md` stays the single source of truth.
