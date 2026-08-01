@@ -94,3 +94,14 @@ appended by hand.
 ## 2026-08-01T17:30+02:00 prompt (hand-logged)
 
 > next
+
+## 2026-08-01 recap S006
+
+- Step: S006 init skill and templates tree.
+- Changed: bin/moltke.py (mode_scaffold, mode_decline, scaffold_root, declined, plan_text); skills/init/SKILL.md; templates/ (AGENTS.md copy, CLAUDE.md, cursor_rules, moltke.json, project/*.md, step_template.md, audit_report_template.md); tests/test_s006_scaffold.py (12 tests).
+- Red observed: 6 failures + 3 errors before implementation; 61/61 green after.
+- Defect found by end-to-end scaffold of a throwaway repo (not by unit tests): commented-out example step in the plan template produced a phantom next step S001, a false stale-status.md report, and a Stop block on the first turn of a fresh repo. Regression test written first (red: "'stale' unexpectedly found in ... derived next step: s001"), then plan_text() strips comments and fenced blocks in derived_next and INV-3.
+- Trivial in-scope fix: AGENTS.md 8 carried a live DEC-013 cross-reference that would have shipped into other repos; reworded before copying to templates. Caught by the genericity test.
+- DEC-017 (setup modes exempt from INV-11, --decline added to the surface) and DEC-018 (thin Cursor pointer; Cursor reads AGENTS.md natively) recorded.
+- README/MANUAL: checked, absent by plan (S011).
+- Commits: d93673c (decisions + ruleset fix), c52f044 (S006).
