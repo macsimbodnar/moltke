@@ -50,3 +50,7 @@ appended by hand.
 ## 2026-08-01T16:10+02:00 prompt (hand-logged)
 
 > before proceeding i just want to evaluate if it even makes sense to create this project. For example i found this one https://github.com/SpillwaveSolutions/project-memory and there are many others. Maybe there is one out there that is actually a standard for this so i don't need to reinvent the wheel. Please search online for it and evaluate if i should proceed with the project or not
+
+## 2026-08-01T16:35+02:00 prompt (hand-logged)
+
+> ok i want to proceed. let's proceed
