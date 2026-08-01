@@ -140,3 +140,14 @@ appended by hand.
 ## 2026-08-01T19:45+02:00 prompt (hand-logged)
 
 > next
+
+## 2026-08-01 recap S009
+
+- Step: S009 golden surface test.
+- Changed: bin/moltke.py (extracted build_parser so the surface is introspectable); tests/test_s009_surface.py (5 tests); tests/golden/cli_surface.txt.
+- Red observed by tampering, twice: added flag `--purge` and added `--step abandon`; each failed both the golden and the documentation check, output recorded in testing.md; both reverted and suite green after.
+- Tightened during the step: the documentation check originally matched a bare word anywhere in the file, so `--step new` was satisfied by the word "new" in prose. Now an operation counts only on a line that also names its mode.
+- Known gap, recorded not hidden: the MANUAL half is skipped until MANUAL.md exists; the S011 step file carries the instruction to confirm it stops skipping and actually bites.
+- DEC-012 identity: verified covered by test_s006_scaffold.py, not duplicated; a tripwire asserts the guard still exists.
+- README/MANUAL: checked, absent by plan (S011).
+- Commit: see below.
