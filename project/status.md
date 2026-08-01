@@ -1,13 +1,13 @@
 # Status
 
-Convenience view, rewritten at end of every work turn. The filesystem beats
-this file: on disagreement, `plan_current/` wins (AGENTS.md §1).
+Convenience view, rewritten at the end of every work turn. The filesystem beats
+this file: on disagreement, `plan_current/` wins.
 
-Updated: 2026-08-01, S006 completion.
+Updated: 2026-08-01 by `moltke --step status`.
 
-- Last done: S006 — `init` skill, full `templates/` tree, `--scaffold` and `--decline`; a scaffolded repo validates clean and blocks nothing on the first turn; suite 61/61
-- In progress: none (`plan_current/` empty)
-- Next: S007 — `step` skill
+- Last done: S007
+- In progress: none
+- Next: S008
 - Blocked: none
 - Parked:
   - GitHub configuration (visibility, remotes, branches, protection, pushes) is Max's own; agent commits only (DEC-014). DEC-002 confirmation resolves when Max pushes.

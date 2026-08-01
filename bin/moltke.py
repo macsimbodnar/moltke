@@ -73,6 +73,12 @@ def parse_step_file(path):
     return fields
 
 
+def field_value(fields, key):
+    """A field's real value: unfilled template placeholders read as empty."""
+    value = re.sub(r"<!--.*?-->", "", fields.get(key, ""), flags=re.S)
+    return value.strip()
+
+
 def plan_steps(root):
     """{plan_dir: [(step_id, path, fields)]} for the three plan directories."""
     steps = {}
@@ -96,7 +102,8 @@ def _limit(config, key, default):
 
 def inv_1_active_max(root, config):
     limit = _limit(config, "plan_active_max", 1)
-    active = [s for s, _p, fields in plan_steps(root)["plan_current"] if not fields.get("paused_by")]
+    active = [s for s, _p, fields in plan_steps(root)["plan_current"]
+              if not field_value(fields, "paused_by")]
     if len(active) > limit:
         return [f"INV-1: plan_current/ holds {len(active)} non-paused steps ({', '.join(active)}), "
                 f"limit {limit}; pause or complete until {limit} remain"]
@@ -130,10 +137,10 @@ def inv_4_done_not_blocked(root, config):
     steps = plan_steps(root)
     done_ids = {s for s, _p, _f in steps["plan_done"]}
     violations = []
-    for dirname in PLAN_DIRS:
+    # Only open steps block: a completed child's blocks field is history.
+    for dirname in ("plan_todo", "plan_current"):
         for step_id, path, fields in steps[dirname]:
-            blocked = fields.get("blocks", "")
-            for target in re.findall(r"S\d{3}", blocked):
+            for target in re.findall(r"S\d{3}", field_value(fields, "blocks")):
                 if target in done_ids:
                     violations.append(f"INV-4: {target} is in plan_done/ but {step_id} "
                                       f"({path.relative_to(root)}) still declares blocks: {target}; "
@@ -149,7 +156,7 @@ def inv_5_done_evidence(root, config):
                          if l.startswith("|"))
     violations = []
     for step_id, path, fields in plan_steps(root)["plan_done"]:
-        if not fields.get("done"):
+        if not field_value(fields, "done"):
             violations.append(f"INV-5: {path.relative_to(root)} has no done: stamp; "
                               f"a completed step must carry one")
         if not re.search(rf"\b{step_id}\b", rows):
@@ -323,8 +330,9 @@ def mode_session_start(root, config):
     if current:
         lines.append("moltke stack (plan_current/):")
         for step_id, _path, fields in current:
-            paused = f" [paused by {fields['paused_by']}]" if fields.get("paused_by") else ""
-            lines.append(f"  {step_id}: {fields.get('goal', '')}{paused}")
+            pauser = field_value(fields, "paused_by")
+            paused = f" [paused by {pauser}]" if pauser else ""
+            lines.append(f"  {step_id}: {field_value(fields, 'goal')}{paused}")
     else:
         lines.append("moltke: plan_current/ is empty.")
     nxt = derived_next(root)
@@ -566,6 +574,248 @@ def mode_decline():
     return EXIT_OK
 
 
+def refuse(message):
+    print(f"moltke: {message}", file=sys.stderr)
+    return EXIT_VIOLATIONS
+
+
+def locate_step(root, step_id):
+    """(plan_dir, path, fields) for a step id, or (None, None, None)."""
+    steps = plan_steps(root)
+    for dirname in PLAN_DIRS:
+        for found, path, fields in steps[dirname]:
+            if found == step_id:
+                return dirname, path, fields
+    return None, None, None
+
+
+def next_step_id(root):
+    """Highest id ever seen plus one; ids are never reused (DEC-008),
+    so plan.md counts even when the file is gone."""
+    highest = 0
+    steps = plan_steps(root)
+    for dirname in PLAN_DIRS:
+        for step_id, _p, _f in steps[dirname]:
+            highest = max(highest, int(step_id[1:]))
+    for number in re.findall(r"\bS(\d{3})\b", plan_text(root) or ""):
+        highest = max(highest, int(number))
+    return f"S{highest + 1:03d}"
+
+
+def write_step(path, step_id, goal, blocks=""):
+    template = (TEMPLATE_ROOT / "step_template.md").read_text(encoding="utf-8")
+    lines = []
+    for line in template.splitlines():
+        key = line.split(":", 1)[0].strip()
+        if key == "id":
+            line = f"id:         {step_id}"
+        elif key == "goal" and goal:
+            line = f"goal:       {goal}"
+        elif key == "blocks":
+            line = f"blocks:     {blocks}" if blocks else "blocks:"
+        elif key in ("decisions", "closes", "paused_by", "done"):
+            line = f"{key}:{' ' * (11 - len(key) - 1)}".rstrip()
+        lines.append(line)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def append_to_plan(root, step_id, goal):
+    plan_path = root / "project" / "plan.md"
+    numbers = [int(n) for n in re.findall(r"^\s*(\d+)\.\s", plan_text(root) or "", re.M)]
+    entry = f"{max(numbers) + 1 if numbers else 1}. {step_id}  {goal}".rstrip()
+    text = plan_path.read_text(encoding="utf-8")
+    if not text.endswith("\n"):
+        text += "\n"
+    plan_path.write_text(text + entry + "\n", encoding="utf-8")
+
+
+def set_field(path, key, value):
+    """Set a step field, adding the line when the file does not carry it yet."""
+    rendered = f"{key}:{' ' * max(1, 11 - len(key) - 1)}{value}".rstrip()
+    lines, found = [], False
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if line.split(":", 1)[0].strip() == key:
+            line, found = rendered, True
+        lines.append(line)
+    if not found:
+        lines.append(rendered)
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def step_new(root, config, name, goal):
+    step_id = next_step_id(root)
+    goal = goal or name.replace("_", " ")
+    path = root / "project" / "plan_todo" / f"{step_id}_{name}.md"
+    write_step(path, step_id, goal)
+    append_to_plan(root, step_id, goal)
+    print(f"moltke: created {path.relative_to(root)} and listed {step_id} in plan.md. "
+          f"Reorder plan.md if it does not belong last.")
+    return EXIT_OK
+
+
+def step_start(root, config, step_id):
+    dirname, path, _fields = locate_step(root, step_id)
+    if dirname is None:
+        return refuse(f"{step_id} does not exist; create it with --step new <name>")
+    if dirname == "plan_current":
+        return refuse(f"{step_id} is already in plan_current/")
+    if dirname == "plan_done":
+        return refuse(f"{step_id} is in plan_done/, which is immutable history; "
+                      f"never resume a completed step, create a new one")
+    current = plan_steps(root)["plan_current"]
+    active = [s for s, _p, fields in current if not field_value(fields, "paused_by")]
+    if len(active) + 1 > _limit(config, "plan_active_max", 1):
+        return refuse(f"{', '.join(active)} already active and plan_active_max is "
+                      f"{_limit(config, 'plan_active_max', 1)}; complete it, or if it is "
+                      f"blocked by this work use --step block {active[0]} <name> instead")
+    if len(current) + 1 > _limit(config, "plan_stack_max", 3):
+        return refuse(f"plan_current/ stack is full ({len(current)}); complete something first")
+    path.rename(root / "project" / "plan_current" / path.name)
+    print(f"moltke: {step_id} is now current.")
+    return EXIT_OK
+
+
+def step_block(root, config, parent_id, name):
+    dirname, parent_path, _fields = locate_step(root, parent_id)
+    if dirname != "plan_current":
+        where = dirname or "nowhere"
+        return refuse(f"{parent_id} is in {where}, not plan_current/; only an in-progress "
+                      f"step can be paused by a blocking child")
+    current = plan_steps(root)["plan_current"]
+    limit = _limit(config, "plan_stack_max", 3)
+    if len(current) + 1 > limit:
+        return refuse(f"stack depth would reach {len(current) + 1}, over plan_stack_max "
+                      f"{limit}. A blocker spawning its own blockers this deep means the plan "
+                      f"is wrong at design level: stop, record a decision, and replan.")
+    child_id = next_step_id(root)
+    goal = name.replace("_", " ")
+    child_path = root / "project" / "plan_current" / f"{child_id}_{name}.md"
+    write_step(child_path, child_id, goal, blocks=parent_id)
+    append_to_plan(root, child_id, goal)
+    set_field(parent_path, "paused_by",
+              f"{child_id}  # {datetime.date.today().isoformat()}")
+    print(f"moltke: {child_id} created in plan_current/ blocking {parent_id}, "
+          f"which is now paused.")
+    return EXIT_OK
+
+
+def step_done(root, config, step_id, stamp):
+    dirname, path, fields = locate_step(root, step_id)
+    if dirname is None:
+        return refuse(f"{step_id} does not exist")
+    if dirname != "plan_current":
+        return refuse(f"{step_id} is in {dirname}, not plan_current/; only a step that is "
+                      f"actually in progress can be completed")
+    pauser = re.search(r"S\d{3}", field_value(fields, "paused_by"))
+    if pauser:
+        return refuse(f"{step_id} is paused by {pauser.group(0)}; complete {pauser.group(0)} "
+                      f"first, which unpauses this step automatically")
+    steps = plan_steps(root)
+    for open_dir in ("plan_todo", "plan_current"):
+        for other_id, _p, other_fields in steps[open_dir]:
+            if other_id != step_id and step_id in field_value(other_fields, "blocks"):
+                return refuse(f"{other_id} still declares blocks: {step_id}; complete or "
+                              f"drop {other_id} first")
+    testing = root / "project" / "testing.md"
+    rows = testing.read_text(encoding="utf-8") if testing.is_file() else ""
+    if not re.search(rf"\b{step_id}\b", "\n".join(l for l in rows.splitlines()
+                                                  if l.startswith("|"))):
+        return refuse(f"no testing.md row references {step_id}; acceptance rows are added "
+                      f"with the feature, before completion")
+    if not stamp:
+        return refuse(f"--step done needs --stamp \"<what proves this step is finished>\"")
+    if "README" not in stamp or "MANUAL" not in stamp:
+        return refuse(f"the completion stamp must record the README and MANUAL check "
+                      f"(concluding that neither needs a change is a valid outcome, "
+                      f"not checking is not)")
+
+    set_field(path, "done", stamp)
+    for parent_id, parent_path, parent_fields in steps["plan_current"]:
+        if step_id in field_value(parent_fields, "paused_by"):
+            set_field(parent_path, "paused_by", "")
+            print(f"moltke: {parent_id} unpaused.")
+    path.rename(root / "project" / "plan_done" / path.name)
+    print(f"moltke: {step_id} completed and moved to plan_done/. Commit it; the move is the "
+          f"last action of the step.")
+    return EXIT_OK
+
+
+def parked_lines(root):
+    """Carry the human-written Parked list through a regeneration."""
+    status_path = root / "project" / "status.md"
+    if not status_path.is_file():
+        return []
+    kept, collecting = [], False
+    for line in status_path.read_text(encoding="utf-8").splitlines():
+        if re.match(r"^\s*-\s*Parked:", line):
+            collecting = True
+            continue
+        if collecting:
+            if line.startswith(("  ", "\t")) or not line.strip():
+                if line.strip():
+                    kept.append(line.rstrip())
+            else:
+                break
+    return kept
+
+
+def step_status(root, config):
+    steps = plan_steps(root)
+    done_ids = [s for s, _p, _f in steps["plan_done"]]
+    ordered = []
+    for step_id in re.findall(r"\bS\d{3}\b", plan_text(root) or ""):
+        if step_id not in ordered:
+            ordered.append(step_id)
+    last_done = next((s for s in reversed(ordered) if s in done_ids), None)
+
+    lines = ["# Status", "",
+             "Convenience view, rewritten at the end of every work turn. The filesystem "
+             "beats", "this file: on disagreement, `plan_current/` wins.", "",
+             f"Updated: {datetime.date.today().isoformat()} by `moltke --step status`.", ""]
+    lines.append(f"- Last done: {last_done or 'nothing yet'}")
+
+    active, paused = [], []
+    for step_id, _p, fields in steps["plan_current"]:
+        pauser = field_value(fields, "paused_by")
+        goal = field_value(fields, "goal")
+        (paused if pauser else active).append(
+            f"{step_id} {goal}" + (f" (paused by {pauser})" if pauser else ""))
+    lines.append(f"- In progress: {'; '.join(active) if active else 'none'}")
+    lines.append(f"- Next: {derived_next(root) or 'no steps left in plan.md'}")
+    lines.append(f"- Blocked: {'; '.join(paused) if paused else 'none'}")
+    lines.append("- Parked:")
+    lines.extend(parked_lines(root))
+
+    (root / "project" / "status.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    print("moltke: regenerated project/status.md from the filesystem.")
+    return EXIT_OK
+
+
+STEP_OPS = ("new", "start", "block", "done", "status")
+
+
+def mode_step(root, config, argv, goal, stamp):
+    op, rest = argv[0], argv[1:]
+    if op not in STEP_OPS:
+        return refuse(f"unknown --step operation {op!r}; use one of {', '.join(STEP_OPS)}")
+    try:
+        if op == "new":
+            return step_new(root, config, rest[0], goal)
+        if op == "start":
+            return step_start(root, config, rest[0])
+        if op == "block":
+            return step_block(root, config, rest[0], rest[1])
+        if op == "done":
+            return step_done(root, config, rest[0], stamp)
+        return step_status(root, config)
+    except IndexError:
+        usage = {"new": "new <short_name> [--goal TEXT]", "start": "start <id>",
+                 "block": "block <parent_id> <short_name>",
+                 "done": "done <id> --stamp TEXT"}[op]
+        return refuse(f"usage: --step {usage}")
+
+
 def run_validate(root, config, marker_violations):
     violations = list(marker_violations)
     for _name, fn in INVARIANT_CHECKS:
@@ -591,6 +841,10 @@ def main(argv=None):
     modes.add_argument("--validate", action="store_true", help="run every invariant, report all violations")
     modes.add_argument("--scaffold", action="store_true", help="create the marker, AGENTS.md, and project/ from templates")
     modes.add_argument("--decline", action="store_true", help="record that this repository declines the workflow, durably")
+    modes.add_argument("--step", nargs="+", metavar="OP",
+                       help="lifecycle: new <name> | start <id> | block <parent> <name> | done <id> | status")
+    parser.add_argument("--goal", default="", help="goal line for --step new")
+    parser.add_argument("--stamp", default="", help="completion stamp for --step done")
     args = parser.parse_args(argv)
 
     # Setup modes run before the marker gate: they exist to create it (DEC-017).
@@ -618,6 +872,8 @@ def main(argv=None):
         return mode_post_write(root, config, marker_violations)
     if args.stop:
         return mode_stop(root, config, marker_violations)
+    if args.step:
+        return mode_step(root, config, args.step, args.goal, args.stamp)
     return EXIT_OK
 
 

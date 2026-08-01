@@ -105,3 +105,7 @@ appended by hand.
 - DEC-017 (setup modes exempt from INV-11, --decline added to the surface) and DEC-018 (thin Cursor pointer; Cursor reads AGENTS.md natively) recorded.
 - README/MANUAL: checked, absent by plan (S011).
 - Commits: d93673c (decisions + ruleset fix), c52f044 (S006).
+
+## 2026-08-01T18:15+02:00 prompt (hand-logged)
+
+> next

@@ -117,6 +117,7 @@ which is the only enforcement available outside Claude Code.
 | `--validate` | manual, any tool | run every invariant, report all violations, exit non-zero |
 | `--scaffold` | `init` skill | create the marker, `AGENTS.md`, `CLAUDE.md`, the Cursor pointer, and `project/` from templates; never overwrites an existing file |
 | `--decline` | `init` skill | write `{"schema": 1, "enabled": false}`, durably; refuses to disable an already-enabled repository |
+| `--step OP ...` | `step` skill | 2026-08-01 (S007): lifecycle operations `new <name> [--goal]`, `start <id>`, `block <parent> <name>`, `done <id> --stamp`, `status`. Each refuses rather than repairs, naming the missing condition; no transition may leave INV-1..INV-7 violated |
 
 Every mode exits 0 immediately when `.moltke.json` is absent or `enabled` is
 false (INV-11).
@@ -131,6 +132,11 @@ same prompt it allows the stop with a warning (state in
 `.git/moltke_stop_state.json`), preserving the DEC-006 no-deadlock property.
 `--stop`'s README/MANUAL gate is mechanical: a step file newly moved into
 `plan_done/` must mention README and MANUAL in its `done:` stamp.
+
+2026-08-01 (S007): unfilled template placeholders (`<!-- ... -->`) in a step
+field read as empty everywhere, so a hand-copied `step_template.md` cannot
+silently look paused. INV-4 counts `blocks:` declarations only from open steps:
+a completed child's `blocks` field is history, not a live block.
 
 2026-08-01 (S006): step ids are read from `plan.md` with HTML comments and
 fenced blocks stripped, so commented-out example steps are not the plan. Found
