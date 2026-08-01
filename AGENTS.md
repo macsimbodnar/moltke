@@ -50,7 +50,7 @@ Code that disagrees with specs is a bug or an unrecorded decision. It is never s
 | `project/plan_current/` | active step plus any paused parents, as a stack | add and remove | step started, paused, or completed |
 | `project/plan_done/` | completed steps, immutable history | append by move only | step completed |
 | `project/testing.md` | acceptance ledger | append rows | with the feature, never after |
-| `project/decisions.md` | decision log, newest first | append only | before or alongside the change |
+| `project/decisions.md` | decision log, newest last | append only | before or alongside the change |
 | `project/worklog.md` | prompts and recaps | append only | every prompt, recap on work turns |
 | `project/audit/` | adversarial, security, bug hunt reports | add files | per audit run |
 
@@ -149,7 +149,7 @@ A planning session ends in a commit exactly like a coding session. Do not hold a
 
 ## 8. Decisions
 
-`project/decisions.md`, append only, newest first. Every entry has a stable id `DEC-<nnn>` and topic tags, so a question like "what did we decide about retries" is one grep, not a read of the whole file. Entry format:
+`project/decisions.md`, append only, newest last (DEC-013: appends are free and INV-8 stays literal byte-append; recency is `tail`, lookup is grep). Every entry has a stable id `DEC-<nnn>` and topic tags, so a question like "what did we decide about retries" is one grep, not a read of the whole file. Entry format:
 
 ```
 ## DEC-012  2026-08-01  short title
