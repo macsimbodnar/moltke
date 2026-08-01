@@ -33,3 +33,16 @@ appended by hand.
 - DEC-013: decisions.md newest last; AGENTS.md §2/§8 amended; DEC-001..DEC-012 reordered oldest first (one-time exception authorized by DEC-013); S004 reconcile clause dropped; superseding testing.md row appended.
 - DEC-014: GitHub configuration is Max's own; agent commits only, until new orders.
 - Commit: e8084d3
+
+## 2026-08-01T15:45+02:00 prompt (hand-logged)
+
+> ok, before proceeding i want to rename the project, repository and commands. The new name of the project is moltke (Moltke commanded armies he could not see by writing orders that survived his absence. Same problem, smaller scale.)
+
+## 2026-08-01 recap moltke rename
+
+- Not a step; naming decision turn. Scope question answered by Max: full rename.
+- DEC-015: plugin/repo `moltke`, CLI `bin/moltke.py`, marker `.moltke.json`, skills init/step/audit under /moltke:.
+- Renamed: `.workflow.json` → `.moltke.json`; step files S002/S006/S007 short names; specs, AGENTS.md, plan, status, plan_todo step files updated. Immutable history keeps old names, reads through DEC-015.
+- Superseding testing.md row appended for the marker.
+- GitHub repo rename and local directory rename left to Max (DEC-014).
+- Commit: 00da550
