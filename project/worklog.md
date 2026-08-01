@@ -121,3 +121,7 @@ appended by hand.
 - Observation, not a defect: with a step in progress, status shows it as both "In progress" and "Next", which is exactly the AGENTS.md 1 derivation (first step in plan order not in plan_done).
 - README/MANUAL: checked, absent by plan (S011).
 - Commit: see below.
+
+## 2026-08-01T19:00+02:00 prompt (hand-logged)
+
+> next

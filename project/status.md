@@ -5,9 +5,9 @@ this file: on disagreement, `plan_current/` wins.
 
 Updated: 2026-08-01 by `moltke --step status`.
 
-- Last done: S007
+- Last done: S008
 - In progress: none
-- Next: S008
+- Next: S009
 - Blocked: none
 - Parked:
   - GitHub configuration (visibility, remotes, branches, protection, pushes) is Max's own; agent commits only (DEC-014). DEC-002 confirmation resolves when Max pushes.

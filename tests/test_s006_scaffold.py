@@ -107,6 +107,18 @@ class TestScaffold(unittest.TestCase):
             self.assertEqual(run_moltke(tmp, "--stop").returncode, 0,
                              "a freshly scaffolded repo must not block the first stop")
 
+    def test_first_real_decision_does_not_collide_with_the_template_example(self):
+        # The format example in decisions.md is guidance, not an entry.
+        with tempfile.TemporaryDirectory() as tmp:
+            run_moltke(tmp, "--scaffold")
+            decisions = Path(tmp) / "project" / "decisions.md"
+            decisions.write_text(decisions.read_text(encoding="utf-8")
+                                 + "\n## DEC-001  2026-08-01  the first real decision\n"
+                                   "Tags: setup\nContext: x\nDecision: y\n"
+                                   "Rejected: z\nConsequences: none\n", encoding="utf-8")
+            result = run_moltke(tmp, "--validate")
+            self.assertEqual(result.returncode, 0, result.stdout)
+
     def test_scaffolds_at_git_root_from_a_subdirectory(self):
         with tempfile.TemporaryDirectory() as tmp:
             subprocess.run(["git", "-C", tmp, "init", "-q"], check=True)

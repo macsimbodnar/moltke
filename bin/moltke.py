@@ -73,10 +73,21 @@ def parse_step_file(path):
     return fields
 
 
+def strip_guidance(text):
+    """Drop fenced blocks and HTML comments.
+
+    Templates carry their own format as an example. Every scanner in this file
+    reads it through here, so guidance is never counted as data: a commented
+    step is not planned, an example finding is not open, an example decision id
+    is not taken.
+    """
+    text = re.sub(r"```.*?```", "", text, flags=re.S)
+    return re.sub(r"<!--.*?-->", "", text, flags=re.S)
+
+
 def field_value(fields, key):
     """A field's real value: unfilled template placeholders read as empty."""
-    value = re.sub(r"<!--.*?-->", "", fields.get(key, ""), flags=re.S)
-    return value.strip()
+    return strip_guidance(fields.get(key, "")).strip()
 
 
 def plan_steps(root):
@@ -224,7 +235,8 @@ def inv_9_unique_dec_ids(root, config):
     if not path.is_file():
         return []
     seen, violations = set(), []
-    for dec_id in re.findall(r"^## (DEC-\d{3})\b", path.read_text(encoding="utf-8"), re.M):
+    text = strip_guidance(path.read_text(encoding="utf-8"))
+    for dec_id in re.findall(r"^## (DEC-\d{3})\b", text, re.M):
         if dec_id in seen:
             violations.append(f"INV-9: duplicate decision id {dec_id} in decisions.md; "
                               f"renumber the new entry to the next free DEC id")
@@ -232,29 +244,43 @@ def inv_9_unique_dec_ids(root, config):
     return violations
 
 
+def finding_references(root):
+    """Everything that can discharge a finding: step closes: fields, decisions."""
+    references = []
+    for dirname in PLAN_DIRS:
+        for _step_id, _path, fields in plan_steps(root)[dirname]:
+            references.append(field_value(fields, "closes"))
+    decisions = root / "project" / "decisions.md"
+    if decisions.is_file():
+        references.append(decisions.read_text(encoding="utf-8"))
+    return "\n".join(references)
+
+
+def report_findings(report):
+    """[(finding_id, status)] for a report. Fenced examples and comments in the
+    template are guidance, not findings."""
+    text = strip_guidance(report.read_text(encoding="utf-8"))
+    headings = list(FINDING_RE.finditer(text))
+    findings = []
+    for index, match in enumerate(headings):
+        end = headings[index + 1].start() if index + 1 < len(headings) else len(text)
+        status_match = re.search(r"^Status:\s*(\S+)", text[match.end():end], re.M | re.I)
+        findings.append((match.group(1), status_match.group(1).lower() if status_match else None))
+    return findings
+
+
 def inv_10_audit_findings(root, config):
     audit_dir = root / "project" / "audit"
     if not audit_dir.is_dir():
         return []
-    references = []
-    for dirname in PLAN_DIRS:
-        for _step_id, _path, fields in plan_steps(root)[dirname]:
-            references.append(fields.get("closes", ""))
-    decisions = root / "project" / "decisions.md"
-    if decisions.is_file():
-        references.append(decisions.read_text(encoding="utf-8"))
-    references = "\n".join(references)
-
+    references = finding_references(root)
     violations = []
     for report in sorted(audit_dir.glob("*.md")):
-        text = report.read_text(encoding="utf-8")
-        headings = list(FINDING_RE.finditer(text))
-        for index, match in enumerate(headings):
-            finding_id = match.group(1)
-            end = headings[index + 1].start() if index + 1 < len(headings) else len(text)
-            section = text[match.end():end]
-            status_match = re.search(r"^Status:\s*(\S+)", section, re.M | re.I)
-            status = status_match.group(1).lower() if status_match else None
+        for finding_id, status in report_findings(report):
+            if not finding_id.startswith(report.stem):
+                violations.append(f"INV-10: finding {finding_id} lives in {report.name}; "
+                                  f"finding ids carry their own report's name, so it should "
+                                  f"read {report.stem}-F<nn>")
             if status not in FINDING_STATUSES:
                 violations.append(f"INV-10: finding {finding_id} in {report.name} has status "
                                   f"{status!r}; set one of {', '.join(FINDING_STATUSES)}")
@@ -296,9 +322,7 @@ def plan_text(root):
     plan_path = root / "project" / "plan.md"
     if not plan_path.is_file():
         return None
-    text = plan_path.read_text(encoding="utf-8")
-    text = re.sub(r"<!--.*?-->", "", text, flags=re.S)
-    return re.sub(r"```.*?```", "", text, flags=re.S)
+    return strip_guidance(plan_path.read_text(encoding="utf-8"))
 
 
 def derived_next(root):
@@ -365,8 +389,12 @@ def mode_log_prompt(root, config):
     return EXIT_OK
 
 
+REVIEWER_AGENT = "adversarial_reviewer"
+
+
 def mode_pre_write(root, config, path_arg):
-    path = path_arg or hook_input().get("tool_input", {}).get("file_path", "")
+    payload = hook_input()
+    path = path_arg or payload.get("tool_input", {}).get("file_path", "")
     if not path:
         return EXIT_OK
     try:
@@ -374,6 +402,13 @@ def mode_pre_write(root, config, path_arg):
     except ValueError:
         return EXIT_OK  # outside this repo, not ours to police
     parts = rel.parts
+    # The reviewer produces evidence, not patches: a reviewer that can fix what
+    # it finds stops recording findings and starts writing code.
+    if payload.get("agent_type") == REVIEWER_AGENT and parts[:2] != ("project", "audit"):
+        print(f"moltke: the {REVIEWER_AGENT} may only write under project/audit/, and {rel} "
+              f"is outside it. Record what you found as a finding in your report; fixes are "
+              f"planned as steps afterwards, by someone else.", file=sys.stderr)
+        return EXIT_BLOCK
     if parts[:2] == ("project", "plan_done"):
         print(f"moltke: {rel} is under plan_done/, which is immutable history. "
               f"Completed steps are moved there with mv/git mv as the last action of a step; "
@@ -792,6 +827,72 @@ def step_status(root, config):
     return EXIT_OK
 
 
+def audit_new(root, config, audit_type):
+    report = root / "project" / "audit" / f"{datetime.date.today().isoformat()}_{audit_type}.md"
+    if report.exists():
+        return refuse(f"{report.relative_to(root)} already exists; a report is evidence of one "
+                      f"run and is never edited afterwards. Use a different type name, or "
+                      f"re-run the audit tomorrow.")
+    template = (TEMPLATE_ROOT / "audit_report_template.md").read_text(encoding="utf-8")
+    report.parent.mkdir(parents=True, exist_ok=True)
+    report.write_text(template.replace("YYYY-MM-DD_type", report.stem)
+                              .replace("YYYY-MM-DD", datetime.date.today().isoformat())
+                              .replace("<type>", audit_type), encoding="utf-8")
+    print(f"moltke: created {report.relative_to(root)}. Write every finding before fixing "
+          f"anything; finding ids are {report.stem}-F01, -F02, ...")
+    return EXIT_OK
+
+
+def audit_list(root, config):
+    audit_dir = root / "project" / "audit"
+    reports = sorted(audit_dir.glob("*.md")) if audit_dir.is_dir() else []
+    references = finding_references(root)
+    steps = plan_steps(root)
+    unreferenced = 0
+    total = 0
+    for report in reports:
+        findings = report_findings(report)
+        if not findings:
+            continue
+        print(f"{report.name}")
+        for finding_id, status in findings:
+            total += 1
+            closers = [s for dirname in PLAN_DIRS for s, _p, fields in steps[dirname]
+                       if finding_id in field_value(fields, "closes")]
+            if closers:
+                where = f"closed by {', '.join(closers)}"
+            elif finding_id in references:
+                where = "referenced in decisions.md"
+            else:
+                where = "no reference"
+                if status == "open":
+                    unreferenced += 1
+            print(f"  {finding_id}  {status}  ({where})")
+    if not total:
+        print("moltke: no findings recorded.")
+        return EXIT_OK
+    if unreferenced:
+        print(f"moltke: {unreferenced} open finding(s) have no plan step and no decision. "
+              f"Every finding ends in a step whose closes: names it, or a decisions.md entry "
+              f"stating why it is accepted.")
+        return EXIT_VIOLATIONS
+    return EXIT_OK
+
+
+AUDIT_OPS = ("new", "list")
+
+
+def mode_audit(root, config, argv):
+    op, rest = argv[0], argv[1:]
+    if op not in AUDIT_OPS:
+        return refuse(f"unknown --audit operation {op!r}; use one of {', '.join(AUDIT_OPS)}")
+    if op == "list":
+        return audit_list(root, config)
+    if not rest:
+        return refuse("usage: --audit new <type>   (for example: adversarial, security)")
+    return audit_new(root, config, rest[0])
+
+
 STEP_OPS = ("new", "start", "block", "done", "status")
 
 
@@ -843,6 +944,8 @@ def main(argv=None):
     modes.add_argument("--decline", action="store_true", help="record that this repository declines the workflow, durably")
     modes.add_argument("--step", nargs="+", metavar="OP",
                        help="lifecycle: new <name> | start <id> | block <parent> <name> | done <id> | status")
+    modes.add_argument("--audit", nargs="+", metavar="OP",
+                       help="audit reports: new <type> | list")
     parser.add_argument("--goal", default="", help="goal line for --step new")
     parser.add_argument("--stamp", default="", help="completion stamp for --step done")
     args = parser.parse_args(argv)
@@ -874,6 +977,8 @@ def main(argv=None):
         return mode_stop(root, config, marker_violations)
     if args.step:
         return mode_step(root, config, args.step, args.goal, args.stamp)
+    if args.audit:
+        return mode_audit(root, config, args.audit)
     return EXIT_OK
 
 

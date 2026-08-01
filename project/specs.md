@@ -117,6 +117,7 @@ which is the only enforcement available outside Claude Code.
 | `--validate` | manual, any tool | run every invariant, report all violations, exit non-zero |
 | `--scaffold` | `init` skill | create the marker, `AGENTS.md`, `CLAUDE.md`, the Cursor pointer, and `project/` from templates; never overwrites an existing file |
 | `--decline` | `init` skill | write `{"schema": 1, "enabled": false}`, durably; refuses to disable an already-enabled repository |
+| `--audit OP ...` | `audit` skill | 2026-08-01 (S008): `new <type>` opens `project/audit/YYYY-MM-DD_<type>.md` from the template and refuses to overwrite; `list` prints every finding with its status and what references it, exiting non-zero while an open finding has neither a step nor a decision |
 | `--step OP ...` | `step` skill | 2026-08-01 (S007): lifecycle operations `new <name> [--goal]`, `start <id>`, `block <parent> <name>`, `done <id> --stamp`, `status`. Each refuses rather than repairs, naming the missing condition; no transition may leave INV-1..INV-7 violated |
 
 Every mode exits 0 immediately when `.moltke.json` is absent or `enabled` is
@@ -132,6 +133,20 @@ same prompt it allows the stop with a warning (state in
 `.git/moltke_stop_state.json`), preserving the DEC-006 no-deadlock property.
 `--stop`'s README/MANUAL gate is mechanical: a step file newly moved into
 `plan_done/` must mention README and MANUAL in its `done:` stamp.
+
+2026-08-01 (S008): **template guidance is never data.** Every scanner reads
+its input through `strip_guidance`, which drops fenced blocks and HTML
+comments, so a commented example step is not planned, an example finding is
+not open, and an example `DEC-001` does not consume the id. This rule exists
+because the same defect appeared four separate times: commented plan steps,
+example findings, the `paused_by` placeholder, and a scaffolded project whose
+first real decision collided with the template's own example.
+
+2026-08-01 (S008): INV-10 additionally requires a finding id to carry its own
+report's name, so ids cannot drift between reports when an audit is re-run.
+The reviewer's write fence is enforced in `--pre-write` using the PreToolUse
+`agent_type` field: subagent frontmatter has no path-level restriction, so the
+hook is the only place the limit can be real.
 
 2026-08-01 (S007): unfilled template placeholders (`<!-- ... -->`) in a step
 field read as empty everywhere, so a hand-copied `step_template.md` cannot

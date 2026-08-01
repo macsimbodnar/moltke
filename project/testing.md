@@ -47,3 +47,9 @@ never after. Append only.
 | S007 | `--step status` regenerates from the filesystem, shows the paused stack, and preserves the human-written Parked list | TestStatus (3 tests) | pass 2026-08-01 |
 | S007 | an unfilled `paused_by` template placeholder does not hide an active step (INV-1 still fires) | TestTemplatePlaceholders (red observed: `0 != 1 : moltke: all checks pass`) | pass 2026-08-01 |
 | S007 | the `step` skill exists and declares name and description frontmatter | TestStepSkill.test_skill_declares_name_and_description | pass 2026-08-01 |
+| S008 | `--audit new <type>` creates the dated report and refuses to overwrite an existing one; a fresh report has no live findings and leaves `--validate` clean | test_s008_audit.py TestAuditNew (3 tests) | pass 2026-08-01 |
+| S008 | `--audit list` prints each finding with status and what references it, and exits non-zero while an open finding has neither step nor decision | TestAuditList (2 tests) | pass 2026-08-01 |
+| S008 | INV-10 requires a finding id to carry its own report's name | TestFindingIds.test_finding_id_must_match_its_report | pass 2026-08-01 |
+| S008 | the reviewer may write only under `project/audit/`: source, specs, plan, and step files are blocked; other agents are unaffected | TestReviewerWriteFence (4 tests) | pass 2026-08-01 |
+| S008 | `adversarial_reviewer` is defined with Read and Write but never Edit; the `audit` skill declares name and description | TestDefinitions (2 tests) | pass 2026-08-01 |
+| S008 | a scaffolded repo's first real `DEC-001` does not collide with the template's format example (regression: template guidance is not data) | test_s006_scaffold.py test_first_real_decision_does_not_collide_with_the_template_example (red observed before `strip_guidance`) | pass 2026-08-01 |
