@@ -81,3 +81,12 @@ appended by hand.
 - INV-10 fixed the finding format ahead of S008 (### <report>-F<nn> + Status: line); noted in specs and the S008 step file.
 - README/MANUAL: checked, absent by plan (S011).
 - Commit: 21b27d0
+
+## 2026-08-01 recap S005
+
+- Step: S005 hooks wiring.
+- Changed: bin/moltke.py (mode_session_start, mode_log_prompt, mode_pre_write, mode_post_write, mode_stop, derived_next/status_next, 3-block stop cap); hooks/hooks.json (five events, ${CLAUDE_PLUGIN_ROOT}); tests/test_s005_hooks.py (16 tests); fixtures gained status.md.
+- Live-docs deviations recorded in specs: UserPromptSubmit exit 2 erases the prompt (log fails open); SessionStart context via hookSpecificOutput.additionalContext; no documented Stop cap (self-imposed cap of 3, state in .git/moltke_stop_state.json).
+- Red observed: 8 failures + 2 errors before implementation; 49/49 green after. Dogfood --validate passes.
+- README/MANUAL: checked, absent by plan (S011).
+- Commit: 3f9b649
