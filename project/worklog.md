@@ -54,3 +54,12 @@ appended by hand.
 ## 2026-08-01T16:35+02:00 prompt (hand-logged)
 
 > ok i want to proceed. let's proceed
+
+## 2026-08-01 recap S002
+
+- Step: S002 moltke.py skeleton.
+- Changed: bin/moltke.py (find_root, load_marker/check_marker, INV-11 gate, --validate with INVARIANT_CHECKS registry, hook-mode stubs for S005); tests/fixtures.py (broken-fixture builders); tests/test_s002_marker.py (12 tests).
+- Red observed: stub version exiting 0 everywhere -> 9 of 12 failed ("AssertionError: 0 != 1", "'all checks pass' not found in ''"); the 3 passing were INV-11 gate tests whose non-vacuity partners were among the failures. Then implemented; 12/12 green. Dogfood: `python3 bin/moltke.py --validate` passes on this repo.
+- Flagged: INV-11 vs --scaffold tension (scaffold must run unmarked); routed to S006 step file and status parked.
+- README/MANUAL: checked, absent by plan (S011).
+- Commit: 2a50f1d
