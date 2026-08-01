@@ -30,7 +30,7 @@ Enforced by `bin/moltke.py` in marked repositories:
 
 Properties of the checker itself:
 
-- INV-11 every mode exits 0 immediately when `.moltke.json` is absent or `enabled` is false.
+- INV-11 every mode exits 0 immediately when `.moltke.json` is absent or `enabled` is false. 2026-08-01 (S006, DEC-017): except the setup modes `--scaffold` and `--decline`, which run before the gate because they exist to create the marker; both still leave a declined repository untouched.
 - INV-12 every blocking exit carries a message stating exactly what to do to unblock (DEC-006: a `Stop` hook has a cap on consecutive blocks; an unactionable message deadlocks the session).
 
 2026-08-01 (S004): INV-8 uses the same git HEAD baseline as INV-7: the
@@ -115,7 +115,8 @@ which is the only enforcement available outside Claude Code.
 | `--post-write` | PostToolUse | cheap invariant scan, non-blocking |
 | `--stop` | Stop hook | exit 2 with an actionable message if source changed without a worklog recap, a stale `status.md`, a completed step lacking `testing.md` rows, or unchecked README and MANUAL |
 | `--validate` | manual, any tool | run every invariant, report all violations, exit non-zero |
-| `--scaffold` | `init` skill | create `project/` and `.moltke.json` from templates |
+| `--scaffold` | `init` skill | create the marker, `AGENTS.md`, `CLAUDE.md`, the Cursor pointer, and `project/` from templates; never overwrites an existing file |
+| `--decline` | `init` skill | write `{"schema": 1, "enabled": false}`, durably; refuses to disable an already-enabled repository |
 
 Every mode exits 0 immediately when `.moltke.json` is absent or `enabled` is
 false (INV-11).
@@ -130,6 +131,12 @@ same prompt it allows the stop with a warning (state in
 `.git/moltke_stop_state.json`), preserving the DEC-006 no-deadlock property.
 `--stop`'s README/MANUAL gate is mechanical: a step file newly moved into
 `plan_done/` must mention README and MANUAL in its `done:` stamp.
+
+2026-08-01 (S006): step ids are read from `plan.md` with HTML comments and
+fenced blocks stripped, so commented-out example steps are not the plan. Found
+by scaffolding a real repository: the template's example line produced a
+phantom next step, a false stale-`status.md` report, and a Stop block on the
+first turn.
 
 Language: Python, standard library only. It runs on every prompt, so startup
 cost matters and dependencies are unacceptable.

@@ -1,0 +1,7 @@
+{
+  "schema": 1,
+  "enabled": true,
+  "plan_active_max": 1,
+  "plan_stack_max": 3,
+  "surface_guard": "cli"
+}

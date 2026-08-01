@@ -4,4 +4,4 @@ accepts:    running it twice is idempotent; declining writes {"enabled": false} 
 touches:    skills/init/, templates/
 decisions:  DEC-002, DEC-003, DEC-005
 note:       resolve INV-11 vs --scaffold, surfaced in S002: scaffolding must run in unmarked repos, but INV-11 says every mode exits 0 without a marker; record the carve-out in specs and decisions.md
-done:
+done:       2026-08-01 suite green 61/61; red observed (6 failures, 3 errors) before implementation; end-to-end scaffold of a throwaway repo verified, which caught the phantom-next-step defect (regression test added, red observed, fixed); README and MANUAL checked, absent by plan (S011)

@@ -113,10 +113,9 @@ def inv_2_stack_max(root, config):
 
 
 def inv_3_steps_in_plan(root, config):
-    plan_path = root / "project" / "plan.md"
-    if not plan_path.is_file():
+    plan = plan_text(root)
+    if plan is None:
         return ["INV-3: project/plan.md is missing; create it and list every step"]
-    plan = plan_path.read_text(encoding="utf-8")
     violations = []
     steps = plan_steps(root)
     for dirname in ("plan_todo", "plan_current"):
@@ -284,14 +283,25 @@ def hook_input():
         return {}
 
 
-def derived_next(root):
-    """First step in plan.md order not yet in plan_done/ (AGENTS.md §1)."""
+def plan_text(root):
+    """plan.md with comments and fenced blocks stripped: commented-out
+    example steps are not the plan."""
     plan_path = root / "project" / "plan.md"
     if not plan_path.is_file():
         return None
+    text = plan_path.read_text(encoding="utf-8")
+    text = re.sub(r"<!--.*?-->", "", text, flags=re.S)
+    return re.sub(r"```.*?```", "", text, flags=re.S)
+
+
+def derived_next(root):
+    """First step in plan.md order not yet in plan_done/ (AGENTS.md §1)."""
+    plan = plan_text(root)
+    if plan is None:
+        return None
     done = {s for s, _p, _f in plan_steps(root)["plan_done"]}
     seen = set()
-    for step_id in re.findall(r"\bS\d{3}\b", plan_path.read_text(encoding="utf-8")):
+    for step_id in re.findall(r"\bS\d{3}\b", plan):
         if step_id not in seen:
             seen.add(step_id)
             if step_id not in done:
@@ -464,6 +474,98 @@ def mode_stop(root, config, marker_violations):
     return EXIT_OK
 
 
+TEMPLATE_ROOT = Path(__file__).resolve().parent.parent / "templates"
+
+# (template path, destination path). Nothing existing is ever overwritten.
+SCAFFOLD_MAP = (
+    ("moltke.json", MARKER),
+    ("AGENTS.md", "AGENTS.md"),
+    ("CLAUDE.md", "CLAUDE.md"),
+    ("cursor_rules", ".cursor/rules/moltke.mdc"),
+    ("project/specs.md", "project/specs.md"),
+    ("project/plan.md", "project/plan.md"),
+    ("project/status.md", "project/status.md"),
+    ("project/decisions.md", "project/decisions.md"),
+    ("project/testing.md", "project/testing.md"),
+    ("project/worklog.md", "project/worklog.md"),
+)
+SCAFFOLD_DIRS = ("project/plan_todo", "project/plan_current", "project/plan_done", "project/audit")
+
+
+def scaffold_root(start=None):
+    """Marked root if there is one, else the git top level, else cwd."""
+    marked = find_root(start)
+    if marked is not None:
+        return marked
+    start = Path(start or Path.cwd()).resolve()
+    result = subprocess.run(["git", "-C", str(start), "rev-parse", "--show-toplevel"],
+                            capture_output=True, text=True)
+    if result.returncode == 0 and result.stdout.strip():
+        return Path(result.stdout.strip())
+    return start
+
+
+def declined(root):
+    """True when the marker records a declined repository (DEC-005)."""
+    path = root / MARKER
+    if not path.is_file():
+        return False
+    try:
+        config = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return False
+    return isinstance(config, dict) and config.get("enabled") is False
+
+
+def mode_scaffold():
+    # Exempt from the INV-11 gate: this mode exists to create the marker (DEC-017).
+    root = scaffold_root()
+    if declined(root):
+        print(f"moltke: {root/MARKER} records enabled false; this repository declined the "
+              f"workflow and is left untouched. Delete that file to reconsider.")
+        return EXIT_OK
+    created, kept = [], []
+    for template, destination in SCAFFOLD_MAP:
+        target = root / destination
+        if target.exists():
+            kept.append(destination)
+            continue
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes((TEMPLATE_ROOT / template).read_bytes())
+        created.append(destination)
+    for dirname in SCAFFOLD_DIRS:
+        keep = root / dirname / ".gitkeep"
+        if not keep.exists():
+            keep.parent.mkdir(parents=True, exist_ok=True)
+            keep.write_text("", encoding="utf-8")
+            created.append(f"{dirname}/")
+    print(f"moltke: scaffolded {root}")
+    for path in created:
+        print(f"  created  {path}")
+    for path in kept:
+        print(f"  kept     {path} (already present, not overwritten)")
+    if not created:
+        print("  nothing to do; the workflow is already set up here")
+    elif kept:
+        print("Review the kept files: moltke did not merge anything into them.")
+    return EXIT_OK
+
+
+def mode_decline():
+    # Exempt from the INV-11 gate for the same reason as --scaffold (DEC-017).
+    root = scaffold_root()
+    path = root / MARKER
+    if path.is_file() and not declined(root):
+        print(f"moltke: {path} already exists and is not a declined marker; leaving it alone. "
+              f"Remove it first if this repository should stop using the workflow.")
+        return EXIT_OK
+    path.write_text(json.dumps({"schema": 1, "enabled": False}, indent=2) + "\n",
+                    encoding="utf-8")
+    print(f"moltke: wrote {path} with enabled false. Nothing will be scaffolded or enforced "
+          f"here, and you will not be asked again. Delete the file to reconsider.")
+    return EXIT_OK
+
+
 def run_validate(root, config, marker_violations):
     violations = list(marker_violations)
     for _name, fn in INVARIANT_CHECKS:
@@ -487,8 +589,15 @@ def main(argv=None):
     modes.add_argument("--post-write", action="store_true", help="PostToolUse hook (S005)")
     modes.add_argument("--stop", action="store_true", help="Stop hook (S005)")
     modes.add_argument("--validate", action="store_true", help="run every invariant, report all violations")
-    modes.add_argument("--scaffold", action="store_true", help="create project/ and the marker from templates (S006)")
+    modes.add_argument("--scaffold", action="store_true", help="create the marker, AGENTS.md, and project/ from templates")
+    modes.add_argument("--decline", action="store_true", help="record that this repository declines the workflow, durably")
     args = parser.parse_args(argv)
+
+    # Setup modes run before the marker gate: they exist to create it (DEC-017).
+    if args.scaffold:
+        return mode_scaffold()
+    if args.decline:
+        return mode_decline()
 
     root = find_root()
     if root is None:
@@ -509,7 +618,7 @@ def main(argv=None):
         return mode_post_write(root, config, marker_violations)
     if args.stop:
         return mode_stop(root, config, marker_violations)
-    return EXIT_OK  # --scaffold lands in S006
+    return EXIT_OK
 
 
 if __name__ == "__main__":
