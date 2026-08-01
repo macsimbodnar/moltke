@@ -16,3 +16,11 @@ never after. Append only.
 | S002 | marker is found from any subdirectory of the repo | TestInv11MarkerGate.test_marker_found_from_subdirectory | pass 2026-08-01 |
 | S002 | `--validate` exits 1 and names every marker violation: unreadable JSON, non-object, schema, enabled, limits, surface_guard; all reported, not just the first | tests/test_s002_marker.py TestValidateMarker (red observed against the S002 stub: 9 failures, `0 != 1`; output in worklog recap) | pass 2026-08-01 |
 | S002 | `--validate` exits 0 with "all checks pass" on a valid fixture and on this repository | TestValidateMarker.test_valid_marker_passes + `python3 bin/moltke.py --validate` here | pass 2026-08-01 |
+| S003 | INV-1: more than `plan_active_max` non-paused steps in `plan_current/` is a violation; paused steps do not count | test_s003_invariants.py test_inv1_too_many_non_paused_steps, test_inv1_paused_steps_do_not_count | pass 2026-08-01 |
+| S003 | INV-2: stack depth over `plan_stack_max` is a violation | test_inv2_stack_depth_exceeded | pass 2026-08-01 |
+| S003 | INV-3: a step file in `plan_todo/` or `plan_current/` absent from `plan.md` is a violation; missing `plan.md` in an enabled repo too | test_inv3_step_missing_from_plan | pass 2026-08-01 |
+| S003 | INV-4: a `plan_done/` step still named in another step's `blocks:` is a violation | test_inv4_done_step_still_blocking | pass 2026-08-01 |
+| S003 | INV-5: a done step without a `done:` stamp or without a `testing.md` row is a violation | test_inv5_done_step_without_stamp, test_inv5_done_step_without_testing_row | pass 2026-08-01 |
+| S003 | INV-6: duplicate step ids across the three plan directories are a violation | test_inv6_duplicate_step_id | pass 2026-08-01 |
+| S003 | INV-7: modifying or deleting a tracked `plan_done/` file is a violation; adding one is legal; no git baseline means abstain | test_inv7_modified_done_step, test_inv7_deleted_done_step, test_inv7_added_done_step_is_allowed | pass 2026-08-01 |
+| S003 | valid tree passes: the base fixture satisfies INV-1..INV-7 (non-vacuity anchor for every broken variant) | test_valid_tree_passes + `python3 bin/moltke.py --validate` here | pass 2026-08-01 |

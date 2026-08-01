@@ -9,7 +9,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from fixtures import marked_repo, write_marker
+from fixtures import marked_repo, workflow_repo, write_marker
 
 MOLTKE = Path(__file__).resolve().parent.parent / "bin" / "moltke.py"
 
@@ -76,8 +76,10 @@ class TestValidateMarker(unittest.TestCase):
         self.assertIn(needle, result.stdout)
 
     def test_valid_marker_passes(self):
+        # Re-targeted in S003: valid now means marker plus a minimal plan tree,
+        # because INV-3 treats an enabled repo without plan.md as drift.
         with tempfile.TemporaryDirectory() as tmp:
-            marked_repo(tmp)
+            workflow_repo(tmp)
             result = run_moltke(tmp, "--validate")
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             self.assertIn("all checks pass", result.stdout)

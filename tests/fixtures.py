@@ -36,3 +36,35 @@ def marked_repo(root, overrides=None, remove=()):
         marker.pop(key, None)
     write_marker(root, marker)
     return Path(root)
+
+
+def step_file(directory, step_id, name="step", **fields):
+    """Write a step file with the standard key: value layout."""
+    directory = Path(directory)
+    directory.mkdir(parents=True, exist_ok=True)
+    lines = [f"id:         {step_id}", f"goal:       {name}"]
+    for key, value in fields.items():
+        lines.append(f"{key}: {value}")
+    path = directory / f"{step_id}_{name}.md"
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return path
+
+
+def workflow_repo(root):
+    """A marked repo with a minimal valid plan tree: passes every invariant."""
+    root = marked_repo(root)
+    project = root / "project"
+    project.mkdir(exist_ok=True)
+    (project / "plan.md").write_text(
+        "# Plan\n\n1. S001 base\n2. S002 pending\n3. S003 active\n",
+        encoding="utf-8",
+    )
+    step_file(project / "plan_done", "S001", "base", done="2026-08-01 done")
+    step_file(project / "plan_todo", "S002", "pending")
+    step_file(project / "plan_current", "S003", "active")
+    (project / "testing.md").write_text(
+        "# Testing ledger\n\n| Step | Criterion | Test | Result |\n"
+        "|---|---|---|---|\n| S001 | base works | manual | pass |\n",
+        encoding="utf-8",
+    )
+    return root
