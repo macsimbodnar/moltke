@@ -125,3 +125,14 @@ appended by hand.
 ## 2026-08-01T19:00+02:00 prompt (hand-logged)
 
 > next
+
+## 2026-08-01 recap S008
+
+- Step: S008 adversarial_reviewer subagent and audit skill.
+- Changed: bin/moltke.py (strip_guidance, finding_references, report_findings, inv_10 id-prefix check, reviewer fence in mode_pre_write, audit_new/audit_list/mode_audit); agents/adversarial_reviewer.md; skills/audit/SKILL.md; templates/audit_report_template.md restructured so the format example is fenced; tests/test_s008_audit.py (12 tests) + 1 regression test in test_s006_scaffold.py.
+- Red observed: 9 failures + 1 error before implementation; 95/95 green after.
+- Live-docs check: subagent frontmatter supports tools/disallowedTools but no path restriction, so the "writes only to project/audit/" rule is enforced by the PreToolUse hook via agent_type. Recorded in specs.
+- Defect found by dogfooding: scaffolded decisions.md template example DEC-001 collided with a user's first real DEC-001 (false INV-9 duplicate). Fourth instance of guidance-parsed-as-data; consolidated into strip_guidance used by every scanner, rule recorded in specs. Red observed first.
+- Not done here: the reviewer cannot actually be spawned until the plugin is installed (S010); no audit report was created in this repo, because a report nobody ran would be fabricated evidence.
+- README/MANUAL: checked, absent by plan (S011).
+- Commit: see below.
