@@ -24,3 +24,6 @@ never after. Append only.
 | S003 | INV-6: duplicate step ids across the three plan directories are a violation | test_inv6_duplicate_step_id | pass 2026-08-01 |
 | S003 | INV-7: modifying or deleting a tracked `plan_done/` file is a violation; adding one is legal; no git baseline means abstain | test_inv7_modified_done_step, test_inv7_deleted_done_step, test_inv7_added_done_step_is_allowed | pass 2026-08-01 |
 | S003 | valid tree passes: the base fixture satisfies INV-1..INV-7 (non-vacuity anchor for every broken variant) | test_valid_tree_passes + `python3 bin/moltke.py --validate` here | pass 2026-08-01 |
+| S004 | INV-8: rewriting earlier bytes of `decisions.md` or `worklog.md`, or deleting either, is a violation; appending is legal; no git baseline means abstain | test_s004_invariants.py TestAppendOnly (4 tests) | pass 2026-08-01 |
+| S004 | INV-9: duplicate `DEC-<nnn>` ids in decisions.md are a violation | TestDecisionIds.test_duplicate_dec_id_fails | pass 2026-08-01 |
+| S004 | INV-10: a finding status outside open/planned/closed/accepted is a violation; an open finding with no step `closes:` reference and no decisions.md mention is a violation; referenced or accepted findings pass | TestAuditFindings (4 tests) | pass 2026-08-01 |

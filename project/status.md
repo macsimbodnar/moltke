@@ -3,11 +3,11 @@
 Convenience view, rewritten at end of every work turn. The filesystem beats
 this file: on disagreement, `plan_current/` wins (AGENTS.md §1).
 
-Updated: 2026-08-01, S002 completion.
+Updated: 2026-08-01, S004 completion.
 
-- Last done: S002 — `bin/moltke.py` skeleton: marker discovery and parsing, INV-11 gate, `--validate` with marker checks, broken-fixture test harness; suite 12/12
+- Last done: S004 — INV-8..INV-10 implemented red-first; all ten invariants now live in `bin/moltke.py --validate`; suite 33/33
 - In progress: none (`plan_current/` empty)
-- Next: S003 — invariants 1 to 7, red-first, one test each
+- Next: S005 — hooks wiring, all five events, verified against live docs
 - Blocked: none
 - Parked:
   - GitHub configuration (visibility, remotes, branches, protection, pushes) is Max's own; agent commits only (DEC-014). DEC-002 confirmation resolves when Max pushes.

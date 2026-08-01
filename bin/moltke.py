@@ -189,6 +189,75 @@ def inv_7_done_immutable(root, config):
     return violations
 
 
+APPEND_ONLY_FILES = ("project/worklog.md", "project/decisions.md")
+FINDING_STATUSES = ("open", "planned", "closed", "accepted")
+FINDING_RE = re.compile(r"^###\s+(\S*-F\d{2})\b", re.M)
+
+
+def inv_8_append_only(root, config):
+    # Baseline is git HEAD, same reasoning as INV-7; untracked files have none.
+    violations = []
+    for rel in APPEND_ONLY_FILES:
+        shown = subprocess.run(["git", "-C", str(root), "show", f"HEAD:{rel}"],
+                               capture_output=True)
+        if shown.returncode != 0:
+            continue
+        path = root / rel
+        if not path.is_file():
+            violations.append(f"INV-8: {rel} was deleted; append-only files are never removed: "
+                              f"restore it with git checkout -- {rel}")
+        elif not path.read_bytes().startswith(shown.stdout):
+            violations.append(f"INV-8: {rel} changed earlier bytes; append-only files grow only "
+                              f"at the end: restore the committed content and re-append")
+    return violations
+
+
+def inv_9_unique_dec_ids(root, config):
+    path = root / "project" / "decisions.md"
+    if not path.is_file():
+        return []
+    seen, violations = set(), []
+    for dec_id in re.findall(r"^## (DEC-\d{3})\b", path.read_text(encoding="utf-8"), re.M):
+        if dec_id in seen:
+            violations.append(f"INV-9: duplicate decision id {dec_id} in decisions.md; "
+                              f"renumber the new entry to the next free DEC id")
+        seen.add(dec_id)
+    return violations
+
+
+def inv_10_audit_findings(root, config):
+    audit_dir = root / "project" / "audit"
+    if not audit_dir.is_dir():
+        return []
+    references = []
+    for dirname in PLAN_DIRS:
+        for _step_id, _path, fields in plan_steps(root)[dirname]:
+            references.append(fields.get("closes", ""))
+    decisions = root / "project" / "decisions.md"
+    if decisions.is_file():
+        references.append(decisions.read_text(encoding="utf-8"))
+    references = "\n".join(references)
+
+    violations = []
+    for report in sorted(audit_dir.glob("*.md")):
+        text = report.read_text(encoding="utf-8")
+        headings = list(FINDING_RE.finditer(text))
+        for index, match in enumerate(headings):
+            finding_id = match.group(1)
+            end = headings[index + 1].start() if index + 1 < len(headings) else len(text)
+            section = text[match.end():end]
+            status_match = re.search(r"^Status:\s*(\S+)", section, re.M | re.I)
+            status = status_match.group(1).lower() if status_match else None
+            if status not in FINDING_STATUSES:
+                violations.append(f"INV-10: finding {finding_id} in {report.name} has status "
+                                  f"{status!r}; set one of {', '.join(FINDING_STATUSES)}")
+            elif status == "open" and finding_id not in references:
+                violations.append(f"INV-10: open finding {finding_id} in {report.name} has no "
+                                  f"step closes: reference and no decisions.md entry; plan it "
+                                  f"or record why it is accepted")
+    return violations
+
+
 INVARIANT_CHECKS = [
     ("INV-1", inv_1_active_max),
     ("INV-2", inv_2_stack_max),
@@ -197,6 +266,9 @@ INVARIANT_CHECKS = [
     ("INV-5", inv_5_done_evidence),
     ("INV-6", inv_6_unique_ids),
     ("INV-7", inv_7_done_immutable),
+    ("INV-8", inv_8_append_only),
+    ("INV-9", inv_9_unique_dec_ids),
+    ("INV-10", inv_10_audit_findings),
 ]
 
 

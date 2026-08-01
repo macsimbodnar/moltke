@@ -33,6 +33,12 @@ Properties of the checker itself:
 - INV-11 every mode exits 0 immediately when `.moltke.json` is absent or `enabled` is false.
 - INV-12 every blocking exit carries a message stating exactly what to do to unblock (DEC-006: a `Stop` hook has a cap on consecutive blocks; an unactionable message deadlocks the session).
 
+2026-08-01 (S004): INV-8 uses the same git HEAD baseline as INV-7: the
+committed content must be a byte-prefix of the current file; untracked files
+have no baseline, so the check abstains. INV-10 fixes the audit finding
+format ahead of S008: a finding is a `### <report>-F<nn>` heading followed by
+a `Status: <value>` line in its section; the S008 report template must conform.
+
 2026-08-01 (S003): INV-7 is checked against git HEAD: tracked files under
 `plan_done/` are never modified or deleted; additions are the one legal change
 (append by move only). Repos without git history have no baseline, so the

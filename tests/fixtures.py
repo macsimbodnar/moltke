@@ -67,4 +67,25 @@ def workflow_repo(root):
         "|---|---|---|---|\n| S001 | base works | manual | pass |\n",
         encoding="utf-8",
     )
+    (project / "decisions.md").write_text(
+        "# Decisions\n\n## DEC-001  2026-08-01  base decision\n"
+        "Tags: base\nContext: fixture\nDecision: fixture\n"
+        "Rejected: none\nConsequences: none\n",
+        encoding="utf-8",
+    )
+    (project / "worklog.md").write_text(
+        "# Worklog\n\n## 2026-08-01 prompt\n\n> base\n", encoding="utf-8",
+    )
     return root
+
+
+def audit_report(root, findings, name="2026-08-01_adversarial.md"):
+    """An audit report with (finding_id, status) sections in the S004 format."""
+    audit_dir = Path(root) / "project" / "audit"
+    audit_dir.mkdir(parents=True, exist_ok=True)
+    parts = ["# Audit\n"]
+    for finding_id, status in findings:
+        parts.append(f"### {finding_id}  high  fixture finding\n\nStatus: {status}\n")
+    path = audit_dir / name
+    path.write_text("\n".join(parts), encoding="utf-8")
+    return path
