@@ -1,8 +1,11 @@
-# Specs: max_agent_workflow
+# Specs: moltke
 
 2026-08-01: created from `bootstrap.md` (DEC-012). The locked decisions of §2
 moved to `project/decisions.md` as DEC-001..DEC-012; the first plan of §8 moved
 to `project/plan.md` and step files S001..S011. Facts otherwise preserved.
+
+2026-08-01: project renamed `max_agent_workflow` → `moltke` (DEC-015): CLI
+`bin/moltke.py`, marker `.moltke.json`, skills `init`, `step`, `audit`.
 
 ## Prime directive
 
@@ -12,7 +15,7 @@ session, any tool, any machine.
 
 ## Invariants
 
-Enforced by `bin/workflow_check.py` in marked repositories:
+Enforced by `bin/moltke.py` in marked repositories:
 
 - INV-1  `plan_current/` holds at most `plan_active_max` non-paused steps.
 - INV-2  stack depth in `plan_current/` never exceeds `plan_stack_max`.
@@ -27,7 +30,7 @@ Enforced by `bin/workflow_check.py` in marked repositories:
 
 Properties of the checker itself:
 
-- INV-11 every mode exits 0 immediately when `.workflow.json` is absent or `enabled` is false.
+- INV-11 every mode exits 0 immediately when `.moltke.json` is absent or `enabled` is false.
 - INV-12 every blocking exit carries a message stating exactly what to do to unblock (DEC-006: a `Stop` hook has a cap on consecutive blocks; an unactionable message deadlocks the session).
 
 Each invariant gets a test, and each test gets a `testing.md` row. Red-first
@@ -41,7 +44,7 @@ workflow in any repository. The workflow gives an agent durable, cross-session,
 cross-tool memory of a project: what to do next, why past choices were made,
 what has been audited, and what is verified.
 
-Name: `max_agent_workflow`
+Name: `moltke`
 Distribution: git repository plus a plugin marketplace entry, installed on each dev machine.
 
 Before implementing hooks, plugins, or skills, fetch the current Claude Code
@@ -51,28 +54,28 @@ plugin and hook surfaces change. Do not trust the shapes below over the live doc
 ## Plugin layout
 
 ```
-max_agent_workflow/
+moltke/
   .claude-plugin/plugin.json
   AGENTS.md                       # live rules for this repo
   CLAUDE.md                       # @AGENTS.md
   README.md                       # layout, build, test, exact commands
   MANUAL.md                       # install, operate, known bugs
-  .workflow.json                  # this repo is itself marked
+  .moltke.json                    # this repo is itself marked
   skills/
-    workflow_init/SKILL.md
-    plan_step/SKILL.md
-    project_audit/SKILL.md
+    init/SKILL.md
+    step/SKILL.md
+    audit/SKILL.md
   agents/
     adversarial_reviewer.md
   hooks/
     hooks.json
   bin/
-    workflow_check.py             # single entry point for all checks
+    moltke.py                     # single entry point for all checks
   templates/
     AGENTS.md                     # shipped copy of the ruleset
     CLAUDE.md
     cursor_rules
-    workflow.json
+    moltke.json
     project/
       status.md
       specs.md
@@ -86,7 +89,7 @@ max_agent_workflow/
   project/                        # this repo's own workflow state
 ```
 
-## bin/workflow_check.py
+## bin/moltke.py
 
 One script, several modes. Every hook shells out to it. Keeping the logic in
 one place means other tools (Codex, Cursor) can run the same checks manually,
@@ -100,9 +103,9 @@ which is the only enforcement available outside Claude Code.
 | `--post-write` | PostToolUse | cheap invariant scan, non-blocking |
 | `--stop` | Stop hook | exit 2 with an actionable message if source changed without a worklog recap, a stale `status.md`, a completed step lacking `testing.md` rows, or unchecked README and MANUAL |
 | `--validate` | manual, any tool | run every invariant, report all violations, exit non-zero |
-| `--scaffold` | `workflow_init` skill | create `project/` and `.workflow.json` from templates |
+| `--scaffold` | `init` skill | create `project/` and `.moltke.json` from templates |
 
-Every mode exits 0 immediately when `.workflow.json` is absent or `enabled` is
+Every mode exits 0 immediately when `.moltke.json` is absent or `enabled` is
 false (INV-11).
 
 Language: Python, standard library only. It runs on every prompt, so startup
@@ -110,24 +113,24 @@ cost matters and dependencies are unacceptable.
 
 ## Skills
 
-**`workflow_init`.** Detects a missing or disabled marker, asks once whether to
-set the workflow up, and either scaffolds from `templates/` or writes
+**`init`.** Detects a missing or disabled marker, asks once whether to set the
+workflow up, and either scaffolds from `templates/` or writes
 `{"enabled": false}` and never asks again. Scaffolding writes `AGENTS.md`,
-`CLAUDE.md`, the Cursor pointer, `.workflow.json`, and a populated `project/`.
+`CLAUDE.md`, the Cursor pointer, `.moltke.json`, and a populated `project/`.
 Acceptance: running it twice is idempotent; declining is durable across
 sessions; a repository with an existing `AGENTS.md` is never overwritten
 without asking.
 
-**`plan_step`.** Manages the lifecycle: create a step, promote to current,
-pause a parent and promote a blocking child, complete a step, regenerate
-`status.md` from the filesystem. Acceptance: every transition leaves invariants
-1 to 7 satisfied; completion is refused when the gate conditions are unmet,
-with the specific missing condition named.
+**`step`.** Manages the lifecycle: create a step, promote to current, pause a
+parent and promote a blocking child, complete a step, regenerate `status.md`
+from the filesystem. Acceptance: every transition leaves invariants 1 to 7
+satisfied; completion is refused when the gate conditions are unmet, with the
+specific missing condition named.
 
-**`project_audit`.** Runs an audit through the `adversarial_reviewer` subagent,
-writes a dated report with per-finding ids and severities, then proposes plan
-steps carrying `closes:` links. Acceptance: the report is written before any
-fix; findings map one-to-one to steps or to decisions with a stated reason;
+**`audit`.** Runs an audit through the `adversarial_reviewer` subagent, writes
+a dated report with per-finding ids and severities, then proposes plan steps
+carrying `closes:` links. Acceptance: the report is written before any fix;
+findings map one-to-one to steps or to decisions with a stated reason;
 re-running the audit is what moves a finding to `closed`.
 
 ## Subagent and hooks
@@ -136,18 +139,18 @@ re-running the audit is what moves a finding to `closed`.
 `project/audit/`. It cannot edit source. This is deliberate: a reviewer that
 can fix what it finds stops producing evidence and starts producing patches.
 
-Hooks in `hooks/hooks.json`, all delegating to `workflow_check.py`:
-`SessionStart`, `UserPromptSubmit`, `PreToolUse` matching Write and Edit,
-`PostToolUse`, `Stop`. Verify event names and the JSON schema against current
-documentation before writing the file.
+Hooks in `hooks/hooks.json`, all delegating to `moltke.py`: `SessionStart`,
+`UserPromptSubmit`, `PreToolUse` matching Write and Edit, `PostToolUse`,
+`Stop`. Verify event names and the JSON schema against current documentation
+before writing the file.
 
 ## Non-goals
 
 - Enforcement outside Claude Code. Codex and Cursor read the rules and can ignore them. `--validate` is the only lever, invoked manually.
 - Any project-specific content in templates. See DEC-002.
-- Migrating existing repositories automatically. `workflow_init` scaffolds fresh; adopting an in-flight project is a manual exercise for now.
+- Migrating existing repositories automatically. `init` scaffolds fresh; adopting an in-flight project is a manual exercise for now.
 
 ## Open items
 
-- Confirm DEC-002 (public repository) before the first push.
+- Confirm DEC-002 (public repository) before the first push. Resolves when Max pushes (DEC-014).
 - Decide whether `status.md` earns its place after a few weeks of real use, or whether `plan_current/` plus the derived next step is sufficient on its own.

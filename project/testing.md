@@ -10,3 +10,4 @@ never after. Append only.
 | S001 | step ids unique across plan dirs; every `plan_todo/` and `plan_current/` file listed in `plan.md` | manual check (S001; automated by INV-3/INV-6 tests in S003) | pass 2026-08-01 |
 | S001 | `decisions.md` holds exactly DEC-012..DEC-001, unique, newest first | manual check (S001; automated by INV-9 test in S004) | pass 2026-08-01 |
 | S001 | `decisions.md` ordered oldest first, DEC-001..newest at bottom, ids unique (DEC-013; supersedes the newest-first row above) | manual check (automated by INV-9 test in S004) | pass 2026-08-01 |
+| S001 | `.moltke.json` parses; `schema` 1, `enabled` true, `surface_guard` `cli` (DEC-015; supersedes the `.workflow.json` row above) | manual `json.load` check | pass 2026-08-01 |

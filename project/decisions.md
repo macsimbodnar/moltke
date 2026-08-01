@@ -107,3 +107,10 @@ Context:      S001 surfaced open items around repository visibility (DEC-002 con
 Decision:     Max handles GitHub configuration personally: visibility, remotes, branch naming and protection, pushes, app installs. The agent creates commits and nothing else, until new orders. (Max)
 Rejected:     agent-driven branch rename and push preparation (offered, declined).
 Consequences: DEC-002 confirmation resolves whenever Max pushes; master/main naming is Max's call; status.md parked items updated accordingly.
+
+## DEC-015  2026-08-01  Project renamed to moltke
+Tags:         naming, distribution
+Context:      Max renamed the project before implementation started. Moltke commanded armies he could not see by writing orders that survived his absence; same problem, smaller scale.
+Decision:     full rename: plugin and repository `moltke`; skills `init`, `step`, `audit` (commands /moltke:init, /moltke:step, /moltke:audit); CLI `bin/moltke.py`; marker `.moltke.json`; template `templates/moltke.json`. (Max)
+Rejected:     namespace-only rename keeping `workflow_check.py`, `.workflow.json`, and the long skill names (smallest diff, but a generic marker name can collide with other tools, and nothing is coded yet, so the full rename is free now versus a migration later).
+Consequences: earlier entries and immutable history naming `max_agent_workflow`, `workflow_check`, or `.workflow.json` (DEC-001, DEC-005, DEC-010, DEC-012, plan_done/S001, old testing.md rows, worklog) read through this entry; specs, AGENTS.md, plan, and step files updated in the same commit; GitHub repository rename and local directory rename are Max's own (DEC-014).

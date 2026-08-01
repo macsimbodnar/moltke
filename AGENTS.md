@@ -3,7 +3,7 @@
 Applies to any agent working in this repository. Additional to, not a replacement for, tool-level configuration.
 Claude Code entry point: `CLAUDE.md` containing `@AGENTS.md`.
 
-Marker file: `.workflow.json` at repo root.
+Marker file: `.moltke.json` at repo root.
 Present with `"enabled": true` means these rules are active and enforced.
 Present with `"enabled": false` means the user declined; do not ask again, do not scaffold.
 Absent: ask once whether to set the workflow up, then write the marker either way.
@@ -42,7 +42,7 @@ Code that disagrees with specs is a bug or an unrecorded decision. It is never s
 |---|---|---|---|
 | `README.md` | developer facing: layout, build, test, exact commands | rewrite in place | checked at every step completion |
 | `MANUAL.md` | end user facing: install, operate, known bugs | rewrite in place | checked at every step completion |
-| `.workflow.json` | marker, schema version, limits | rewrite in place | schema change only |
+| `.moltke.json` | marker, schema version, limits | rewrite in place | schema change only |
 | `project/status.md` | last done, in progress, next, blocked, parked | rewrite in place | end of every work turn |
 | `project/specs.md` | prime directive, invariants, required behavior | edit in place, dated inline notes | same commit as any behavior change |
 | `project/plan.md` | plan description and ordered step list | rewrite in place | any plan change |
