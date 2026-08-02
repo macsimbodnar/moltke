@@ -170,3 +170,13 @@ appended by hand.
 ## 2026-08-02T09:00+02:00 prompt (hand-logged)
 
 > next
+
+## 2026-08-02 recap S011
+
+- Step: S011 README and MANUAL.
+- Changed: README.md, MANUAL.md; specs dated note; testing rows.
+- Facts verified before writing, not recalled: no env vars (grep), exit codes 0/1/2 from the constants, STOP_CAP 3 and .git/moltke_stop_state.json, Python 3.12, 110 tests, layout from ls.
+- The dormant MANUAL surface check activated on file creation. Verified it bites by deleting two modes from MANUAL: failed with "Lists differ: ['--decline', '--audit list'] != []". Restored, green.
+- Caught by that: README claimed "one test skipped by design", which stopped being true the moment MANUAL existed. Corrected in the same commit.
+- Known issues recorded honestly in MANUAL: plugin ships this repo's project state (DEC-020); the README/MANUAL gate is mechanical and cannot tell whether anyone looked; the reviewer fence depends on the agent_type field and fails open if it is absent; INV-7/INV-8 abstain without a git baseline; the hook layer has never run in a live session (S012).
+- Commit: see below.
