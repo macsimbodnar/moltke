@@ -38,7 +38,7 @@ class TestLogPrompt(unittest.TestCase):
             payload = json.dumps({"prompt": "first line\nsecond line"})
             result = run_moltke(root, "--log-prompt", stdin=payload)
             self.assertEqual(result.returncode, 0, result.stderr)
-            worklog = (root / "project" / "worklog.md").read_text(encoding="utf-8")
+            worklog = (root / "adocs" / "worklog.md").read_text(encoding="utf-8")
             self.assertIn("> first line", worklog)
             self.assertIn("> second line", worklog)
             self.assertIn("2026-", worklog.split("> first line")[0].rsplit("##", 1)[-1])
@@ -55,7 +55,7 @@ class TestPreWrite(unittest.TestCase):
     def test_blocks_writes_under_plan_done(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = workflow_repo(tmp)
-            result = run_moltke(root, "--pre-write", "project/plan_done/S001_base.md")
+            result = run_moltke(root, "--pre-write", "adocs/plan_done/S001_base.md")
             self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
             self.assertIn("plan_done", result.stderr)
 
@@ -69,7 +69,7 @@ class TestPreWrite(unittest.TestCase):
     def test_allows_ordinary_writes(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = workflow_repo(tmp)
-            for path in ("src/main.py", "project/plan_todo/S009_new.md", "project/status.md"):
+            for path in ("src/main.py", "adocs/plan_todo/S009_new.md", "adocs/status.md"):
                 result = run_moltke(root, "--pre-write", path)
                 self.assertEqual(result.returncode, 0, (path, result.stderr))
 
@@ -77,7 +77,7 @@ class TestPreWrite(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = workflow_repo(tmp)
             payload = json.dumps(
-                {"tool_input": {"file_path": str(root / "project" / "plan_done" / "S001_base.md")}})
+                {"tool_input": {"file_path": str(root / "adocs" / "plan_done" / "S001_base.md")}})
             result = run_moltke(root, "--pre-write", stdin=payload)
             self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
 
@@ -95,7 +95,7 @@ class TestSessionStart(unittest.TestCase):
     def test_flags_stale_status(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = workflow_repo(tmp)
-            (root / "project" / "status.md").write_text(
+            (root / "adocs" / "status.md").write_text(
                 "# Status\n\n- Next: S001\n", encoding="utf-8")
             result = run_moltke(root, "--session-start")
             context = json.loads(result.stdout)["hookSpecificOutput"]["additionalContext"]
@@ -112,7 +112,7 @@ class TestPostWrite(unittest.TestCase):
     def test_violation_surfaces_without_blocking_semantics(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = workflow_repo(tmp)
-            step_file(root / "project" / "plan_todo", "S003", "dupe")
+            step_file(root / "adocs" / "plan_todo", "S003", "dupe")
             result = run_moltke(root, "--post-write")
             self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
             self.assertIn("INV-6", result.stderr)
@@ -130,7 +130,7 @@ class TestStop(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = workflow_repo(tmp)
             git_baseline(root)
-            step_file(root / "project" / "plan_todo", "S003", "dupe")
+            step_file(root / "adocs" / "plan_todo", "S003", "dupe")
             result = run_moltke(root, "--stop", stdin="{}")
             self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
             self.assertIn("INV-6", result.stderr)
@@ -138,7 +138,7 @@ class TestStop(unittest.TestCase):
     def test_blocks_on_stale_status(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = workflow_repo(tmp)
-            (root / "project" / "status.md").write_text(
+            (root / "adocs" / "status.md").write_text(
                 "# Status\n\n- Next: S001\n", encoding="utf-8")
             git_baseline(root)
             result = run_moltke(root, "--stop", stdin="{}")
@@ -161,7 +161,7 @@ class TestStop(unittest.TestCase):
             git_baseline(root)
             (root / "src").mkdir()
             (root / "src" / "main.py").write_text("print('x')\n", encoding="utf-8")
-            worklog = root / "project" / "worklog.md"
+            worklog = root / "adocs" / "worklog.md"
             worklog.write_text(worklog.read_text(encoding="utf-8")
                                + "\n## 2026-08-01 recap S003\n\n- did things\n",
                                encoding="utf-8")
@@ -172,7 +172,7 @@ class TestStop(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = workflow_repo(tmp)
             git_baseline(root)
-            step_file(root / "project" / "plan_todo", "S003", "dupe")
+            step_file(root / "adocs" / "plan_todo", "S003", "dupe")
             payload = json.dumps({"prompt_id": "p1"})
             for _ in range(3):
                 result = run_moltke(root, "--stop", stdin=payload)

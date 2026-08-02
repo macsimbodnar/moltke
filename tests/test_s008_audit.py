@@ -28,7 +28,7 @@ class TestAuditNew(unittest.TestCase):
             root = workflow_repo(tmp)
             result = run_moltke(root, "--audit", "new", "adversarial")
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-            report = root / "project" / "audit" / f"{TODAY}_adversarial.md"
+            report = root / "adocs" / "audit" / f"{TODAY}_adversarial.md"
             self.assertTrue(report.is_file(), result.stdout)
             self.assertIn(TODAY, report.read_text(encoding="utf-8"))
 
@@ -47,7 +47,7 @@ class TestAuditNew(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = workflow_repo(tmp)
             run_moltke(root, "--audit", "new", "adversarial")
-            report = root / "project" / "audit" / f"{TODAY}_adversarial.md"
+            report = root / "adocs" / "audit" / f"{TODAY}_adversarial.md"
             report.write_text("# real findings\n", encoding="utf-8")
             result = run_moltke(root, "--audit", "new", "adversarial")
             self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
@@ -60,9 +60,9 @@ class TestAuditList(unittest.TestCase):
             root = workflow_repo(tmp)
             audit_report(root, [("2026-08-01_adversarial-F01", "open"),
                                 ("2026-08-01_adversarial-F02", "accepted")])
-            step_file(root / "project" / "plan_todo", "S004", "fix_it",
+            step_file(root / "adocs" / "plan_todo", "S004", "fix_it",
                       closes="2026-08-01_adversarial-F01")
-            (root / "project" / "plan.md").write_text(
+            (root / "adocs" / "plan.md").write_text(
                 "# Plan\n\n1. S001\n2. S002\n3. S003\n4. S004\n", encoding="utf-8")
             result = run_moltke(root, "--audit", "list")
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
@@ -103,19 +103,19 @@ class TestReviewerWriteFence(unittest.TestCase):
             root = workflow_repo(tmp)
             result = self.pre_write(root, "src/main.py")
             self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
-            self.assertIn("project/audit/", result.stderr)
+            self.assertIn("adocs/audit/", result.stderr)
 
     def test_reviewer_cannot_write_plan_or_specs(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = workflow_repo(tmp)
-            for path in ("project/specs.md", "project/plan.md",
-                         "project/plan_todo/S002_pending.md"):
+            for path in ("adocs/specs.md", "adocs/plan.md",
+                         "adocs/plan_todo/S002_pending.md"):
                 self.assertEqual(self.pre_write(root, path).returncode, 2, path)
 
     def test_reviewer_may_write_its_report(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = workflow_repo(tmp)
-            result = self.pre_write(root, f"project/audit/{TODAY}_adversarial.md")
+            result = self.pre_write(root, f"adocs/audit/{TODAY}_adversarial.md")
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
     def test_other_agents_are_unaffected(self):

@@ -180,3 +180,26 @@ appended by hand.
 - Caught by that: README claimed "one test skipped by design", which stopped being true the moment MANUAL existed. Corrected in the same commit.
 - Known issues recorded honestly in MANUAL: plugin ships this repo's project state (DEC-020); the README/MANUAL gate is mechanical and cannot tell whether anyone looked; the reviewer fence depends on the agent_type field and fails open if it is absent; INV-7/INV-8 abstain without a git baseline; the hook layer has never run in a live session (S012).
 - Commit: see below.
+
+## 2026-08-02T17:20+02:00 prompt
+
+> /moltke:init
+
+## 2026-08-02T17:24+02:00 prompt
+
+> /moltke:step
+
+## 2026-08-02T17:29+02:00 prompt
+
+> i want to refactor. I don't like the name "project" that is used for the files. I want it to be called adocs that stays for agent documentation. adocs. Preapre a plan for the migration. Execuite the plan and then also rename the directory in this project aswell. No migration steps are needed because no one except this project is using the plugin anyway
+
+## 2026-08-02 recap — S013 adocs rename
+
+- Step: S013 (blocking child of S012, created with `--step block`; S012 unpaused on completion).
+- Decision: DEC-021, `project/` → `adocs/`, no migration path.
+- Changed: `bin/moltke.py` (single `DOCS` constant, every path and hook message); `project/` → `adocs/` (plain `mv`, `git mv` refused because S012 was already staged out of `plan_todo/`); `templates/project/` → `templates/adocs/`; AGENTS.md and templates/AGENTS.md (byte-identical, verified with `cmp`); skills/*, agents/adversarial_reviewer.md, templates/cursor_rules, README.md, MANUAL.md, adocs/specs.md (dated note), adocs/plan.md; plugin.json 0.1.0 → 0.2.0.
+- Tests added: `tests/test_s013_adocs.py`, 2 tests. Red observed for both: scaffold guard `AssertionError: True is not false : scaffold created project/` after pointing SCAFFOLD_DIRS back at `project/`; doc guard `Lists differ: ['README.md:2: stale ref to project/status.md'] != []` after inserting a stale line. Suite 110 → 112, green.
+- Re-targeted, not relaxed: the doc guard first failed on MANUAL's own known-issue entry describing the old name. Rule changed from "the string never appears" to "the string never appears outside an explicit `<!-- historical -->` block", with a vacuity assert requiring at least one marked mention. Red re-observed for both the leftover case and the missing-marker case.
+- README checked: test count 110 → 112. MANUAL checked: two known issues added (no 0.1.0 migration; hooks run the installed copy, not the checkout), and the live-hook entry narrowed to what was actually observed rather than removed.
+- Twice lost work to `git checkout --` on files with uncommitted changes: `bin/moltke.py` (whole refactor) and `MANUAL.md` (rename plus new entries). Both redone; the moltke.py redo was scripted so a missing target string fails loudly instead of silently skipping.
+- S012 evidence gathered this turn, before the rename: install is moltke@moltke 0.1.0, sha 0b5c96b, from git@github.com:macsimbodnar/moltke.git; SessionStart, UserPromptSubmit, PreToolUse (both refusals) and PostToolUse observed firing live.

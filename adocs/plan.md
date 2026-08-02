@@ -3,7 +3,7 @@
 Build the `moltke` Claude Code plugin: a document-driven development workflow
 giving an agent durable, cross-session, cross-tool memory of a project,
 distributed as a git repository plus a plugin marketplace entry, enforced by
-hooks in marked repositories. Spec: `project/specs.md`.
+hooks in marked repositories. Spec: `adocs/specs.md`.
 
 This repository self-hosts the workflow (DEC-012). S001 was worked by hand;
 from S002 onward the workflow enforces itself.
@@ -22,3 +22,4 @@ Order lives here and nowhere else (DEC-008). Step detail lives in the step files
 10. S010  plugin manifest and marketplace entry, verified statically (DEC-019 moved install checks to S012)
 11. S011  README and MANUAL
 12. S012  install verification: marketplace add, plugin install, hooks firing in a live session, second machine
+13. S013  adocs rename

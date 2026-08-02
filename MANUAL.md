@@ -7,12 +7,12 @@ Install, operate, known issues. For working on moltke itself, see
 
 moltke keeps a project's memory in tracked files and refuses to let it drift:
 
-- `project/status.md` where we are, regenerated from the filesystem
-- `project/specs.md` the prime directive and the numbered invariants
-- `project/plan.md` plus `plan_todo/`, `plan_current/`, `plan_done/`
-- `project/decisions.md` why things are the way they are, with rejected options
-- `project/testing.md` acceptance criteria and their covering tests
-- `project/audit/` findings, as evidence, before any fix
+- `adocs/status.md` where we are, regenerated from the filesystem
+- `adocs/specs.md` the prime directive and the numbered invariants
+- `adocs/plan.md` plus `plan_todo/`, `plan_current/`, `plan_done/`
+- `adocs/decisions.md` why things are the way they are, with rejected options
+- `adocs/testing.md` acceptance criteria and their covering tests
+- `adocs/audit/` findings, as evidence, before any fix
 
 Enforcement is blocking, and only in repositories that opt in. A repository
 without `.moltke.json` feels nothing at all.
@@ -47,11 +47,11 @@ In the repository you want to use it in:
 ```
 
 It asks once. Yes scaffolds `AGENTS.md`, `CLAUDE.md`, `.cursor/rules/moltke.mdc`,
-`.moltke.json`, and a populated `project/`. No records the refusal durably and
+`.moltke.json`, and a populated `adocs/`. No records the refusal durably and
 never asks again. Nothing existing is ever overwritten: a repository that
 already has an `AGENTS.md` keeps it, and moltke reports what it left alone.
 
-Then fill in `project/specs.md`, the one file moltke cannot write for you: the
+Then fill in `adocs/specs.md`, the one file moltke cannot write for you: the
 prime directive, and the invariants as numbered testable properties.
 
 `.moltke.json` controls everything:
@@ -78,7 +78,7 @@ Nothing to remember. Hooks fire on their own:
 
 - session start prints the current stack and the next step, and says so when
   `status.md` disagrees with the filesystem
-- every prompt is appended verbatim to `project/worklog.md`
+- every prompt is appended verbatim to `adocs/worklog.md`
 - writes into completed history are refused
 - the turn will not end with a stale `status.md`, an invariant violation, or
   source changes with no worklog recap
@@ -94,18 +94,18 @@ Cursor) must, since hooks exist only in Claude Code.
 | Command | What it does |
 |---|---|
 | `--validate` | run every invariant, print all violations, exit 1 if any |
-| `--scaffold` | create the marker, `AGENTS.md`, `CLAUDE.md`, the Cursor pointer, and `project/` from templates; never overwrites an existing file |
+| `--scaffold` | create the marker, `AGENTS.md`, `CLAUDE.md`, the Cursor pointer, and `adocs/` from templates; never overwrites an existing file |
 | `--decline` | record that this repository declines the workflow, durably; refuses to disable an already-enabled repository |
 | `--step new <name>` | allocate the next step id, write the step file, list it in `plan.md` |
 | `--step start <id>` | move a step from `plan_todo/` to `plan_current/` |
 | `--step block <parent> <name>` | create a blocking child in `plan_current/` and pause its parent |
 | `--step done <id>` | complete a step and move it to `plan_done/`, refusing if anything is missing |
 | `--step status` | regenerate `status.md` from the filesystem, keeping the Parked list |
-| `--audit new <type>` | open `project/audit/YYYY-MM-DD_<type>.md`; refuses to overwrite a report |
+| `--audit new <type>` | open `adocs/audit/YYYY-MM-DD_<type>.md`; refuses to overwrite a report |
 | `--audit list` | every finding, its status, and what references it; exits 1 while an open finding has neither a step nor a decision |
 | `--session-start` | SessionStart hook: emit the stack and derived next step as context |
 | `--log-prompt` | UserPromptSubmit hook: append the prompt to the worklog. Never blocks, because blocking here would erase your prompt |
-| `--pre-write` | PreToolUse hook for Write and Edit: refuse writes into `plan_done/`, step files outside the plan directories, and anything outside `project/audit/` written by the reviewer |
+| `--pre-write` | PreToolUse hook for Write and Edit: refuse writes into `plan_done/`, step files outside the plan directories, and anything outside `adocs/audit/` written by the reviewer |
 | `--post-write` | PostToolUse hook: cheap invariant scan, surfaced but non-blocking |
 | `--stop` | Stop hook: refuse to end a turn on violations, a stale `status.md`, or unrecapped source changes |
 
@@ -117,8 +117,23 @@ marker, or one whose marker says `enabled: false` — except `--scaffold` and
 
 ## Known issues
 
+<!-- historical -->
+**Upgrading past 0.1.0 does not rename an existing `project/`.** The workflow
+directory was `project/` up to 0.1.0 and is `adocs/` from 0.2.0 (DEC-021). There
+is no migration mode: at the time of the rename no repository other than moltke
+itself had the plugin installed. A repository scaffolded by 0.1.0 keeps its
+`project/`, and 0.2.0 will not see it — every check reports the tree as missing
+until the directory is renamed by hand with `git mv project adocs`.
+<!-- /historical -->
+
+**Hooks keep running the installed copy, not your checkout.** Hook commands
+resolve `${CLAUDE_PLUGIN_ROOT}` to the plugin cache, pinned at the installed
+`version`. Editing `bin/moltke.py` in a checkout changes nothing until the
+version is bumped and the plugin reinstalled, so during an upgrade the hooks
+enforce the previous release's rules against the previous release's paths.
+
 **The plugin ships moltke's own project state.** The repository root is also
-the plugin root, so `project/`, `tests/`, `AGENTS.md`, and `CLAUDE.md` are
+the plugin root, so `adocs/`, `tests/`, `AGENTS.md`, and `CLAUDE.md` are
 copied into every install's cache. They are inert. `claude plugin validate
 --strict` warns that the root `CLAUDE.md` is not loaded as project context; the
 warning is accurate and harmless. Recorded as DEC-020, with a `plugin/`
@@ -130,7 +145,7 @@ whether you actually looked. The check enforces that the question was asked,
 not that it was answered honestly.
 
 **The reviewer's write fence depends on one field.** `adversarial_reviewer` is
-confined to `project/audit/` by the PreToolUse hook reading `agent_type`.
+confined to `adocs/audit/` by the PreToolUse hook reading `agent_type`.
 Subagent frontmatter has no path restriction, so this is the only place the
 limit can live. If that field is ever renamed or absent, the fence opens
 silently rather than failing closed.
@@ -140,7 +155,10 @@ silently rather than failing closed.
 or for a file not yet committed, there is no baseline and the check abstains
 rather than guessing.
 
-**Live hook behaviour is not yet verified.** The hooks are wired and unit
-tested, but moltke has not been installed and exercised in a real session, on
-this machine or a second one. That is step S012 in `project/plan.md` and it is
-not done. Until it is, treat the hook layer as untested in the field.
+**Live hook behaviour is only partly verified.** On 2026-08-02, in one real
+session on one machine, `SessionStart`, `UserPromptSubmit`, `PreToolUse` (both
+the `plan_done/` refusal and the step-file-location refusal), and `PostToolUse`
+were observed firing from an installed plugin. Still unverified in the field:
+the `Stop` hook's refusals, the `adversarial_reviewer` write fence under a real
+subagent spawn rather than a direct CLI call, and any second machine. That is
+step S012 in `adocs/plan.md` and it is not done.

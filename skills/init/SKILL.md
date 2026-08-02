@@ -24,7 +24,7 @@ Check `.moltke.json` at the repository root.
 Ask whether to set up the workflow here. State plainly what it does:
 
 - writes `AGENTS.md` (the ruleset), `CLAUDE.md`, `.cursor/rules/moltke.mdc`,
-  `.moltke.json`, and a `project/` directory of state files
+  `.moltke.json`, and a `adocs/` directory of state files
 - turns on blocking enforcement in this repository only: hooks refuse writes
   into completed history, and refuse to end a turn with a stale `status.md`, an
   invariant violation, or source changes with no worklog recap
@@ -48,10 +48,10 @@ Then, in the same turn:
 1. Set `surface_guard` in `.moltke.json` to `cli`, `api`, `both`, or `none`
    depending on what this project actually exposes. `none` is only valid with a
    `decisions.md` entry stating why the project has no checkable surface.
-2. Fill `project/specs.md`: the prime directive, then numbered invariants. This
+2. Fill `adocs/specs.md`: the prime directive, then numbered invariants. This
    is the one file the workflow cannot write for the user. Ask for the prime
    directive if it is not obvious from the repository.
-3. Seed `project/plan.md` and one step file per planned step, using
+3. Seed `adocs/plan.md` and one step file per planned step, using
    `${CLAUDE_PLUGIN_ROOT}/templates/step_template.md`.
 4. Verify: `python3 ${CLAUDE_PLUGIN_ROOT}/bin/moltke.py --validate` must exit 0.
 5. Commit. The agent commits; the user pushes.
@@ -69,6 +69,6 @@ and will not be asked again.
 ## Notes
 
 - Adopting a repository that already has work in flight is a manual exercise:
-  scaffold, then move existing plans into the `project/` files by hand.
+  scaffold, then move existing plans into the `adocs/` files by hand.
 - An existing `AGENTS.md` is never touched. That is deliberate: it may be
   another tool's ruleset or a house standard.

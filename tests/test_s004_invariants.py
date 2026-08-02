@@ -38,7 +38,7 @@ class TestAppendOnly(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = workflow_repo(tmp)
             git_baseline(root)
-            for rel in ("project/decisions.md", "project/worklog.md"):
+            for rel in ("adocs/decisions.md", "adocs/worklog.md"):
                 path = root / rel
                 path.write_text(path.read_text(encoding="utf-8") + "\nappended\n",
                                 encoding="utf-8")
@@ -49,7 +49,7 @@ class TestAppendOnly(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = workflow_repo(tmp)
             git_baseline(root)
-            path = root / "project" / "decisions.md"
+            path = root / "adocs" / "decisions.md"
             path.write_text(path.read_text(encoding="utf-8").replace("base decision",
                             "edited decision"), encoding="utf-8")
             self.assert_violation(root, "INV-8")
@@ -58,7 +58,7 @@ class TestAppendOnly(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = workflow_repo(tmp)
             git_baseline(root)
-            (root / "project" / "worklog.md").write_text("# Worklog\n(trimmed)\n",
+            (root / "adocs" / "worklog.md").write_text("# Worklog\n(trimmed)\n",
                                                          encoding="utf-8")
             self.assert_violation(root, "INV-8")
 
@@ -66,7 +66,7 @@ class TestAppendOnly(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = workflow_repo(tmp)
             git_baseline(root)
-            (root / "project" / "decisions.md").unlink()
+            (root / "adocs" / "decisions.md").unlink()
             self.assert_violation(root, "INV-8")
 
 
@@ -76,7 +76,7 @@ class TestDecisionIds(unittest.TestCase):
     def test_duplicate_dec_id_fails(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = workflow_repo(tmp)
-            path = root / "project" / "decisions.md"
+            path = root / "adocs" / "decisions.md"
             path.write_text(path.read_text(encoding="utf-8")
                             + "\n## DEC-001  2026-08-01  duplicate\n", encoding="utf-8")
             result = run_validate(root)
@@ -115,9 +115,9 @@ class TestAuditFindings(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = workflow_repo(tmp)
             audit_report(root, [("2026-08-01_adversarial-F01", "open")])
-            step_file(root / "project" / "plan_todo", "S004", "fix_finding",
+            step_file(root / "adocs" / "plan_todo", "S004", "fix_finding",
                       closes="2026-08-01_adversarial-F01")
-            (root / "project" / "plan.md").write_text(
+            (root / "adocs" / "plan.md").write_text(
                 "# Plan\n\n1. S001\n2. S002\n3. S003\n4. S004\n", encoding="utf-8")
             result = run_validate(root)
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)

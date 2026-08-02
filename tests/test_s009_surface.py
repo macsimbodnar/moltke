@@ -17,7 +17,7 @@ _spec = importlib.util.spec_from_file_location("moltke", REPO / "bin" / "moltke.
 moltke = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(moltke)
 
-REFRESH = (f"Surface changed. Update the CLI table in project/specs.md and MANUAL.md in "
+REFRESH = (f"Surface changed. Update the CLI table in adocs/specs.md and MANUAL.md in "
            f"this same commit, then refresh the golden with:\n"
            f"  python3 tests/test_s009_surface.py --refresh")
 
@@ -77,10 +77,10 @@ class TestSurfaceIsDocumented(unittest.TestCase):
         self.assertEqual(missing, [], f"{label} does not describe: {missing}. {REFRESH}")
 
     def test_specs_describes_every_mode(self):
-        specs = REPO / "project" / "specs.md"
+        specs = REPO / "adocs" / "specs.md"
         self.assertIn("--goal", specs.read_text(encoding="utf-8"),
                       "precondition: the specs CLI table is present and detailed")
-        self.assert_documented(specs, "project/specs.md")
+        self.assert_documented(specs, "adocs/specs.md")
 
     def test_manual_describes_every_mode_once_it_exists(self):
         manual = REPO / "MANUAL.md"

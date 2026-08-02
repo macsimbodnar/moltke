@@ -14,6 +14,7 @@ import sys
 from pathlib import Path
 
 MARKER = ".moltke.json"
+DOCS = "adocs"  # agent documentation; renamed from project/ by DEC-021
 SURFACE_GUARD_VALUES = ("cli", "api", "both", "none")
 
 EXIT_OK = 0
@@ -95,7 +96,7 @@ def plan_steps(root):
     steps = {}
     for dirname in PLAN_DIRS:
         entries = []
-        directory = root / "project" / dirname
+        directory = root / DOCS / dirname
         if directory.is_dir():
             for path in sorted(directory.iterdir()):
                 match = STEP_FILE_RE.match(path.name)
@@ -133,7 +134,7 @@ def inv_2_stack_max(root, config):
 def inv_3_steps_in_plan(root, config):
     plan = plan_text(root)
     if plan is None:
-        return ["INV-3: project/plan.md is missing; create it and list every step"]
+        return [f"INV-3: {DOCS}/plan.md is missing; create it and list every step"]
     violations = []
     steps = plan_steps(root)
     for dirname in ("plan_todo", "plan_current"):
@@ -160,7 +161,7 @@ def inv_4_done_not_blocked(root, config):
 
 
 def inv_5_done_evidence(root, config):
-    testing_path = root / "project" / "testing.md"
+    testing_path = root / DOCS / "testing.md"
     rows = ""
     if testing_path.is_file():
         rows = "\n".join(l for l in testing_path.read_text(encoding="utf-8").splitlines()
@@ -194,7 +195,7 @@ def inv_7_done_immutable(root, config):
     # additions are the one legal change (append by move only). Repos without
     # git history have no baseline, so the check abstains.
     result = subprocess.run(
-        ["git", "-C", str(root), "status", "--porcelain", "--", "project/plan_done"],
+        ["git", "-C", str(root), "status", "--porcelain", "--", f"{DOCS}/plan_done"],
         capture_output=True, text=True)
     if result.returncode != 0:
         return []
@@ -207,7 +208,7 @@ def inv_7_done_immutable(root, config):
     return violations
 
 
-APPEND_ONLY_FILES = ("project/worklog.md", "project/decisions.md")
+APPEND_ONLY_FILES = (f"{DOCS}/worklog.md", f"{DOCS}/decisions.md")
 FINDING_STATUSES = ("open", "planned", "closed", "accepted")
 FINDING_RE = re.compile(r"^###\s+(\S*-F\d{2})\b", re.M)
 
@@ -231,7 +232,7 @@ def inv_8_append_only(root, config):
 
 
 def inv_9_unique_dec_ids(root, config):
-    path = root / "project" / "decisions.md"
+    path = root / DOCS / "decisions.md"
     if not path.is_file():
         return []
     seen, violations = set(), []
@@ -250,7 +251,7 @@ def finding_references(root):
     for dirname in PLAN_DIRS:
         for _step_id, _path, fields in plan_steps(root)[dirname]:
             references.append(field_value(fields, "closes"))
-    decisions = root / "project" / "decisions.md"
+    decisions = root / DOCS / "decisions.md"
     if decisions.is_file():
         references.append(decisions.read_text(encoding="utf-8"))
     return "\n".join(references)
@@ -270,7 +271,7 @@ def report_findings(report):
 
 
 def inv_10_audit_findings(root, config):
-    audit_dir = root / "project" / "audit"
+    audit_dir = root / DOCS / "audit"
     if not audit_dir.is_dir():
         return []
     references = finding_references(root)
@@ -319,7 +320,7 @@ def hook_input():
 def plan_text(root):
     """plan.md with comments and fenced blocks stripped: commented-out
     example steps are not the plan."""
-    plan_path = root / "project" / "plan.md"
+    plan_path = root / DOCS / "plan.md"
     if not plan_path.is_file():
         return None
     return strip_guidance(plan_path.read_text(encoding="utf-8"))
@@ -341,7 +342,7 @@ def derived_next(root):
 
 
 def status_next(root):
-    status_path = root / "project" / "status.md"
+    status_path = root / DOCS / "status.md"
     if not status_path.is_file():
         return None
     match = re.search(r"Next:.*?\b(S\d{3})\b", status_path.read_text(encoding="utf-8"))
@@ -382,7 +383,7 @@ def mode_log_prompt(root, config):
     stamp = datetime.datetime.now().astimezone().isoformat(timespec="minutes")
     quoted = "\n".join(f"> {line}" for line in prompt.splitlines())
     try:
-        with open(root / "project" / "worklog.md", "a", encoding="utf-8") as worklog:
+        with open(root / DOCS / "worklog.md", "a", encoding="utf-8") as worklog:
             worklog.write(f"\n## {stamp} prompt\n\n{quoted}\n")
     except OSError as exc:
         print(f"moltke --log-prompt: {exc}", file=sys.stderr)
@@ -404,21 +405,21 @@ def mode_pre_write(root, config, path_arg):
     parts = rel.parts
     # The reviewer produces evidence, not patches: a reviewer that can fix what
     # it finds stops recording findings and starts writing code.
-    if payload.get("agent_type") == REVIEWER_AGENT and parts[:2] != ("project", "audit"):
-        print(f"moltke: the {REVIEWER_AGENT} may only write under project/audit/, and {rel} "
+    if payload.get("agent_type") == REVIEWER_AGENT and parts[:2] != (DOCS, "audit"):
+        print(f"moltke: the {REVIEWER_AGENT} may only write under {DOCS}/audit/, and {rel} "
               f"is outside it. Record what you found as a finding in your report; fixes are "
               f"planned as steps afterwards, by someone else.", file=sys.stderr)
         return EXIT_BLOCK
-    if parts[:2] == ("project", "plan_done"):
+    if parts[:2] == (DOCS, "plan_done"):
         print(f"moltke: {rel} is under plan_done/, which is immutable history. "
               f"Completed steps are moved there with mv/git mv as the last action of a step; "
               f"nothing inside is ever edited.", file=sys.stderr)
         return EXIT_BLOCK
     if STEP_FILE_RE.match(rel.name) and parts[:2] not in (
-            ("project", "plan_todo"), ("project", "plan_current"), ("project", "plan_done")):
+            (DOCS, "plan_todo"), (DOCS, "plan_current"), (DOCS, "plan_done")):
         print(f"moltke: {rel.name} looks like a step file but {rel} is outside the three "
-              f"plan directories. Create step files only in project/plan_todo/ or "
-              f"project/plan_current/.", file=sys.stderr)
+              f"plan directories. Create step files only in {DOCS}/plan_todo/ or "
+              f"{DOCS}/plan_current/.", file=sys.stderr)
         return EXIT_BLOCK
     return EXIT_OK
 
@@ -461,24 +462,24 @@ def mode_stop(root, config, marker_violations):
     nxt = derived_next(root)
     if nxt and status_next(root) != nxt:
         problems.append(f"status.md is stale or missing: the derived next step is {nxt}. "
-                        f"Rewrite project/status.md from plan_current/ before ending the turn.")
+                        f"Rewrite {DOCS}/status.md from plan_current/ before ending the turn.")
 
     porcelain = _git_lines(root, "status", "--porcelain")
     if porcelain is not None:
         changed_source = [line for line in porcelain
-                          if not line[3:].startswith(("project/", ".claude"))]
+                          if not line[3:].startswith((f"{DOCS}/", ".claude"))]
         if changed_source:
-            shown = subprocess.run(["git", "-C", str(root), "show", "HEAD:project/worklog.md"],
+            shown = subprocess.run(["git", "-C", str(root), "show", f"HEAD:{DOCS}/worklog.md"],
                                    capture_output=True)
-            worklog = root / "project" / "worklog.md"
+            worklog = root / DOCS / "worklog.md"
             current = worklog.read_bytes() if worklog.is_file() else b""
             if shown.returncode == 0 and len(current) <= len(shown.stdout):
-                problems.append("source changed but project/worklog.md gained no recap; "
+                problems.append(f"source changed but {DOCS}/worklog.md gained no recap; "
                                 "append a recap (step id, what changed, files, tests, commit) "
                                 "before ending the turn.")
         for line in porcelain:
             entry = line[3:]
-            if line[:2] in ("??", "A ") and entry.startswith("project/plan_done/"):
+            if line[:2] in ("??", "A ") and entry.startswith(f"{DOCS}/plan_done/"):
                 fields = parse_step_file(root / entry)
                 stamp = fields.get("done", "")
                 if "README" not in stamp or "MANUAL" not in stamp:
@@ -525,14 +526,14 @@ SCAFFOLD_MAP = (
     ("AGENTS.md", "AGENTS.md"),
     ("CLAUDE.md", "CLAUDE.md"),
     ("cursor_rules", ".cursor/rules/moltke.mdc"),
-    ("project/specs.md", "project/specs.md"),
-    ("project/plan.md", "project/plan.md"),
-    ("project/status.md", "project/status.md"),
-    ("project/decisions.md", "project/decisions.md"),
-    ("project/testing.md", "project/testing.md"),
-    ("project/worklog.md", "project/worklog.md"),
+    (f"{DOCS}/specs.md", f"{DOCS}/specs.md"),
+    (f"{DOCS}/plan.md", f"{DOCS}/plan.md"),
+    (f"{DOCS}/status.md", f"{DOCS}/status.md"),
+    (f"{DOCS}/decisions.md", f"{DOCS}/decisions.md"),
+    (f"{DOCS}/testing.md", f"{DOCS}/testing.md"),
+    (f"{DOCS}/worklog.md", f"{DOCS}/worklog.md"),
 )
-SCAFFOLD_DIRS = ("project/plan_todo", "project/plan_current", "project/plan_done", "project/audit")
+SCAFFOLD_DIRS = (f"{DOCS}/plan_todo", f"{DOCS}/plan_current", f"{DOCS}/plan_done", f"{DOCS}/audit")
 
 
 def scaffold_root(start=None):
@@ -656,7 +657,7 @@ def write_step(path, step_id, goal, blocks=""):
 
 
 def append_to_plan(root, step_id, goal):
-    plan_path = root / "project" / "plan.md"
+    plan_path = root / DOCS / "plan.md"
     numbers = [int(n) for n in re.findall(r"^\s*(\d+)\.\s", plan_text(root) or "", re.M)]
     entry = f"{max(numbers) + 1 if numbers else 1}. {step_id}  {goal}".rstrip()
     text = plan_path.read_text(encoding="utf-8")
@@ -681,7 +682,7 @@ def set_field(path, key, value):
 def step_new(root, config, name, goal):
     step_id = next_step_id(root)
     goal = goal or name.replace("_", " ")
-    path = root / "project" / "plan_todo" / f"{step_id}_{name}.md"
+    path = root / DOCS / "plan_todo" / f"{step_id}_{name}.md"
     write_step(path, step_id, goal)
     append_to_plan(root, step_id, goal)
     print(f"moltke: created {path.relative_to(root)} and listed {step_id} in plan.md. "
@@ -706,7 +707,7 @@ def step_start(root, config, step_id):
                       f"blocked by this work use --step block {active[0]} <name> instead")
     if len(current) + 1 > _limit(config, "plan_stack_max", 3):
         return refuse(f"plan_current/ stack is full ({len(current)}); complete something first")
-    path.rename(root / "project" / "plan_current" / path.name)
+    path.rename(root / DOCS / "plan_current" / path.name)
     print(f"moltke: {step_id} is now current.")
     return EXIT_OK
 
@@ -725,7 +726,7 @@ def step_block(root, config, parent_id, name):
                       f"is wrong at design level: stop, record a decision, and replan.")
     child_id = next_step_id(root)
     goal = name.replace("_", " ")
-    child_path = root / "project" / "plan_current" / f"{child_id}_{name}.md"
+    child_path = root / DOCS / "plan_current" / f"{child_id}_{name}.md"
     write_step(child_path, child_id, goal, blocks=parent_id)
     append_to_plan(root, child_id, goal)
     set_field(parent_path, "paused_by",
@@ -752,7 +753,7 @@ def step_done(root, config, step_id, stamp):
             if other_id != step_id and step_id in field_value(other_fields, "blocks"):
                 return refuse(f"{other_id} still declares blocks: {step_id}; complete or "
                               f"drop {other_id} first")
-    testing = root / "project" / "testing.md"
+    testing = root / DOCS / "testing.md"
     rows = testing.read_text(encoding="utf-8") if testing.is_file() else ""
     if not re.search(rf"\b{step_id}\b", "\n".join(l for l in rows.splitlines()
                                                   if l.startswith("|"))):
@@ -770,7 +771,7 @@ def step_done(root, config, step_id, stamp):
         if step_id in field_value(parent_fields, "paused_by"):
             set_field(parent_path, "paused_by", "")
             print(f"moltke: {parent_id} unpaused.")
-    path.rename(root / "project" / "plan_done" / path.name)
+    path.rename(root / DOCS / "plan_done" / path.name)
     print(f"moltke: {step_id} completed and moved to plan_done/. Commit it; the move is the "
           f"last action of the step.")
     return EXIT_OK
@@ -778,7 +779,7 @@ def step_done(root, config, step_id, stamp):
 
 def parked_lines(root):
     """Carry the human-written Parked list through a regeneration."""
-    status_path = root / "project" / "status.md"
+    status_path = root / DOCS / "status.md"
     if not status_path.is_file():
         return []
     kept, collecting = [], False
@@ -822,13 +823,13 @@ def step_status(root, config):
     lines.append("- Parked:")
     lines.extend(parked_lines(root))
 
-    (root / "project" / "status.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
-    print("moltke: regenerated project/status.md from the filesystem.")
+    (root / DOCS / "status.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    print(f"moltke: regenerated {DOCS}/status.md from the filesystem.")
     return EXIT_OK
 
 
 def audit_new(root, config, audit_type):
-    report = root / "project" / "audit" / f"{datetime.date.today().isoformat()}_{audit_type}.md"
+    report = root / DOCS / "audit" / f"{datetime.date.today().isoformat()}_{audit_type}.md"
     if report.exists():
         return refuse(f"{report.relative_to(root)} already exists; a report is evidence of one "
                       f"run and is never edited afterwards. Use a different type name, or "
@@ -844,7 +845,7 @@ def audit_new(root, config, audit_type):
 
 
 def audit_list(root, config):
-    audit_dir = root / "project" / "audit"
+    audit_dir = root / DOCS / "audit"
     reports = sorted(audit_dir.glob("*.md")) if audit_dir.is_dir() else []
     references = finding_references(root)
     steps = plan_steps(root)
@@ -941,7 +942,7 @@ def build_parser():
     modes.add_argument("--post-write", action="store_true", help="PostToolUse hook (S005)")
     modes.add_argument("--stop", action="store_true", help="Stop hook (S005)")
     modes.add_argument("--validate", action="store_true", help="run every invariant, report all violations")
-    modes.add_argument("--scaffold", action="store_true", help="create the marker, AGENTS.md, and project/ from templates")
+    modes.add_argument("--scaffold", action="store_true", help=f"create the marker, AGENTS.md, and {DOCS}/ from templates")
     modes.add_argument("--decline", action="store_true", help="record that this repository declines the workflow, durably")
     modes.add_argument("--step", nargs="+", metavar="OP",
                        help="lifecycle: new <name> | start <id> | block <parent> <name> | done <id> | status")

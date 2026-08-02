@@ -17,16 +17,16 @@ SCAFFOLDED = (
     "AGENTS.md",
     "CLAUDE.md",
     ".cursor/rules/moltke.mdc",
-    "project/status.md",
-    "project/specs.md",
-    "project/plan.md",
-    "project/decisions.md",
-    "project/testing.md",
-    "project/worklog.md",
-    "project/plan_todo",
-    "project/plan_current",
-    "project/plan_done",
-    "project/audit",
+    "adocs/status.md",
+    "adocs/specs.md",
+    "adocs/plan.md",
+    "adocs/decisions.md",
+    "adocs/testing.md",
+    "adocs/worklog.md",
+    "adocs/plan_todo",
+    "adocs/plan_current",
+    "adocs/plan_done",
+    "adocs/audit",
 )
 
 
@@ -62,14 +62,14 @@ class TestScaffold(unittest.TestCase):
             before = {rel: (Path(tmp) / rel).read_bytes()
                       for rel in SCAFFOLDED if (Path(tmp) / rel).is_file()}
             # A real edit must survive the second run.
-            status = Path(tmp) / "project" / "status.md"
+            status = Path(tmp) / "adocs" / "status.md"
             status.write_text("# Status\n\n- Next: nothing yet\n", encoding="utf-8")
             result = run_moltke(tmp, "--scaffold")
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             self.assertEqual(status.read_text(encoding="utf-8"),
                              "# Status\n\n- Next: nothing yet\n")
             for rel, content in before.items():
-                if rel != "project/status.md":
+                if rel != "adocs/status.md":
                     self.assertEqual((Path(tmp) / rel).read_bytes(), content, rel)
 
     def test_existing_agents_md_is_never_overwritten(self):
@@ -89,7 +89,7 @@ class TestScaffold(unittest.TestCase):
                                                     encoding="utf-8")
             result = run_moltke(tmp, "--scaffold")
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-            self.assertFalse((Path(tmp) / "project").exists())
+            self.assertFalse((Path(tmp) / "adocs").exists())
             self.assertFalse((Path(tmp) / "AGENTS.md").exists())
 
     def test_fresh_scaffold_is_immediately_clean(self):
@@ -111,7 +111,7 @@ class TestScaffold(unittest.TestCase):
         # The format example in decisions.md is guidance, not an entry.
         with tempfile.TemporaryDirectory() as tmp:
             run_moltke(tmp, "--scaffold")
-            decisions = Path(tmp) / "project" / "decisions.md"
+            decisions = Path(tmp) / "adocs" / "decisions.md"
             decisions.write_text(decisions.read_text(encoding="utf-8")
                                  + "\n## DEC-001  2026-08-01  the first real decision\n"
                                    "Tags: setup\nContext: x\nDecision: y\n"
@@ -138,7 +138,7 @@ class TestDecline(unittest.TestCase):
             self.assertIs(marker["enabled"], False)
             # Durable: scaffolding afterwards does nothing, other modes stay silent.
             run_moltke(tmp, "--scaffold")
-            self.assertFalse((Path(tmp) / "project").exists())
+            self.assertFalse((Path(tmp) / "adocs").exists())
             self.assertEqual(run_moltke(tmp, "--validate").returncode, 0)
             self.assertEqual(run_moltke(tmp, "--stop").returncode, 0)
 

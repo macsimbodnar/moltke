@@ -1,11 +1,19 @@
 # Specs: moltke
 
 2026-08-01: created from `bootstrap.md` (DEC-012). The locked decisions of §2
-moved to `project/decisions.md` as DEC-001..DEC-012; the first plan of §8 moved
-to `project/plan.md` and step files S001..S011. Facts otherwise preserved.
+moved to `adocs/decisions.md` as DEC-001..DEC-012; the first plan of §8 moved
+to `adocs/plan.md` and step files S001..S011. Facts otherwise preserved.
 
 2026-08-01: project renamed `max_agent_workflow` → `moltke` (DEC-015): CLI
 `bin/moltke.py`, marker `.moltke.json`, skills `init`, `step`, `audit`.
+
+2026-08-02 (S013): the workflow directory is renamed `project/` → `adocs/`,
+agent documentation (DEC-021). Every path in this file, in `bin/moltke.py` via
+the single `DOCS` constant, in the hook messages, and in the templates reads
+`adocs/`. No migration path exists because no repository other than this one
+had the plugin installed. Paths inside `plan_done/`, and inside `worklog.md`
+and `decisions.md` entries predating DEC-021, still read `project/`: they are
+immutable or append-only history and are never rewritten.
 
 ## Prime directive
 
@@ -88,7 +96,7 @@ moltke/
     CLAUDE.md
     cursor_rules
     moltke.json
-    project/
+    adocs/
       status.md
       specs.md
       plan.md
@@ -98,7 +106,7 @@ moltke/
     step_template.md
     audit_report_template.md
   tests/
-  project/                        # this repo's own workflow state
+  adocs/                        # this repo's own workflow state
 ```
 
 ## bin/moltke.py
@@ -110,14 +118,14 @@ which is the only enforcement available outside Claude Code.
 | Mode | Called from | Behavior |
 |---|---|---|
 | `--session-start` | SessionStart hook | print `plan_current/` contents and the derived next step; flag `status.md` as stale if it disagrees |
-| `--log-prompt` | UserPromptSubmit hook | append timestamp and verbatim prompt to `project/worklog.md` |
+| `--log-prompt` | UserPromptSubmit hook | append timestamp and verbatim prompt to `adocs/worklog.md` |
 | `--pre-write PATH` | PreToolUse on Write and Edit | exit 2 if the path is under `plan_done/`, or is a step file outside the three plan directories |
 | `--post-write` | PostToolUse | cheap invariant scan, non-blocking |
 | `--stop` | Stop hook | exit 2 with an actionable message if source changed without a worklog recap, a stale `status.md`, a completed step lacking `testing.md` rows, or unchecked README and MANUAL |
 | `--validate` | manual, any tool | run every invariant, report all violations, exit non-zero |
-| `--scaffold` | `init` skill | create the marker, `AGENTS.md`, `CLAUDE.md`, the Cursor pointer, and `project/` from templates; never overwrites an existing file |
+| `--scaffold` | `init` skill | create the marker, `AGENTS.md`, `CLAUDE.md`, the Cursor pointer, and `adocs/` from templates; never overwrites an existing file |
 | `--decline` | `init` skill | write `{"schema": 1, "enabled": false}`, durably; refuses to disable an already-enabled repository |
-| `--audit OP ...` | `audit` skill | 2026-08-01 (S008): `new <type>` opens `project/audit/YYYY-MM-DD_<type>.md` from the template and refuses to overwrite; `list` prints every finding with its status and what references it, exiting non-zero while an open finding has neither a step nor a decision |
+| `--audit OP ...` | `audit` skill | 2026-08-01 (S008): `new <type>` opens `adocs/audit/YYYY-MM-DD_<type>.md` from the template and refuses to overwrite; `list` prints every finding with its status and what references it, exiting non-zero while an open finding has neither a step nor a decision |
 | `--step OP ...` | `step` skill | 2026-08-01 (S007): lifecycle operations `new <name> [--goal]`, `start <id>`, `block <parent> <name>`, `done <id> --stamp`, `status`. Each refuses rather than repairs, naming the missing condition; no transition may leave INV-1..INV-7 violated |
 
 Every mode exits 0 immediately when `.moltke.json` is absent or `enabled` is
@@ -182,7 +190,7 @@ cost matters and dependencies are unacceptable.
 **`init`.** Detects a missing or disabled marker, asks once whether to set the
 workflow up, and either scaffolds from `templates/` or writes
 `{"enabled": false}` and never asks again. Scaffolding writes `AGENTS.md`,
-`CLAUDE.md`, the Cursor pointer, `.moltke.json`, and a populated `project/`.
+`CLAUDE.md`, the Cursor pointer, `.moltke.json`, and a populated `adocs/`.
 Acceptance: running it twice is idempotent; declining is durable across
 sessions; a repository with an existing `AGENTS.md` is never overwritten
 without asking.
@@ -202,7 +210,7 @@ re-running the audit is what moves a finding to `closed`.
 ## Subagent and hooks
 
 `adversarial_reviewer` runs with read tools plus write access limited to
-`project/audit/`. It cannot edit source. This is deliberate: a reviewer that
+`adocs/audit/`. It cannot edit source. This is deliberate: a reviewer that
 can fix what it finds stops producing evidence and starts producing patches.
 
 Hooks in `hooks/hooks.json`, all delegating to `moltke.py`: `SessionStart`,

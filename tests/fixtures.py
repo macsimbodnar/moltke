@@ -53,30 +53,30 @@ def step_file(directory, step_id, name="step", **fields):
 def workflow_repo(root):
     """A marked repo with a minimal valid plan tree: passes every invariant."""
     root = marked_repo(root)
-    project = root / "project"
-    project.mkdir(exist_ok=True)
-    (project / "plan.md").write_text(
+    docs = root / "adocs"
+    docs.mkdir(exist_ok=True)
+    (docs / "plan.md").write_text(
         "# Plan\n\n1. S001 base\n2. S002 pending\n3. S003 active\n",
         encoding="utf-8",
     )
-    step_file(project / "plan_done", "S001", "base", done="2026-08-01 done")
-    step_file(project / "plan_todo", "S002", "pending")
-    step_file(project / "plan_current", "S003", "active")
-    (project / "testing.md").write_text(
+    step_file(docs / "plan_done", "S001", "base", done="2026-08-01 done")
+    step_file(docs / "plan_todo", "S002", "pending")
+    step_file(docs / "plan_current", "S003", "active")
+    (docs / "testing.md").write_text(
         "# Testing ledger\n\n| Step | Criterion | Test | Result |\n"
         "|---|---|---|---|\n| S001 | base works | manual | pass |\n",
         encoding="utf-8",
     )
-    (project / "decisions.md").write_text(
+    (docs / "decisions.md").write_text(
         "# Decisions\n\n## DEC-001  2026-08-01  base decision\n"
         "Tags: base\nContext: fixture\nDecision: fixture\n"
         "Rejected: none\nConsequences: none\n",
         encoding="utf-8",
     )
-    (project / "worklog.md").write_text(
+    (docs / "worklog.md").write_text(
         "# Worklog\n\n## 2026-08-01 prompt\n\n> base\n", encoding="utf-8",
     )
-    (project / "status.md").write_text(
+    (docs / "status.md").write_text(
         "# Status\n\n- Last done: S001\n- In progress: S003\n- Next: S002\n",
         encoding="utf-8",
     )
@@ -85,7 +85,7 @@ def workflow_repo(root):
 
 def audit_report(root, findings, name="2026-08-01_adversarial.md"):
     """An audit report with (finding_id, status) sections in the S004 format."""
-    audit_dir = Path(root) / "project" / "audit"
+    audit_dir = Path(root) / "adocs" / "audit"
     audit_dir.mkdir(parents=True, exist_ok=True)
     parts = ["# Audit\n"]
     for finding_id, status in findings:

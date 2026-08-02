@@ -65,7 +65,7 @@ The move to `plan_done/` is the last action of the step. Commit after it.
 --step status
 ```
 
-Regenerates `project/status.md` from the filesystem: last done, in progress,
+Regenerates `adocs/status.md` from the filesystem: last done, in progress,
 derived next, blocked. The Parked list is human memory and is carried through
 untouched. Run it at the end of every work turn, and any time `status.md`
 disagrees with `plan_current/` — the directory wins.

@@ -1,6 +1,6 @@
 ---
 name: audit
-description: Run an adversarial audit, security review, or bug hunt through the adversarial_reviewer subagent, record findings as evidence in project/audit/, then turn each finding into a plan step or a recorded decision. Use when asked to audit, review, or hunt for bugs.
+description: Run an adversarial audit, security review, or bug hunt through the adversarial_reviewer subagent, record findings as evidence in adocs/audit/, then turn each finding into a plan step or a recorded decision. Use when asked to audit, review, or hunt for bugs.
 ---
 
 # Audit
@@ -14,13 +14,13 @@ python3 ${CLAUDE_PLUGIN_ROOT}/bin/moltke.py --audit new <type>
 ```
 
 Types are free-form; `adversarial`, `security`, and `bugs` are the usual ones.
-It creates `project/audit/YYYY-MM-DD_<type>.md` and refuses to overwrite an
+It creates `adocs/audit/YYYY-MM-DD_<type>.md` and refuses to overwrite an
 existing report, because a report is evidence of one run.
 
 ## 2. Run the reviewer
 
 Spawn the `adversarial_reviewer` subagent. Tell it the report path, the scope,
-and the commit. It can read anything and write only under `project/audit/`;
+and the commit. It can read anything and write only under `adocs/audit/`;
 that fence is enforced by a hook, not by good manners.
 
 Do not review the code yourself in this turn. The separation is the point: you

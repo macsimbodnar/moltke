@@ -24,10 +24,10 @@ Absent: ask once whether to set the workflow up, then write the marker either wa
 
 Read in this order before acting:
 
-1. `project/status.md` where we are
-2. `project/plan.md` what is planned and in which order
-3. `project/specs.md` what the software must do
-4. `project/decisions.md` why things are the way they are
+1. `adocs/status.md` where we are
+2. `adocs/plan.md` what is planned and in which order
+3. `adocs/specs.md` what the software must do
+4. `adocs/decisions.md` why things are the way they are
 
 Precedence when documents disagree: **specs > plan > status**.
 Code that disagrees with specs is a bug or an unrecorded decision. It is never silently the new truth.
@@ -43,22 +43,22 @@ Code that disagrees with specs is a bug or an unrecorded decision. It is never s
 | `README.md` | developer facing: layout, build, test, exact commands | rewrite in place | checked at every step completion |
 | `MANUAL.md` | end user facing: install, operate, known bugs | rewrite in place | checked at every step completion |
 | `.moltke.json` | marker, schema version, limits | rewrite in place | schema change only |
-| `project/status.md` | last done, in progress, next, blocked, parked | rewrite in place | end of every work turn |
-| `project/specs.md` | prime directive, invariants, required behavior | edit in place, dated inline notes | same commit as any behavior change |
-| `project/plan.md` | plan description and ordered step list | rewrite in place | any plan change |
-| `project/plan_todo/` | one file per pending step | add and remove | step created or started |
-| `project/plan_current/` | active step plus any paused parents, as a stack | add and remove | step started, paused, or completed |
-| `project/plan_done/` | completed steps, immutable history | append by move only | step completed |
-| `project/testing.md` | acceptance ledger | append rows | with the feature, never after |
-| `project/decisions.md` | decision log, newest last | append only | before or alongside the change |
-| `project/worklog.md` | prompts and recaps | append only | every prompt, recap on work turns |
-| `project/audit/` | adversarial, security, bug hunt reports | add files | per audit run |
+| `adocs/status.md` | last done, in progress, next, blocked, parked | rewrite in place | end of every work turn |
+| `adocs/specs.md` | prime directive, invariants, required behavior | edit in place, dated inline notes | same commit as any behavior change |
+| `adocs/plan.md` | plan description and ordered step list | rewrite in place | any plan change |
+| `adocs/plan_todo/` | one file per pending step | add and remove | step created or started |
+| `adocs/plan_current/` | active step plus any paused parents, as a stack | add and remove | step started, paused, or completed |
+| `adocs/plan_done/` | completed steps, immutable history | append by move only | step completed |
+| `adocs/testing.md` | acceptance ledger | append rows | with the feature, never after |
+| `adocs/decisions.md` | decision log, newest last | append only | before or alongside the change |
+| `adocs/worklog.md` | prompts and recaps | append only | every prompt, recap on work turns |
+| `adocs/audit/` | adversarial, security, bug hunt reports | add files | per audit run |
 
 Append-only files are never reordered, rewritten, or trimmed. Superseded content is marked, not deleted.
 
 ## 3. Prime directive and invariants
 
-`project/specs.md` opens with:
+`adocs/specs.md` opens with:
 
 - one **prime directive**, the single property the project must never violate
 - numbered **invariants** `INV-1`, `INV-2`, ... stated as testable properties
@@ -69,7 +69,7 @@ Priority principle: correctness outranks features and portability. A reproduced 
 
 ## 4. Plan lifecycle
 
-`project/plan.md` holds the overall description plus the ordered list of step ids. It does not hold step detail.
+`adocs/plan.md` holds the overall description plus the ordered list of step ids. It does not hold step detail.
 
 One file per step named `S<nnn>_short_name.md`. **Ids are stable and never renumbered.** They are allocated in creation order, not plan order, so inserting or reordering work is a one-line edit to `plan.md` and never a file rename. Step files carry:
 
@@ -126,7 +126,7 @@ A planning session ends in a commit exactly like a coding session. Do not hold a
 
 ## 6. Testing
 
-`project/testing.md` is an acceptance ledger, not a plan. Each row is an acceptance criterion with its covering test. Rows are added together with the feature, never afterwards.
+`adocs/testing.md` is an acceptance ledger, not a plan. Each row is an acceptance criterion with its covering test. Rows are added together with the feature, never afterwards.
 
 - **Red first.** A defect found while building gets a minimized regression test before the fix.
 - **Verify red by observation.** Disable the fix, run the test, confirm it fails, record what it printed. A test never observed failing is not evidence.
@@ -149,7 +149,7 @@ A planning session ends in a commit exactly like a coding session. Do not hold a
 
 ## 8. Decisions
 
-`project/decisions.md`, append only, newest last: appending costs no read, append-only stays literal (earlier bytes never move), recency is `tail`, lookup is grep. Every entry has a stable id `DEC-<nnn>` and topic tags, so a question like "what did we decide about retries" is one grep, not a read of the whole file. Entry format:
+`adocs/decisions.md`, append only, newest last: appending costs no read, append-only stays literal (earlier bytes never move), recency is `tail`, lookup is grep. Every entry has a stable id `DEC-<nnn>` and topic tags, so a question like "what did we decide about retries" is one grep, not a read of the whole file. Entry format:
 
 ```
 ## DEC-012  2026-08-01  short title
@@ -169,7 +169,7 @@ Ids are referenced from step files, commit messages, code comments, and `specs.m
 
 ## 9. Worklog
 
-`project/worklog.md`, append only.
+`adocs/worklog.md`, append only.
 
 - Every prompt is appended verbatim with a timestamp. This is written mechanically and is not the agent's responsibility.
 - Work turns additionally get a recap: step id, what changed, files touched, tests added, commit sha.
@@ -179,7 +179,7 @@ Ids are referenced from step files, commit messages, code comments, and `specs.m
 
 ## 10. Audit
 
-`project/audit/` holds reports from adversarial verification, security audits, and bug hunts. One file per run, named `YYYY-MM-DD_type.md`.
+`adocs/audit/` holds reports from adversarial verification, security audits, and bug hunts. One file per run, named `YYYY-MM-DD_type.md`.
 
 - The report is written **before** any fix. A report edited while fixing stops being evidence of what was found.
 - Every finding gets an id `YYYY-MM-DD_type-F<nn>`, a severity, and a status of `open`, `planned`, `closed`, or `accepted`.
@@ -194,8 +194,8 @@ Audits run against the code, not against the specs. An audit that only confirms 
 The agent does not:
 
 - push, force push, or rewrite git history
-- write to `project/plan_done/`
-- reorder, rewrite, or delete entries in `project/worklog.md` or `project/decisions.md`
+- write to `adocs/plan_done/`
+- reorder, rewrite, or delete entries in `adocs/worklog.md` or `adocs/decisions.md`
 - delete or weaken a test to make a change pass
 - create plan step files outside the three plan directories
 - claim a step complete before the suite is green and `testing.md` rows exist
