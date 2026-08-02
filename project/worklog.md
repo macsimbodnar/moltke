@@ -151,3 +151,7 @@ appended by hand.
 - DEC-012 identity: verified covered by test_s006_scaffold.py, not duplicated; a tripwire asserts the guard still exists.
 - README/MANUAL: checked, absent by plan (S011).
 - Commit: see below.
+
+## 2026-08-01T20:15+02:00 prompt (hand-logged)
+
+> next

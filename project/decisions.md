@@ -135,3 +135,17 @@ Context:      DEC-003 planned a `.cursor/rules` pointer. Cursor documentation ch
 Decision:     scaffold a minimal always-applied `.cursor/rules/moltke.mdc` that points at `AGENTS.md` and states no rules of its own. (agent-supplied analysis and choice, low-stakes; reversible by deleting the template)
 Rejected:     dropping the pointer entirely (native support makes it redundant, but the pointer costs five lines and covers Cursor versions or configurations where native reading is off); a full parallel ruleset for Cursor (DEC-003 forbids it: guaranteed drift).
 Consequences: the pointer must never carry rule content, only a reference, so `AGENTS.md` stays the single source of truth.
+
+## DEC-019  2026-08-01  S010 narrowed to what the agent can verify; install checks become S012
+Tags:         plan, verification, git
+Context:      S010's acceptance included "marketplace entry installs on a second machine" and "DEC-002 confirmed before the first push". DEC-014 reserves all GitHub and environment configuration to Max: the agent commits and nothing else. Installing the plugin also mutates the local Claude Code configuration, which is outside "create commits".
+Decision:     S010 covers what is mechanically verifiable without changing any environment: the manifest, the marketplace entry, component discoverability, and `claude plugin validate --strict`. Real installation, first-session hook firing, and second-machine verification move to S012, owned by Max, with the agent supplying exact commands. (agent-proposed under DEC-014, applied to the plan)
+Rejected:     installing the plugin locally to satisfy the criterion (changes Max's Claude configuration without being asked, and a self-install is not the second-machine check the criterion actually wanted); marking S010 complete while claiming an unverified install (a completion stamp that overstates what was checked poisons every later reading of plan_done).
+Consequences: `plan.md` gains S012 after S011; until it passes, the hooks and skills in this repository remain wired but never exercised by a live session, which is recorded in `status.md` rather than assumed away.
+
+## DEC-020  2026-08-01  The plugin ships this repository's own workflow state
+Tags:         plugin, layout, dogfood
+Context:      `claude plugin validate --strict` on the plugin root warns that `CLAUDE.md` there is not loaded as project context. It is a symptom of a deliberate layout: DEC-012 self-hosts the workflow, so the repository root is simultaneously the plugin root, and `project/`, `tests/`, `.moltke.json`, `AGENTS.md`, and `CLAUDE.md` are copied into every install's plugin cache.
+Decision:     keep the layout and record the consequence as a known issue in MANUAL rather than restructuring. (agent-supplied analysis; reversible)
+Rejected:     moving the plugin into a `plugin/` subdirectory with `source: "./plugin"` (removes the cruft, but breaks the layout specs describe, splits the self-hosting story, and rewrites every hook and test path for a cosmetic gain); deleting the root `CLAUDE.md` (it is what makes Claude Code read `AGENTS.md` in this repository, per DEC-003).
+Consequences: installs carry inert extra files, including this repository's worklog and plan history; the repository is public by DEC-002, so nothing is exposed that was not already. If the cache size or the confusion ever matters, the `plugin/` subdirectory move is the escape hatch.

@@ -19,5 +19,6 @@ Order lives here and nowhere else (DEC-008). Step detail lives in the step files
 7. S007  `step` skill
 8. S008  `adversarial_reviewer` subagent and `audit` skill
 9. S009  golden test over the `moltke` CLI surface, plus the test asserting `AGENTS.md` and `templates/AGENTS.md` are identical
-10. S010  plugin manifest, marketplace entry, install verification on a second machine
+10. S010  plugin manifest and marketplace entry, verified statically (DEC-019 moved install checks to S012)
 11. S011  README and MANUAL
+12. S012  install verification: marketplace add, plugin install, hooks firing in a live session, second machine
