@@ -155,3 +155,14 @@ appended by hand.
 ## 2026-08-01T20:15+02:00 prompt (hand-logged)
 
 > next
+
+## 2026-08-01 recap S010
+
+- Step: S010 plugin manifest and marketplace entry.
+- Changed: .claude-plugin/plugin.json, .claude-plugin/marketplace.json; tests/test_s010_plugin.py (11 tests); plan.md and the S010 step file narrowed; S012 created; S011 note added.
+- Red observed: 7 failures before the manifests existed; 110/110 green after (1 skipped).
+- Live tooling: `claude plugin validate --strict` failed first on a missing marketplace description, then passed. Validating a copy without marketplace.json exercised the plugin manifest, skills, agents, and hooks, and surfaced the root-CLAUDE.md warning.
+- Plan amended, not deviated: DEC-019 narrows S010 to environment-free verification and creates S012 (Max-owned) for install, live hooks, and second machine. DEC-020 records that the repo root is also the plugin root.
+- Not done, deliberately: no plugin installed locally; that changes Max's Claude configuration and is not "create commits" (DEC-014).
+- README/MANUAL: checked, absent by plan (S011).
+- Commit: see below.
