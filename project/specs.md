@@ -134,6 +134,10 @@ same prompt it allows the stop with a warning (state in
 `--stop`'s README/MANUAL gate is mechanical: a step file newly moved into
 `plan_done/` must mention README and MANUAL in its `done:` stamp.
 
+2026-08-02 (S011): `README.md` and `MANUAL.md` exist, so the MANUAL half of the
+surface guard is live: it was verified to bite by removing `--decline` and
+`--audit list` from MANUAL and observing the failure name exactly those two.
+
 2026-08-01 (S009): the surface guard (`surface_guard: "cli"`, DEC-010) is
 `tests/test_s009_surface.py`, holding `tests/golden/cli_surface.txt`. It reads
 argparse's actions rather than `--help` prose, so help wording can change but a

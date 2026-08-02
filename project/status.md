@@ -5,7 +5,7 @@ this file: on disagreement, `plan_current/` wins.
 
 Updated: 2026-08-02 by `moltke --step status`.
 
-- Last done: S010
+- Last done: S011
 - In progress: none
 - Next: S012
 - Blocked: none

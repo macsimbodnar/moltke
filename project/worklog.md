@@ -166,3 +166,7 @@ appended by hand.
 - Not done, deliberately: no plugin installed locally; that changes Max's Claude configuration and is not "create commits" (DEC-014).
 - README/MANUAL: checked, absent by plan (S011).
 - Commit: see below.
+
+## 2026-08-02T09:00+02:00 prompt (hand-logged)
+
+> next
