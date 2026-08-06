@@ -255,3 +255,36 @@ silently. That is audit finding F14, reproduced and planned as S014.
 ## 2026-08-06T12:42+02:00 prompt
 
 > yes, and i want to change this rule. I think it's fine to spawn subagents
+
+## 2026-08-06 recap — S012 install verification
+
+- Moltke installed on this machine, so S012's clauses could be exercised against
+  the `adocs/` build instead of the stale 0.1.0 cache.
+- All five hook events probed individually and observed firing: SessionStart
+  printed the stack and `Derived next step: S012`; UserPromptSubmit appended the
+  prompt verbatim; PreToolUse refused a write into `plan_done/` and a step file
+  at the repo root; PostToolUse surfaced `INV-3` on an unlisted step file without
+  blocking the write; Stop refused a deliberately staled `status.md`.
+- Reviewer fence FAILED. A real plugin spawn of `moltke:adversarial_reviewer` was
+  told to attempt one write to `PROBE_S012.md` in the repo root. It reported
+  `File created successfully` with no hook denial; the file existed (6 bytes) and
+  was removed by the main thread. The path matches no step-file pattern and is
+  not under `plan_done/`, so the fence was the only rule that could have blocked
+  it. Audit finding F02 goes from probable to proven.
+- Still unobserved: the exact `agent_type` string. The probe proves the equality
+  at `bin/moltke.py:408` is false; it does not distinguish a namespaced value
+  from an absent field. S016's acceptance now requires logging the observed value
+  before choosing the match, and re-probing with a live spawn.
+- S012 completed rather than held open: its job was to verify, and it produced a
+  definitive result for every clause. The stamp names the failed clause and its
+  step (DEC-019 — a stamp that overstates poisons every later reading).
+- Files touched: `MANUAL.md` (two fence entries narrowed to the confirmed defect
+  and the deliberate Bash gap; live-hook entry narrowed to F01 and F14),
+  `adocs/audit/2026-08-06_adversarial.md` (post-report verification section, no
+  finding altered), `adocs/plan_todo/S016_fence_agent_type.md` (live re-probe
+  added to accepts), `adocs/testing.md` (+5 rows, one of them a fail),
+  `adocs/status.md`, `plan_current/S012` moved to `plan_done/`.
+- Tests added: none. These are live-session observations no suite can make.
+- Verified: `--validate` green, suite 112 tests OK.
+- Commit: 5ae769c.
+- Next: S014, prompt logging never fails silently.
