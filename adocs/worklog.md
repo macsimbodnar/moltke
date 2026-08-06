@@ -203,3 +203,42 @@ appended by hand.
 - README checked: test count 110 → 112. MANUAL checked: two known issues added (no 0.1.0 migration; hooks run the installed copy, not the checkout), and the live-hook entry narrowed to what was actually observed rather than removed.
 - Twice lost work to `git checkout --` on files with uncommitted changes: `bin/moltke.py` (whole refactor) and `MANUAL.md` (rename plus new entries). Both redone; the moltke.py redo was scripted so a missing target string fails loudly instead of silently skipping.
 - S012 evidence gathered this turn, before the rename: install is moltke@moltke 0.1.0, sha 0b5c96b, from git@github.com:macsimbodnar/moltke.git; SessionStart, UserPromptSubmit, PreToolUse (both refusals) and PostToolUse observed firing live.
+
+## 2026-08-06 recap — audit and triage
+
+Note: this session's prompts are absent above. The installed plugin was still
+0.1.0, whose `--log-prompt` targets `project/`, so every prompt was discarded
+silently. That is audit finding F14, reproduced and planned as S014.
+
+- Ran an adversarial audit of the implementation against its documentation.
+  Report: `adocs/audit/2026-08-06_adversarial.md`, 14 findings, 5 high, 6 medium,
+  3 low. Written before any fix; no code was changed during the run.
+- High findings, all reproduced: F14 prompt logging fails silently and is losing
+  data in this repository today; F01 the Stop hook's recap gate cannot fire in a
+  live session because `--log-prompt` already grew the worklog before the turn
+  started; F02 the reviewer fence does bare-name `agent_type` equality while
+  plugin components are namespaced, and it fails open; F03 the reviewer holds
+  `Bash` against a `Write|Edit` matcher, so the fence is bypassable by design;
+  F04 INV-7 and INV-8 baseline against HEAD, so committed tampering is invisible.
+- Two suspicions killed by the live docs rather than assumed: `prompt_id` does
+  exist in the Stop payload, so the no-deadlock cap keys correctly; PostToolUse
+  exit 2 is documented non-blocking, so `--post-write` is correct as written.
+- Triaged all 14 into one step each, S014..S026, closed out by S027. Order puts
+  correctness defects first (AGENTS.md section 3): S014 before S015 because
+  fixing prompt logging changes what the recap check reads; S016 before S017
+  because the fence must match before widening it means anything; S023 late so
+  it guards the surface after S017 and S021 add to it.
+- Decisions recorded before the code lands: DEC-022 reviewer fence gives way to
+  post-hoc reconciliation via a new `--audit check`, DEC-023 optional
+  `test_command` gate on `--step done`, DEC-024 worklog secrets detected in the
+  suite rather than redacted at write time.
+- Files touched: `adocs/audit/2026-08-06_adversarial.md` (new), `decisions.md`
+  (+DEC-022..024, byte-prefix verified intact), `plan.md` (+14), 14 new step
+  files in `plan_todo/`, `status.md`.
+- Tests added: none. This was an audit and a planning session; every fix carries
+  its own red-first test in its own step.
+- Verified: `--validate` green (the 14 INV-10 violations discharged by the
+  `closes:` fields), suite 112 tests OK.
+- Commit: f443ebe.
+- Still open: S012's completion stamp needs to state what the two-machine
+  install actually exercised, which is Max's to supply (DEC-014, DEC-019).
