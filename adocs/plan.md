@@ -23,3 +23,17 @@ Order lives here and nowhere else (DEC-008). Step detail lives in the step files
 11. S011  README and MANUAL
 12. S012  install verification: marketplace add, plugin install, hooks firing in a live session, second machine
 13. S013  adocs rename
+14. S014  prompt logging never fails silently
+15. S015  Stop's recap gate fires in a live session
+16. S016  reviewer fence matches the scoped agent_type
+17. S017  --audit check reconciles what an audit changed
+18. S018  plan_done and append-only immutability survives a commit
+19. S019  fenced guidance never discharges a finding
+20. S020  an audit can be re-run the same day
+21. S021  optional test_command gate on --step done
+22. S022  worklog secret-shape check runs in the suite
+23. S023  surface guard covers skills, hooks, and marker keys
+24. S024  a plan.md id with no step file is a violation
+25. S025  documented exit-code semantics match the code
+26. S026  documentation drift pass
+27. S027  bump 0.3.0, re-run the audit, close findings
