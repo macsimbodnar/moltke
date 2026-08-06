@@ -299,3 +299,25 @@ silently. That is audit finding F14, reproduced and planned as S014.
 > 
 > * Planning fase during initialization.
 > * How to handle plugin initialization if it was initialized on a different machine already?
+
+## 2026-08-06 recap — plan review, S028 and S029 added
+
+- Planning turn: verified S014..S027 order and added two steps at the tail.
+- Order held under review: S016 (fence match) precedes S017 (fence gives way
+  to reconciliation); S020 (same-day suffix) precedes S027 which uses it;
+  S021 (test_command marker key) precedes S023 (surface guard covers marker
+  keys); S025/S026 doc passes precede the S027 bump. No rearrangement.
+- S028: init drives a guided planning phase after scaffolding, with a
+  --session-start nudge while specs.md prime directive or plan.md steps are
+  empty. Gap: today's post-scaffold sequence is five unguided lines and a
+  skipped planning phase is invisible.
+- S029: init verifies instead of re-scaffolding when the marker is already
+  enabled — fresh clone of a repo initialized on another machine gets
+  --validate, the derived next step, and template drift reported; refresh
+  only on an explicit yes. Gap: today's enabled branch only runs --validate.
+- Both queued behind S014..S027: audit correctness fixes outrank features.
+- Files: adocs/plan.md, adocs/plan_todo/S028_init_planning_phase.md,
+  adocs/plan_todo/S029_init_preinitialized_repo.md, adocs/status.md.
+- Tests added: none, planning only. Suite 112 OK, --validate green.
+- Commit: 21a3581.
+- Next: S014, prompt logging never fails silently.
