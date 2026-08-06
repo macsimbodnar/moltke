@@ -357,3 +357,32 @@ silently. That is audit finding F14, reproduced and planned as S014.
   immutability requirement on `worklog.md` (INV-8). Scope not settled — whether
   `decisions.md` keeps it — so no code, spec, or AGENTS.md change was made.
   Affects INV-8, AGENTS.md §2/§9/§11, `templates/AGENTS.md`, and S018's scope.
+
+## 2026-08-06 recap — DEC-025 and S030, worklog leaves INV-8
+
+- Planning turn following S014. Max decided the append-only immutability rule
+  covers `decisions.md` only; `adocs/worklog.md` becomes convention.
+- DEC-025 recorded with the rejected option: dropping INV-8 entirely. Rejected
+  because `DEC-<nnn>` ids are cited from code comments, commit messages,
+  `specs.md`, and step files, so a rewritten entry silently changes what those
+  citations mean.
+- S030 created for the change itself: `APPEND_ONLY_FILES`, INV-8's wording,
+  AGENTS.md sections 2/9/11, `templates/AGENTS.md` identically, and the S004
+  tests re-targeted rather than deleted — the worklog case now asserts the check
+  abstains, after first establishing that the same tampering against
+  `decisions.md` still violates, so it cannot pass on a broken checker.
+- S030 placed at position 18 in `plan.md`, ahead of S018, so S018 does not build
+  a committed-baseline check for a requirement about to be dropped. S018's
+  accepts and excludes amended to drop `worklog.md` and to name DEC-025.
+- DEC-024 is not void: detection in the suite still beats redaction at write
+  time. Its escape procedure gets simpler — cleaning a leaked secret from the
+  worklog no longer needs a decisions.md entry authorising it. S022 stays
+  wanted. S015 is unaffected; its recap gate keys on a recap heading after the
+  last logged prompt, not on immutability.
+- No code, spec, or AGENTS.md change made this turn. The decision is recorded
+  ahead of the change, which section 8 allows; S030 applies it.
+- Files: `adocs/decisions.md` (DEC-025), `adocs/plan.md` (reordered),
+  `adocs/plan_todo/S030_drop_worklog_immutability.md`,
+  `adocs/plan_todo/S018_immutable_baseline.md`, `adocs/status.md`.
+- Tests added: none, planning only. Suite 116 OK, `--validate` green.
+- Next: S015, Stop's recap gate fires in a live session.
