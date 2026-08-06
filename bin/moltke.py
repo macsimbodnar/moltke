@@ -7,6 +7,7 @@ INV-11: every mode exits 0 immediately when .moltke.json is absent or enabled is
 
 import argparse
 import datetime
+import hashlib
 import json
 import re
 import subprocess
@@ -454,6 +455,17 @@ def mode_log_prompt(root, config):
 REVIEWER_AGENT = "adversarial_reviewer"
 
 
+def reviewer_may_write(root, rel):
+    """DEC-022: the fence is a fast clear failure on the common path, not the
+    guarantee — the reviewer also holds Bash, which no matcher sees. It permits
+    the report, and a new regression test, which is evidence. Editing a test that
+    already exists is a patch."""
+    parts = rel.parts
+    if parts[:2] == (DOCS, "audit"):
+        return True
+    return parts[:1] == ("tests",) and not (root / rel).exists()
+
+
 def mode_pre_write(root, config, path_arg):
     payload = hook_input()
     path = path_arg or payload.get("tool_input", {}).get("file_path", "")
@@ -473,10 +485,11 @@ def mode_pre_write(root, config, path_arg):
     # silently reopen it; the cost is fencing another plugin's agent of the same
     # name, which at least blocks loudly instead of failing open.
     agent = (payload.get("agent_type") or "").split(":")[-1]
-    if agent == REVIEWER_AGENT and parts[:2] != (DOCS, "audit"):
-        print(f"moltke: the {REVIEWER_AGENT} may only write under {DOCS}/audit/, and {rel} "
-              f"is outside it. Record what you found as a finding in your report; fixes are "
-              f"planned as steps afterwards, by someone else.", file=sys.stderr)
+    if agent == REVIEWER_AGENT and not reviewer_may_write(root, rel):
+        print(f"moltke: the {REVIEWER_AGENT} may write under {DOCS}/audit/, and may create new "
+              f"files under tests/, and {rel} is neither. Record what you found as a finding in "
+              f"your report; fixes are planned as steps afterwards, by someone else.",
+              file=sys.stderr)
         return EXIT_BLOCK
     if parts[:2] == (DOCS, "plan_done"):
         print(f"moltke: {rel} is under plan_done/, which is immutable history. "
@@ -922,12 +935,46 @@ def step_status(root, config):
     return EXIT_OK
 
 
+def _audit_baseline_path(root):
+    git_dir = root / ".git"
+    return git_dir / "moltke_audit_baseline.json" if git_dir.is_dir() else None
+
+
+def _content_hash(path):
+    try:
+        return hashlib.sha256(path.read_bytes()).hexdigest()
+    except OSError:
+        return None
+
+
+def worktree_state(root):
+    """{path: [porcelain status, content hash]} for every changed path, or None
+    without git. The hash is what catches a file edited before the audit and
+    edited again during it: its status never moves."""
+    # -uall, because plain porcelain collapses a wholly untracked directory into
+    # one entry: adocs/audit/ would hide the report inside it.
+    lines = _git_lines(root, "status", "--porcelain", "-uall")
+    if lines is None:
+        return None
+    state = {}
+    for line in lines:
+        status, entry = line[:2], line[3:]
+        if " -> " in entry:  # a rename; the new name is what exists now
+            entry = entry.split(" -> ", 1)[1]
+        entry = entry.strip('"')
+        state[entry] = [status, _content_hash(root / entry)]
+    return state
+
+
 def audit_new(root, config, audit_type):
     report = root / DOCS / "audit" / f"{datetime.date.today().isoformat()}_{audit_type}.md"
     if report.exists():
         return refuse(f"{report.relative_to(root)} already exists; a report is evidence of one "
                       f"run and is never edited afterwards. Use a different type name, or "
                       f"re-run the audit tomorrow.")
+    # Captured before the report exists, so the report itself shows up as part of
+    # the run's footprint and is classified there rather than being invisible.
+    baseline = worktree_state(root)
     template = (TEMPLATE_ROOT / "audit_report_template.md").read_text(encoding="utf-8")
     report.parent.mkdir(parents=True, exist_ok=True)
     report.write_text(template.replace("YYYY-MM-DD_type", report.stem)
@@ -935,6 +982,75 @@ def audit_new(root, config, audit_type):
                               .replace("<type>", audit_type), encoding="utf-8")
     print(f"moltke: created {report.relative_to(root)}. Write every finding before fixing "
           f"anything; finding ids are {report.stem}-F01, -F02, ...")
+    baseline_path = _audit_baseline_path(root)
+    if baseline is None or baseline_path is None:
+        print(f"moltke: no git worktree here, so --audit check cannot reconcile this run; "
+              f"whatever the reviewer changes will go unnoticed.", file=sys.stderr)
+        return EXIT_OK
+    try:
+        baseline_path.write_text(json.dumps(
+            {"report": str(report.relative_to(root)), "tree": baseline}), encoding="utf-8")
+    except OSError as exc:
+        print(f"moltke: could not record the audit baseline ({exc}); --audit check will "
+              f"refuse until --audit new runs again.", file=sys.stderr)
+    return EXIT_OK
+
+
+def _is_new_file(status):
+    return status in ("??", "A ")
+
+
+def audit_check(root, config):
+    """DEC-022: prevention gave way to detection. Report what the run actually
+    changed, so a contaminated report is known before any finding is acted on."""
+    baseline_path = _audit_baseline_path(root)
+    saved = None
+    if baseline_path is not None and baseline_path.is_file():
+        try:
+            saved = json.loads(baseline_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            saved = None
+    if not isinstance(saved, dict) or not isinstance(saved.get("tree"), dict):
+        return refuse("no audit baseline recorded here; run --audit new <type> first, because "
+                      "check reconciles a run against the tree as it stood when the report "
+                      "was opened")
+    current = worktree_state(root)
+    if current is None:
+        return refuse("--audit check needs a git worktree: it compares git status against the "
+                      "baseline recorded by --audit new")
+
+    before, report = saved["tree"], saved.get("report", "")
+    expected, unexpected = [], []
+    for entry in sorted(set(before) | set(current)):
+        was, now = before.get(entry), current.get(entry)
+        if was == now:
+            continue
+        if now is None:
+            note = f"{entry}: no longer reported as changed (reverted or committed)"
+        elif was is None:
+            note = f"{entry}: {now[0].strip() or 'changed'}"
+        else:
+            note = f"{entry}: changed again (was {was[0].strip()}, now {now[0].strip()})"
+        if entry == report or (entry.startswith("tests/") and was is None
+                               and _is_new_file(now[0])):
+            expected.append(note)
+        else:
+            unexpected.append(note)
+
+    if expected:
+        print("expected, this run's report and new tests:")
+        for note in expected:
+            print(f"  {note}")
+    if unexpected:
+        print("unexpected, not attributable to writing the report:")
+        for note in unexpected:
+            print(f"  {note}")
+        print(f"The reviewer holds Bash and is not fenced from mutating the repository "
+              f"(DEC-022). Review each change above before acting on any finding: "
+              f"git diff, then keep or revert deliberately.")
+        return EXIT_VIOLATIONS
+    if not expected:
+        print("no change since --audit new; the report itself has not been written yet.")
     return EXIT_OK
 
 
@@ -974,7 +1090,7 @@ def audit_list(root, config):
     return EXIT_OK
 
 
-AUDIT_OPS = ("new", "list")
+AUDIT_OPS = ("new", "list", "check")
 
 
 def mode_audit(root, config, argv):
@@ -983,6 +1099,8 @@ def mode_audit(root, config, argv):
         return refuse(f"unknown --audit operation {op!r}; use one of {', '.join(AUDIT_OPS)}")
     if op == "list":
         return audit_list(root, config)
+    if op == "check":
+        return audit_check(root, config)
     if not rest:
         return refuse("usage: --audit new <type>   (for example: adversarial, security)")
     return audit_new(root, config, rest[0])

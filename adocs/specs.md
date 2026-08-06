@@ -125,7 +125,7 @@ which is the only enforcement available outside Claude Code.
 | `--validate` | manual, any tool | run every invariant, report all violations, exit non-zero |
 | `--scaffold` | `init` skill | create the marker, `AGENTS.md`, `CLAUDE.md`, the Cursor pointer, and `adocs/` from templates; never overwrites an existing file |
 | `--decline` | `init` skill | write `{"schema": 1, "enabled": false}`, durably; refuses to disable an already-enabled repository |
-| `--audit OP ...` | `audit` skill | 2026-08-01 (S008): `new <type>` opens `adocs/audit/YYYY-MM-DD_<type>.md` from the template and refuses to overwrite; `list` prints every finding with its status and what references it, exiting non-zero while an open finding has neither a step nor a decision |
+| `--audit OP ...` | `audit` skill | 2026-08-01 (S008): `new <type>` opens `adocs/audit/YYYY-MM-DD_<type>.md` from the template and refuses to overwrite; `list` prints every finding with its status and what references it, exiting non-zero while an open finding has neither a step nor a decision. 2026-08-06 (S017): `new` also records a working-tree baseline in `.git/moltke_audit_baseline.json`, and `check` reconciles the run against it, printing expected and unexpected changes and exiting 1 on anything unexpected |
 | `--step OP ...` | `step` skill | 2026-08-01 (S007): lifecycle operations `new <name> [--goal]`, `start <id>`, `block <parent> <name>`, `done <id> --stamp`, `status`. Each refuses rather than repairs, naming the missing condition; no transition may leave INV-1..INV-7 violated |
 
 Every mode exits 0 immediately when `.moltke.json` is absent or `enabled` is
@@ -141,6 +141,28 @@ same prompt it allows the stop with a warning (state in
 `.git/moltke_stop_state.json`), preserving the DEC-006 no-deadlock property.
 `--stop`'s README/MANUAL gate is mechanical: a step file newly moved into
 `plan_done/` must mention README and MANUAL in its `done:` stamp.
+
+2026-08-06 (S017, DEC-022): prevention gives way to reconciliation. `--audit new`
+records a working-tree baseline in `.git/moltke_audit_baseline.json` — captured
+before the report is written, so the report is part of the run's footprint and is
+classified rather than invisible — as `{path: [porcelain status, sha256]}` over
+`git status --porcelain -uall`. `-uall` because plain porcelain collapses a wholly
+untracked directory into one entry, which would hide the report inside
+`adocs/audit/`. The hash is what catches a file edited before the audit and edited
+again during it, whose status never moves. `--audit check` then prints the
+footprint split in two: this run's own report and new files under `tests/` are
+expected, everything else — including a modified existing test, and a
+pre-existing change reverted — is unexpected, exits 1, and says to review each
+change with `git diff` before acting on any finding. Pre-existing dirt is in the
+baseline, so it is never attributed to the run. Without git, or before `--audit
+new` has run, `check` refuses and names what to run; ignored paths are outside
+`git status` and so outside this check.
+
+The fence widens to match: the reviewer may write under `adocs/audit/` and may
+create new files under `tests/`, since a red-first regression test is evidence
+while editing an existing test is a patch. `Bash` stays unconstrained by design
+(DEC-022 rejected inspecting command strings as unparseable), so the fence is a
+fast clear failure on the common path, never the guarantee.
 
 2026-08-06 (S016): the reviewer write fence matches the scoped `agent_type`.
 Observed live, by instrumenting the installed 0.2.0 hook to dump its PreToolUse
@@ -208,7 +230,10 @@ first real decision collided with the template's own example.
 report's name, so ids cannot drift between reports when an audit is re-run.
 The reviewer's write fence is enforced in `--pre-write` using the PreToolUse
 `agent_type` field: subagent frontmatter has no path-level restriction, so the
-hook is the only place the limit can be real.
+hook is the only place the limit can be real. — Superseded 2026-08-06 (S017,
+DEC-022): the last sentence was wrong. The hook only sees the tools its matcher
+names, and the reviewer also holds `Bash`, so the fence was never the limit; see
+the S017 note below.
 
 2026-08-01 (S007): unfilled template placeholders (`<!-- ... -->`) in a step
 field read as empty everywhere, so a hand-copied `step_template.md` cannot

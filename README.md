@@ -18,7 +18,7 @@ working on moltke itself.
 bin/moltke.py                    every check and command, one entry point
 hooks/hooks.json                 five hook events, all shelling out to bin/moltke.py
 skills/init|step|audit/SKILL.md  the three skills, invoked as /moltke:<name>
-agents/adversarial_reviewer.md   auditor: reads anything, writes only adocs/audit/
+agents/adversarial_reviewer.md   auditor: reads anything, writes adocs/audit/ and new tests/
 templates/                       what `--scaffold` copies into a target repository
 tests/                           the suite; tests/golden/ holds the CLI surface
 AGENTS.md                        the live ruleset; templates/AGENTS.md is its shipped copy
@@ -43,7 +43,7 @@ Full suite:
 python3 -m unittest discover -s tests
 ```
 
-121 tests, no skips. A test whose precondition is genuinely absent skips with a
+132 tests, no skips. A test whose precondition is genuinely absent skips with a
 message saying what would activate it, rather than passing silently.
 
 Check this repository against its own rules, which is also what other tools
@@ -51,6 +51,18 @@ Check this repository against its own rules, which is also what other tools
 
 ```
 python3 bin/moltke.py --validate
+```
+
+The audit gate, after a reviewer run: the first reconciles what the run changed
+against the baseline `--audit new` recorded, the second refuses while an open
+finding has neither a plan step nor a decision.
+
+```
+python3 bin/moltke.py --audit check
+```
+
+```
+python3 bin/moltke.py --audit list
 ```
 
 Exit codes: `0` clean, `1` invariant violations listed on stdout, `2` a blocked

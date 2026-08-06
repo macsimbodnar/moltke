@@ -7,4 +7,4 @@ decisions:  DEC-022
 closes:     2026-08-06_adversarial-F03
 blocks:
 paused_by:
-done:
+done:      2026-08-06: --audit new records a baseline, --audit check reconciles the run; fence widened to new files under tests/. 11 tests in test_s008_audit.py, red observed. Golden refreshed with check documented in specs and MANUAL in this commit. Suite 132 OK, --validate green. README updated: test count 121 to 132, reviewer line, audit gate commands; MANUAL gained the --audit check row and its git-visibility limits, and the fence entry now lists three residual limits. F03 stays planned until S027 re-runs the audit.

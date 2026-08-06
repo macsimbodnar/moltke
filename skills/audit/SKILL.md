@@ -20,17 +20,29 @@ existing report, because a report is evidence of one run.
 ## 2. Run the reviewer
 
 Spawn the `adversarial_reviewer` subagent. Tell it the report path, the scope,
-and the commit. It can read anything and write only under `adocs/audit/`;
-that fence is enforced by a hook, not by good manners.
+and the commit. It can read anything, and a hook blocks its `Write` and `Edit`
+outside `adocs/audit/` and new files under `tests/`. That fence is not the
+guarantee: the reviewer also holds `Bash`, which no hook matcher sees, so
+mutation is possible by design (DEC-022) and is reconciled in step 3 instead.
 
 Do not review the code yourself in this turn. The separation is the point: you
 are about to be the one who fixes these findings, and a reviewer who expects to
 fix things reports fewer of them.
 
-## 3. Do not fix anything yet
+## 3. Reconcile what the run changed, then fix nothing
 
-Read the report. Every finding is `open` at this stage. Fixing now, before the
-findings are recorded and planned, destroys the evidence trail and is the one
+```
+python3 ${CLAUDE_PLUGIN_ROOT}/bin/moltke.py --audit check
+```
+
+It compares the tree against the baseline `--audit new` recorded. The report and
+any new files under `tests/` are expected; anything else exits 1 and is listed.
+Review each one with `git diff` and keep or revert it deliberately, before any
+finding is acted on — a report produced by a run that also patched the code is
+not evidence of what was there.
+
+Then read the report. Every finding is `open` at this stage. Fixing now, before
+the findings are recorded and planned, destroys the evidence trail and is the one
 thing this skill exists to prevent.
 
 ## 4. Give every finding a home

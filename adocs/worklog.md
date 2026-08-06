@@ -467,3 +467,45 @@ silently. That is audit finding F14, reproduced and planned as S014.
 - Tests added: 3 new, 2 widened to cover both `agent_type` forms; red observed.
   Suite 121 OK, `--validate` green.
 - Next: S017, `--audit check` reconciles what an audit changed.
+
+## 2026-08-06T16:11+02:00 prompt
+
+> next
+
+## 2026-08-06 recap — S017 --audit check reconciles what an audit changed
+
+- S017 done, closing audit finding F03 (stays `planned` until S027 re-runs the
+  audit). Implements DEC-022: prevention gives way to detection.
+- `--audit new` records `.git/moltke_audit_baseline.json` as
+  `{path: [porcelain status, sha256]}`, captured *before* the report is written
+  so the report is part of the run's footprint rather than invisible.
+- `--audit check` splits the footprint: this run's report and new files under
+  `tests/` are expected; a modified existing test, a source change, and a
+  reverted pre-existing change are unexpected, exit 1, and are listed with
+  instructions to `git diff` each before acting on any finding.
+- Per-file sha256, not just porcelain status: a file edited before the audit and
+  edited again during it keeps status ` M` throughout, so status alone cannot see
+  it. Tested directly.
+- Red observed during the build, and worth keeping: with plain
+  `git status --porcelain` the check reported `adocs/audit/: ??` and exited 1 —
+  git collapses a wholly untracked directory into one entry, hiding the report
+  inside it. Fixed with `-uall`.
+- Fence widened: reviewer may write under `adocs/audit/` and may create new files
+  under `tests/`, because a red-first regression test is evidence while editing
+  an existing test is a patch. `(root / rel).exists()` is the discriminator.
+- Doc claims corrected rather than deleted: the S008 specs sentence saying the
+  hook "is the only place the limit can be real" is marked superseded in place.
+  `agents/adversarial_reviewer.md` and `skills/audit/SKILL.md` no longer say the
+  fence is enforcement; both now say `Bash` is unconstrained and the run is
+  reconciled afterwards. MANUAL gained the `--audit check` row plus a section on
+  what the check cannot see (ignored paths), and its fence entry lists three
+  residual limits. README gained the audit gate commands.
+- The surface guard bit exactly as designed: `AssertionError: Lists differ:
+  ['--audit check'] != []` until specs and MANUAL described the new operation.
+  Golden refreshed afterwards, not before.
+- Files: `bin/moltke.py`, `tests/test_s008_audit.py`, `tests/golden/cli_surface.txt`,
+  `agents/adversarial_reviewer.md`, `skills/audit/SKILL.md`, `adocs/specs.md`,
+  `adocs/testing.md` (+9 rows), `MANUAL.md`, `README.md`, `adocs/status.md`,
+  `plan_current/S017` moved to `plan_done/`.
+- Tests added: 11, red observed. Suite 132 OK, `--validate` green.
+- Next: S030, INV-8 covers decisions.md only.

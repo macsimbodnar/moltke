@@ -22,6 +22,21 @@ def run_moltke(cwd, *args, stdin=""):
     )
 
 
+def git_baseline(root):
+    for args in (("init", "-q"), ("add", "-A"), ("commit", "-qm", "base")):
+        subprocess.run(
+            ["git", "-C", str(root), "-c", "user.name=t", "-c", "user.email=t@t", *args],
+            capture_output=True, text=True, check=True,
+        )
+
+
+def write(root, rel, text):
+    path = root / rel
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text, encoding="utf-8")
+    return path
+
+
 class TestAuditNew(unittest.TestCase):
     def test_creates_a_dated_report(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -147,6 +162,130 @@ class TestReviewerWriteFence(unittest.TestCase):
             payload = json.dumps({"tool_input": {"file_path": "src/main.py"}})
             result = run_moltke(root, "--pre-write", stdin=payload)
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+
+class TestAuditReconciliation(unittest.TestCase):
+    """S017 (DEC-022): mutation during an audit is legitimate — the reviewer
+    needs to reproduce defects — so the run is reconciled afterwards instead of
+    prevented. `Bash` is unconstrained by design, which is exactly why the
+    reconciliation has to exist."""
+
+    def committed_repo(self, tmp):
+        root = workflow_repo(tmp)
+        write(root, "src/main.py", "print('source')\n")
+        write(root, "tests/test_existing.py", "# an existing test\n")
+        git_baseline(root)
+        return root
+
+    def check(self, root):
+        return run_moltke(root, "--audit", "check")
+
+    def test_only_the_reports_own_changes_are_expected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.committed_repo(tmp)
+            run_moltke(root, "--audit", "new", "adversarial")
+            report = root / "adocs" / "audit" / f"{TODAY}_adversarial.md"
+            report.write_text(report.read_text(encoding="utf-8") + "\n### finding\n",
+                              encoding="utf-8")
+            result = self.check(root)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertIn(f"{TODAY}_adversarial.md", result.stdout)
+
+    def test_a_new_test_file_is_expected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.committed_repo(tmp)
+            run_moltke(root, "--audit", "new", "adversarial")
+            write(root, "tests/test_regression.py", "# red first\n")
+            result = self.check(root)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertIn("tests/test_regression.py", result.stdout)
+
+    def test_a_modified_existing_test_is_unexpected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.committed_repo(tmp)
+            run_moltke(root, "--audit", "new", "adversarial")
+            write(root, "tests/test_existing.py", "# weakened\n")
+            result = self.check(root)
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn("tests/test_existing.py", result.stdout)
+
+    def test_a_source_change_is_unexpected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.committed_repo(tmp)
+            run_moltke(root, "--audit", "new", "adversarial")
+            write(root, "src/main.py", "print('patched')\n")
+            result = self.check(root)
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn("src/main.py", result.stdout)
+
+    def test_a_dirty_starting_tree_is_not_blamed_on_the_audit(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.committed_repo(tmp)
+            write(root, "src/main.py", "print('dirty before the audit')\n")
+            run_moltke(root, "--audit", "new", "adversarial")
+            result = self.check(root)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertNotIn("src/main.py", result.stdout)
+
+    def test_a_second_change_to_an_already_dirty_file_is_caught(self):
+        # Porcelain status stays " M" across both edits, so status alone cannot
+        # see this; the baseline records a content hash for that reason.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.committed_repo(tmp)
+            write(root, "src/main.py", "print('dirty before the audit')\n")
+            run_moltke(root, "--audit", "new", "adversarial")
+            write(root, "src/main.py", "print('changed again during the audit')\n")
+            result = self.check(root)
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn("src/main.py", result.stdout)
+
+    def test_reverting_someone_elses_change_is_unexpected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.committed_repo(tmp)
+            write(root, "src/main.py", "print('dirty before the audit')\n")
+            run_moltke(root, "--audit", "new", "adversarial")
+            write(root, "src/main.py", "print('source')\n")  # back to HEAD
+            result = self.check(root)
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn("src/main.py", result.stdout)
+
+    def test_check_without_a_baseline_refuses_and_says_what_to_run(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.committed_repo(tmp)
+            result = self.check(root)
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn("--audit new", result.stderr)
+
+
+class TestReviewerMayWriteNewTests(unittest.TestCase):
+    """DEC-022 widens the fence: a new regression test is evidence, editing an
+    existing one is a patch."""
+
+    def pre_write(self, root, path):
+        payload = json.dumps({"agent_type": SCOPED_REVIEWER,
+                              "tool_input": {"file_path": path}})
+        return run_moltke(root, "--pre-write", stdin=payload)
+
+    def test_new_test_file_is_allowed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            result = self.pre_write(root, "tests/test_regression.py")
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_existing_test_file_is_blocked(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            write(root, "tests/test_existing.py", "# an existing test\n")
+            result = self.pre_write(root, "tests/test_existing.py")
+            self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+            self.assertIn("tests/", result.stderr)
+
+    def test_everything_else_is_still_blocked(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            for path in ("src/main.py", "bin/moltke.py", "adocs/specs.md",
+                         "tests_helper.py", "docs/tests/new.py"):
+                self.assertEqual(self.pre_write(root, path).returncode, 2, path)
 
 
 class TestDefinitions(unittest.TestCase):

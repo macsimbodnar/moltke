@@ -101,11 +101,12 @@ Cursor) must, since hooks exist only in Claude Code.
 | `--step block <parent> <name>` | create a blocking child in `plan_current/` and pause its parent |
 | `--step done <id>` | complete a step and move it to `plan_done/`, refusing if anything is missing |
 | `--step status` | regenerate `status.md` from the filesystem, keeping the Parked list |
-| `--audit new <type>` | open `adocs/audit/YYYY-MM-DD_<type>.md`; refuses to overwrite a report |
+| `--audit new <type>` | open `adocs/audit/YYYY-MM-DD_<type>.md`; refuses to overwrite a report. Also records a working-tree baseline for `--audit check` |
 | `--audit list` | every finding, its status, and what references it; exits 1 while an open finding has neither a step nor a decision |
+| `--audit check` | reconcile what the run changed against that baseline: the report and new files under `tests/` are expected, anything else exits 1. Run it after the reviewer returns, before acting on a finding |
 | `--session-start` | SessionStart hook: emit the stack and derived next step as context |
 | `--log-prompt` | UserPromptSubmit hook: append the prompt to the worklog. Never blocks, because blocking here would erase your prompt |
-| `--pre-write` | PreToolUse hook for Write and Edit: refuse writes into `plan_done/`, step files outside the plan directories, and anything outside `adocs/audit/` written by the reviewer |
+| `--pre-write` | PreToolUse hook for Write and Edit: refuse writes into `plan_done/`, step files outside the plan directories, and reviewer writes other than `adocs/audit/` or a new file under `tests/` |
 | `--post-write` | PostToolUse hook: cheap invariant scan, surfaced but non-blocking |
 | `--stop` | Stop hook: refuse to end a turn on violations, a stale `status.md`, or unrecapped source changes |
 
@@ -153,13 +154,24 @@ observed directly on 2026-08-06 — a plugin subagent sends
 the match now reads the part after the last colon (finding F02, fixed in step
 S016).
 
-Two limits remain by design. The reviewer also holds `Bash`, whose writes no
+Three limits remain by design. The reviewer also holds `Bash`, whose writes no
 PreToolUse matcher sees, so mutation during an audit is possible and is treated
 as legitimate (DEC-022): `--audit check` reports what a run actually changed
-rather than trying to prevent it. And because the match is by suffix, another
-plugin shipping an agent named `adversarial_reviewer` would be fenced too. That
-is the deliberate direction of failure: a wrong block says so out loud, while a
-wrong pass is what F02 was.
+rather than trying to prevent it. Because the match is by suffix, another plugin
+shipping an agent named `adversarial_reviewer` would be fenced too — the
+deliberate direction of failure, since a wrong block says so out loud while a
+wrong pass is what F02 was. And the fence permits new files under `tests/`,
+because a red-first regression test is evidence; editing a test that already
+exists is a patch and stays blocked.
+
+**`--audit check` sees what `git status` sees.** It compares porcelain output
+with `-uall` plus a content hash per changed file, against the baseline recorded
+by `--audit new`. Consequences worth knowing: a change to a `.gitignore`d path is
+invisible to it, because git does not report those; changes the reviewer commits
+itself stop being reported as changed and show up as "reverted or committed",
+which is flagged as unexpected rather than hidden; and pre-existing dirt in your
+tree is in the baseline, so it is never blamed on the audit. Without git, or
+before `--audit new` has run, the check refuses instead of passing quietly.
 
 **Immutability checks need git.** INV-7 (`plan_done/` unchanged) and INV-8
 (append-only files) compare against `git HEAD`. In a repository with no history,

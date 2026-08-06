@@ -1,4 +1,4 @@
---audit OP...  ops: list,new
+--audit OP...  ops: check,list,new
 --decline
 --goal VALUE
 --help/-h
