@@ -17,6 +17,12 @@ from pathlib import Path
 MARKER = ".moltke.json"
 DOCS = "adocs"  # agent documentation; renamed from project/ by DEC-021
 SURFACE_GUARD_VALUES = ("cli", "api", "both", "none")
+# The marker keys check_marker recognises. Part of the guarded public surface
+# (S023): adding, renaming, or removing one fails the golden until the specs and
+# MANUAL describe it. A key absent here is ignored rather than rejected, so an
+# unknown key is never a violation.
+MARKER_KEYS = ("schema", "enabled", "plan_active_max", "plan_stack_max",
+               "surface_guard", "test_command")
 
 EXIT_OK = 0
 EXIT_VIOLATIONS = 1

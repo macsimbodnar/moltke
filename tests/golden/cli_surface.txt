@@ -11,3 +11,6 @@
 --step OP...  ops: block,done,new,start,status
 --stop
 --validate
+hooks: PostToolUse,PreToolUse,SessionStart,Stop,UserPromptSubmit
+marker keys: enabled,plan_active_max,plan_stack_max,schema,surface_guard,test_command
+skills: audit,init,step

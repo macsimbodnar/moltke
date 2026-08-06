@@ -12,10 +12,11 @@ import subprocess
 import unittest
 from pathlib import Path
 
+from surface import declared_hook_events, declared_skills
+
 REPO = Path(__file__).resolve().parent.parent
 MANIFEST = REPO / ".claude-plugin" / "plugin.json"
 MARKETPLACE = REPO / ".claude-plugin" / "marketplace.json"
-SKILLS = ("init", "step", "audit")
 
 
 class TestManifest(unittest.TestCase):
@@ -47,18 +48,31 @@ class TestComponentsAreDiscoverable(unittest.TestCase):
     """Default layout: skills/, agents/, hooks/hooks.json at the plugin root."""
 
     def test_each_skill_directory_names_itself(self):
-        for skill in SKILLS:
+        # Discovered, not hardcoded: a hardcoded list made a fourth skill
+        # invisible to the whole suite (S023, F10). The golden is what pins the
+        # set; this pins name-matches-directory for whatever is there.
+        skills = declared_skills()
+        self.assertTrue(skills, "no skills discovered under skills/*/SKILL.md")
+        for skill in skills:
             path = REPO / "skills" / skill / "SKILL.md"
-            self.assertTrue(path.is_file(), f"missing {path}")
-            frontmatter = path.read_text(encoding="utf-8").split("---", 2)[1]
-            self.assertIn(f"name: {skill}", frontmatter,
-                          f"skill name must match its directory to resolve as /moltke:{skill}")
+            self.assertTrue(path.is_file(),
+                            f"skill {skill!r} names itself but does not live in skills/{skill}/, "
+                            f"so it cannot resolve as /moltke:{skill}")
 
     def test_skills_are_not_hidden_inside_the_manifest_directory(self):
         self.assertFalse((REPO / ".claude-plugin" / "skills").exists())
 
     def test_reviewer_agent_is_discoverable(self):
         self.assertTrue((REPO / "agents" / "adversarial_reviewer.md").is_file())
+
+    def test_every_declared_hook_event_has_a_command(self):
+        # assertTrue(commands) below was satisfied by any one surviving event, so
+        # deleting Stop outright left the suite green (S023, F10).
+        hooks = json.loads((REPO / "hooks" / "hooks.json").read_text(encoding="utf-8"))
+        for event in declared_hook_events():
+            matchers = hooks["hooks"][event]
+            self.assertTrue([entry for matcher in matchers for entry in matcher["hooks"]],
+                            f"hook event {event} is declared with no command")
 
     def test_hooks_call_the_checker_through_the_plugin_root(self):
         hooks = json.loads((REPO / "hooks" / "hooks.json").read_text(encoding="utf-8"))

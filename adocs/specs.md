@@ -241,6 +241,22 @@ updating the docs, with `python3 tests/test_s009_surface.py --refresh`. The
 same check runs against `MANUAL.md` and is skipped until that file exists in
 S011; closing that gap is part of S011.
 
+2026-08-06 (S023): the surface guard covers what a plugin user touches, not only
+argparse. The golden gained three lines — the declared skills, the declared hook
+events, and `MARKER_KEYS`, the `.moltke.json` keys `check_marker` recognises — so
+adding, renaming, or removing any of them fails it, and the specs-and-MANUAL
+cross-check applies to each exactly as it does to flags. A skill counts as
+documented only where it is named as a component, `/moltke:<name>` or in
+backticks, since "step" and "audit" are words this documentation uses constantly.
+Before this, `SKILLS` was hardcoded in `tests/test_s010_plugin.py` so a fourth
+skill was invisible, and the hook assertion was satisfied by any one surviving
+event, so deleting `Stop` outright left the suite green — verified before the fix
+(finding F10). Both are now derived from the declarations in `tests/surface.py`,
+which is the single home for them. `MARKER_KEYS` is pinned to reality by a test
+that gives every declared key an invalid value and requires `check_marker` to
+name it, so the list cannot become decorative; an undeclared key stays ignored
+rather than rejected, so no existing marker breaks.
+
 2026-08-06 (S022, DEC-024): `tests/test_s022_secrets.py` fails when a prefixed
 key shape or a PEM private-key header appears in `adocs/worklog.md`, satisfying
 AGENTS.md section 6's requirement that secret-leak checks run inside the normal

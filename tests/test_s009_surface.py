@@ -1,59 +1,36 @@
-"""S009: golden test over the moltke CLI surface (DEC-010, surface_guard "cli").
+"""S009: golden test over the moltke public surface (DEC-010, surface_guard "cli").
 
-The golden fails on any added, renamed, or removed command, flag, or operation.
-Refreshing it is deliberate: the documentation check below fails until the new
-surface is described in the specs table and MANUAL, in the same commit.
+The golden fails on any added, renamed, or removed command, flag, or operation,
+and since S023 on any added, renamed, or removed skill, hook event, or recognised
+marker key. Refreshing it is deliberate: the documentation check below fails until
+the new surface is described in the specs table and MANUAL, in the same commit.
 """
 
-import importlib.util
 import re
 import unittest
 from pathlib import Path
 
-REPO = Path(__file__).resolve().parent.parent
-GOLDEN = Path(__file__).resolve().parent / "golden" / "cli_surface.txt"
+from surface import (REPO, current_surface, declared_hook_events, declared_skills,
+                     moltke)
 
-_spec = importlib.util.spec_from_file_location("moltke", REPO / "bin" / "moltke.py")
-moltke = importlib.util.module_from_spec(_spec)
-_spec.loader.exec_module(moltke)
+GOLDEN = Path(__file__).resolve().parent / "golden" / "cli_surface.txt"
 
 REFRESH = (f"Surface changed. Update the CLI table in adocs/specs.md and MANUAL.md in "
            f"this same commit, then refresh the golden with:\n"
            f"  python3 tests/test_s009_surface.py --refresh")
 
 
-def current_surface():
-    """One line per option: its flags, its argument shape, and its operations.
-
-    Reads argparse's actions rather than --help text, so wording changes do not
-    churn the golden but a rename or a new flag does.
-    """
-    lines = []
-    for action in moltke.build_parser()._actions:
-        if not action.option_strings:
-            continue
-        flags = "/".join(sorted(action.option_strings))
-        if action.nargs == 0:
-            shape = ""
-        elif action.nargs == "?":
-            shape = f"[{action.metavar or 'VALUE'}]"
-        elif action.nargs in ("+", "*"):
-            shape = f"{action.metavar or 'VALUE'}..."
-        else:
-            shape = action.metavar or "VALUE"
-        ops = ""
-        if flags == "--step":
-            ops = "  ops: " + ",".join(sorted(moltke.STEP_OPS))
-        elif flags == "--audit":
-            ops = "  ops: " + ",".join(sorted(moltke.AUDIT_OPS))
-        lines.append(f"{flags} {shape}".rstrip() + ops)
-    return "\n".join(sorted(lines)) + "\n"
-
-
 class TestGoldenSurface(unittest.TestCase):
     def test_surface_matches_the_golden(self):
         self.assertTrue(GOLDEN.is_file(), f"missing {GOLDEN}. {REFRESH}")
         self.assertEqual(current_surface(), GOLDEN.read_text(encoding="utf-8"), REFRESH)
+
+    def test_the_golden_covers_more_than_argparse(self):
+        # Precondition for the tampering the accepts calls for: if these three
+        # lines were absent, every component check below would pass vacuously.
+        golden = GOLDEN.read_text(encoding="utf-8")
+        for prefix in ("hooks: ", "marker keys: ", "skills: "):
+            self.assertIn(prefix, golden, f"the golden no longer declares {prefix!r}")
 
 
 class TestSurfaceIsDocumented(unittest.TestCase):
@@ -74,6 +51,18 @@ class TestSurfaceIsDocumented(unittest.TestCase):
             scope = "\n".join(line for line in text.splitlines() if mode in line)
             missing.extend(f"{mode} {op}" for op in ops
                            if not re.search(rf"\b{re.escape(op)}\b", scope))
+        # A skill counts as described where it is named as a component, either
+        # `/moltke:<name>` or `<name>` in backticks — not merely as English prose,
+        # since "step" and "audit" are words this documentation uses constantly.
+        for skill in declared_skills():
+            if not re.search(rf"(?:/moltke:{re.escape(skill)}|`{re.escape(skill)}`)", text):
+                missing.append(f"skill {skill}")
+        for event in declared_hook_events():
+            if event not in text:
+                missing.append(f"hook {event}")
+        for key in moltke.MARKER_KEYS:
+            if key not in text:
+                missing.append(f"marker key {key}")
         self.assertEqual(missing, [], f"{label} does not describe: {missing}. {REFRESH}")
 
     def test_specs_describes_every_mode(self):
@@ -87,6 +76,34 @@ class TestSurfaceIsDocumented(unittest.TestCase):
         if not manual.is_file():
             self.skipTest("MANUAL.md lands in S011; this check activates with it")
         self.assert_documented(manual, "MANUAL.md")
+
+
+class TestMarkerKeysAreLoadBearing(unittest.TestCase):
+    """MARKER_KEYS is what the golden guards, so it must match what the code
+    actually validates rather than being a decorative list."""
+
+    GOOD = {"schema": 1, "enabled": True, "plan_active_max": 1,
+            "plan_stack_max": 3, "surface_guard": "cli",
+            "test_command": "true"}
+
+    def test_the_good_marker_is_accepted(self):
+        # Non-vacuity anchor for the per-key checks below.
+        self.assertEqual(moltke.check_marker(dict(self.GOOD)), [])
+
+    def test_every_declared_key_is_actually_validated(self):
+        for key in moltke.MARKER_KEYS:
+            with self.subTest(key):
+                marker = dict(self.GOOD)
+                marker[key] = ["not a valid value for any key"]
+                violations = moltke.check_marker(marker)
+                self.assertTrue(any(key in v for v in violations),
+                                f"{key} is in MARKER_KEYS but check_marker ignores it, so the "
+                                f"golden guards a key that means nothing")
+
+    def test_an_unrecognised_key_is_ignored_not_rejected(self):
+        marker = dict(self.GOOD)
+        marker["some_future_key"] = "whatever"
+        self.assertEqual(moltke.check_marker(marker), [])
 
 
 class TestRulesetIdentity(unittest.TestCase):

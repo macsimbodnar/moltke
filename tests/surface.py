@@ -1,0 +1,72 @@
+"""The guarded public surface, declared once and read by the golden and by the
+plugin tests (S023, DEC-010).
+
+`surface_guard` is `cli`, but the surface a user of the *plugin* touches is wider
+than argparse: three skills, five hook events, and the marker keys. Those are the
+components most likely to drift from the documentation, and until S023 the golden
+covered none of them — a fourth skill was invisible and deleting the `Stop` hook
+left the suite green.
+"""
+
+import importlib.util
+import json
+from pathlib import Path
+
+REPO = Path(__file__).resolve().parent.parent
+
+_spec = importlib.util.spec_from_file_location("moltke", REPO / "bin" / "moltke.py")
+moltke = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(moltke)
+
+
+def declared_skills():
+    """Skill names as the plugin declares them: the `name:` in each frontmatter,
+    not the directory name, because that is what `/moltke:<name>` resolves."""
+    names = []
+    for skill in sorted((REPO / "skills").glob("*/SKILL.md")):
+        for line in skill.read_text(encoding="utf-8").splitlines():
+            if line.startswith("name:"):
+                names.append(line.split(":", 1)[1].strip())
+                break
+    return sorted(names)
+
+
+def declared_hook_events():
+    hooks = json.loads((REPO / "hooks" / "hooks.json").read_text(encoding="utf-8"))
+    return sorted(hooks.get("hooks", {}))
+
+
+def cli_lines():
+    """One line per option: its flags, its argument shape, and its operations.
+
+    Reads argparse's actions rather than --help text, so wording changes do not
+    churn the golden but a rename or a new flag does.
+    """
+    lines = []
+    for action in moltke.build_parser()._actions:
+        if not action.option_strings:
+            continue
+        flags = "/".join(sorted(action.option_strings))
+        if action.nargs == 0:
+            shape = ""
+        elif action.nargs == "?":
+            shape = f"[{action.metavar or 'VALUE'}]"
+        elif action.nargs in ("+", "*"):
+            shape = f"{action.metavar or 'VALUE'}..."
+        else:
+            shape = action.metavar or "VALUE"
+        ops = ""
+        if flags == "--step":
+            ops = "  ops: " + ",".join(sorted(moltke.STEP_OPS))
+        elif flags == "--audit":
+            ops = "  ops: " + ",".join(sorted(moltke.AUDIT_OPS))
+        lines.append(f"{flags} {shape}".rstrip() + ops)
+    return lines
+
+
+def current_surface():
+    lines = cli_lines()
+    lines.append("hooks: " + ",".join(declared_hook_events()))
+    lines.append("marker keys: " + ",".join(sorted(moltke.MARKER_KEYS)))
+    lines.append("skills: " + ",".join(declared_skills()))
+    return "\n".join(sorted(lines)) + "\n"

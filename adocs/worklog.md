@@ -745,3 +745,47 @@ silently. That is audit finding F14, reproduced and planned as S014.
 - Tests added: 4. Suite 155 OK, `--validate` green, and completion ran through
   S021's suite gate.
 - Next: S023, surface guard covers skills, hooks, and marker keys.
+
+## 2026-08-06T18:26+02:00 prompt
+
+> next
+
+## 2026-08-06 recap — S023 surface guard covers skills, hooks, and marker keys
+
+- S023 done, closing audit finding F10 (stays `planned` until S027 re-runs the
+  audit).
+- Baseline observed before writing anything, because F10's sharpest claim deserved
+  confirmation: deleting the `Stop` event from `hooks/hooks.json` left the entire
+  suite green — `suite exit with Stop hook deleted: 0`, `OK`. The old assertion was
+  satisfied by any one surviving event.
+- The golden gained three lines: declared skills, declared hook events, and
+  `MARKER_KEYS`. The specs-and-MANUAL cross-check now applies to each, exactly as
+  it does to flags.
+- A skill counts as documented only where it is named as a component,
+  `/moltke:<name>` or in backticks. Matching the bare word would be meaningless
+  here: "step" and "audit" appear constantly in this prose.
+- New `MARKER_KEYS` in `bin/moltke.py`, pinned load-bearing by a test that gives
+  every declared key an invalid value and requires `check_marker` to name it. So
+  the list cannot drift into decoration. An undeclared key stays ignored rather
+  than rejected, with its own test, so no existing marker breaks.
+- Declarations centralised in a new `tests/surface.py`, read by both the golden and
+  `tests/test_s010_plugin.py`, whose hardcoded `SKILLS` tuple was what made a
+  fourth skill invisible.
+- Red observed for all three tamper kinds:
+  `'skills: audit,bogus,init,step' != 'skills: audit,init,step'` plus
+  `Lists differ: ['skill bogus'] != []`;
+  `'hooks: PostToolUse,PreToolUse,SessionStart,UserPromptSubmit' != '...,SessionStart,Stop,UserPromptSubmit'`;
+  `'enabled,lint_command,plan_active_max,...' != 'enabled,plan_active_max,...'`.
+  The marker-key tamper also tripped the load-bearing pin:
+  `lint_command is in MARKER_KEYS but check_marker ignores it, so the golden
+  guards a key that means nothing`. Every tampered file was restored and verified.
+- MANUAL needed no change, and that is a result rather than an omission: it already
+  named every skill, hook event, and marker key, which is why the widened
+  cross-check passed on its first run against both documents.
+- Files: `bin/moltke.py`, new `tests/surface.py`, `tests/test_s009_surface.py`,
+  `tests/test_s010_plugin.py`, `tests/golden/cli_surface.txt`, `adocs/specs.md`,
+  `adocs/testing.md` (+7 rows), `README.md` (155 to 160 tests, golden description
+  widened, layout line), `adocs/status.md`, `plan_current/S023` moved to
+  `plan_done/`.
+- Tests added: 5. Suite 160 OK, `--validate` green.
+- Next: S024, a plan.md id with no step file is a violation.

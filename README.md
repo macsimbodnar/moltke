@@ -20,7 +20,7 @@ hooks/hooks.json                 five hook events, all shelling out to bin/moltk
 skills/init|step|audit/SKILL.md  the three skills, invoked as /moltke:<name>
 agents/adversarial_reviewer.md   auditor: reads anything, writes adocs/audit/ and new tests/
 templates/                       what `--scaffold` copies into a target repository
-tests/                           the suite; tests/golden/ holds the CLI surface
+tests/                           the suite; tests/surface.py declares the guarded surface
 AGENTS.md                        the live ruleset; templates/AGENTS.md is its shipped copy
 adocs/                         moltke's own workflow state (it uses itself)
 ```
@@ -43,7 +43,7 @@ Full suite:
 python3 -m unittest discover -s tests
 ```
 
-155 tests, no skips. A test whose precondition is genuinely absent skips with a
+160 tests, no skips. A test whose precondition is genuinely absent skips with a
 message saying what would activate it, rather than passing silently.
 
 Check this repository against its own rules, which is also what other tools
@@ -75,10 +75,11 @@ change in `adocs/specs.md` and `MANUAL.md` in the same commit:
 python3 tests/test_s009_surface.py --refresh
 ```
 
-The golden test fails on any added, renamed, or removed flag or `--step` /
-`--audit` operation. A second check requires each one to appear in the specs
-table and in MANUAL, so refreshing the golden alone never makes the suite
-green.
+The golden test fails on any added, renamed, or removed flag, `--step` / `--audit`
+operation, skill, hook event, or recognised `.moltke.json` key. A second check
+requires each one to appear in the specs table and in MANUAL, so refreshing the
+golden alone never makes the suite green. The declarations it reads live in
+`tests/surface.py`.
 
 No environment variables. `bin/moltke.py` reads none; behaviour is controlled
 by `.moltke.json` in the repository being checked.
