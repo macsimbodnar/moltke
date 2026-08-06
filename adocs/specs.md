@@ -140,7 +140,7 @@ which is the only enforcement available outside Claude Code.
 | `--scaffold` | `init` skill | create the marker, `AGENTS.md`, `CLAUDE.md`, the Cursor pointer, and `adocs/` from templates; never overwrites an existing file |
 | `--decline` | `init` skill | write `{"schema": 1, "enabled": false}`, durably; refuses to disable an already-enabled repository |
 | `--audit OP ...` | `audit` skill | 2026-08-01 (S008): `new <type>` opens `adocs/audit/YYYY-MM-DD_<type>.md` from the template and never overwrites, taking a `.2`, `.3` sequence suffix on a same-day re-run (S020); `list` prints every finding with its status and what references it, exiting non-zero while an open finding has neither a step nor a decision. 2026-08-06 (S017): `new` also records a working-tree baseline in `.git/moltke_audit_baseline.json`, and `check` reconciles the run against it, printing expected and unexpected changes and exiting 1 on anything unexpected |
-| `--step OP ...` | `step` skill | 2026-08-01 (S007): lifecycle operations `new <name> [--goal]`, `start <id>`, `block <parent> <name>`, `done <id> --stamp`, `status`. Each refuses rather than repairs, naming the missing condition; no transition may leave INV-1..INV-7 violated |
+| `--step OP ...` | `step` skill | 2026-08-01 (S007): lifecycle operations `new <name> [--goal]`, `start <id>`, `block <parent> <name>`, `done <id> --stamp`, `status`. Each refuses rather than repairs, naming the missing condition; no transition may leave INV-1..INV-7 violated. 2026-08-06 (S021): `done` additionally runs the optional `test_command` suite gate and refuses on a non-zero exit |
 
 Every mode exits 0 immediately when `.moltke.json` is absent or `enabled` is
 false (INV-11).
@@ -240,6 +240,20 @@ so refreshing the golden alone never makes the suite green. Refresh, after
 updating the docs, with `python3 tests/test_s009_surface.py --refresh`. The
 same check runs against `MANUAL.md` and is skipped until that file exists in
 S011; closing that gap is part of S011.
+
+2026-08-06 (S021, DEC-023): `.moltke.json` gains an optional `test_command`
+string, and `--step done` runs it after every other gate and before it touches
+anything, refusing on a non-zero exit with the command, the exit code, and the
+last 20 lines of combined output. It runs with `shell=True` from the repository
+root, under a 600 second timeout; a timeout or a command that cannot start is a
+refusal, not a pass. Absent, behaviour is exactly as before and `--step done`
+says out loud that nothing ran the suite — AGENTS.md requires a green suite at
+completion and until this key existed nothing enforced it, while MANUAL disclosed
+only the weaker README/MANUAL mechanical-gate problem (finding F07). A
+`test_command` that is not a non-empty string is a marker violation, because
+gating nothing silently is the defect this key removes. Schema stays 1, so no
+existing marker migrates. This repository sets it to
+`python3 -m unittest discover -s tests`.
 
 2026-08-06 (S020): `--audit new` allows a same-day re-run. Closure requires a
 re-run and the filename came from today's date, so a finding fixed on the day it

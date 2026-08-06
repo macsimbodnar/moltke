@@ -4,6 +4,7 @@ Acceptance: every transition leaves INV-1..INV-7 satisfied, and completion is
 refused with the specific missing condition named.
 """
 
+import json
 import subprocess
 import sys
 import tempfile
@@ -220,6 +221,74 @@ class TestDone(unittest.TestCase):
             parent = (root / "adocs" / "plan_current" / "S003_active.md").read_text(encoding="utf-8")
             self.assertNotRegex(parent, r"paused_by:\s*S004")
             self.assertEqual(validate(root).returncode, 0, validate(root).stdout)
+
+
+class TestDoneTestCommandGate(unittest.TestCase):
+    """S021 (DEC-023, F07): the "full suite green" completion gate was
+    honour-system — nothing ran or consulted a suite. Optional, so no existing
+    marker needs migrating and schema stays 1."""
+
+    def repo_with(self, tmp, command):
+        root = workflow_repo(tmp)
+        if command is not None:
+            marker = json.loads((root / ".moltke.json").read_text(encoding="utf-8"))
+            marker["test_command"] = command
+            (root / ".moltke.json").write_text(json.dumps(marker, indent=2) + "\n",
+                                               encoding="utf-8")
+        add_testing_row(root, "S003")
+        return root
+
+    def test_a_failing_command_refuses_and_shows_the_output(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.repo_with(
+                tmp, f"{sys.executable} -c \"print('DISTINCTIVE FAILURE'); raise SystemExit(1)\"")
+            result = run_moltke(root, "--step", "done", "S003", "--stamp", STAMP)
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn("test_command", result.stderr)
+            self.assertIn("DISTINCTIVE FAILURE", result.stderr)
+            # Refuse, do not half-complete: the step stays where it was.
+            self.assertTrue((root / "adocs" / "plan_current" / "S003_active.md").is_file())
+            self.assertFalse((root / "adocs" / "plan_done" / "S003_active.md").exists())
+
+    def test_a_passing_command_lets_the_step_complete(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.repo_with(tmp, f"{sys.executable} -c \"raise SystemExit(0)\"")
+            result = run_moltke(root, "--step", "done", "S003", "--stamp", STAMP)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertTrue((root / "adocs" / "plan_done" / "S003_active.md").is_file())
+
+    def test_without_the_key_nothing_runs_and_the_gap_is_stated(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.repo_with(tmp, None)
+            result = run_moltke(root, "--step", "done", "S003", "--stamp", STAMP)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertTrue((root / "adocs" / "plan_done" / "S003_active.md").is_file())
+            self.assertIn("test_command", result.stdout)
+
+    def test_a_non_string_test_command_is_a_marker_violation(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.repo_with(tmp, 5)
+            result = validate(root)
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn("test_command", result.stdout)
+
+    def test_a_blank_test_command_is_a_marker_violation(self):
+        # Silently doing nothing is the failure mode this step exists to remove.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.repo_with(tmp, "   ")
+            result = validate(root)
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn("test_command", result.stdout)
+
+    def test_the_gate_runs_from_the_repository_root(self):
+        # A relative command must not depend on the caller's working directory.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.repo_with(
+                tmp, f"{sys.executable} -c \"import pathlib,sys; "
+                     f"sys.exit(0 if pathlib.Path('.moltke.json').is_file() else 1)\"")
+            sub = root / "adocs" / "plan_todo"
+            result = run_moltke(sub, "--step", "done", "S003", "--stamp", STAMP)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
 
 class TestStatus(unittest.TestCase):

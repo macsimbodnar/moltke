@@ -59,6 +59,16 @@ def check_marker(config):
             f'{MARKER}: "surface_guard" must be one of {", ".join(SURFACE_GUARD_VALUES)}, '
             f'got {config.get("surface_guard")!r}'
         )
+    # Optional (DEC-023), so schema stays 1 and no existing marker migrates. A
+    # blank value is a violation rather than a no-op: silently gating nothing is
+    # the failure this key exists to remove.
+    if "test_command" in config:
+        command = config["test_command"]
+        if not isinstance(command, str) or not command.strip():
+            violations.append(
+                f'{MARKER}: "test_command" must be a non-empty shell command string, '
+                f'got {command!r}; remove the key to leave the suite gate unconfigured'
+            )
     return violations
 
 
@@ -910,6 +920,43 @@ def step_block(root, config, parent_id, name):
     return EXIT_OK
 
 
+TEST_COMMAND_TIMEOUT = 600
+TEST_OUTPUT_TAIL = 20
+
+
+def run_test_command(root, config):
+    """The suite gate (DEC-023). Returns an exit code to refuse with, or None to
+    let completion proceed. Optional by design: AGENTS.md requires a green suite,
+    and until this key existed nothing ran one, so the gate was honour-system."""
+    command = config.get("test_command") if isinstance(config, dict) else None
+    if not isinstance(command, str) or not command.strip():
+        print(f'moltke: no "test_command" in {MARKER}, so nothing here ran the suite. '
+              f'The green-suite requirement is on you; set the key to have --step done '
+              f'enforce it.')
+        return None
+    print(f"moltke: running the suite gate: {command}")
+    try:
+        # shell=True: the value is a free-form command line, and it is trusted at
+        # the same level as the hooks that already run this script. cwd is the
+        # repo root, so a relative command does not depend on the caller's cwd.
+        result = subprocess.run(command, shell=True, cwd=str(root),
+                                capture_output=True, text=True,
+                                timeout=TEST_COMMAND_TIMEOUT)
+    except subprocess.TimeoutExpired:
+        return refuse(f'the "test_command" gate timed out after {TEST_COMMAND_TIMEOUT}s: '
+                      f'{command}. Make the suite finish, or point test_command at a '
+                      f'faster subset and run the full suite yourself')
+    except OSError as exc:
+        return refuse(f'the "test_command" gate could not run ({exc}): {command}. '
+                      f'Fix the command in {MARKER}')
+    if result.returncode == 0:
+        return None
+    tail = "\n".join((result.stdout + result.stderr).splitlines()[-TEST_OUTPUT_TAIL:])
+    return refuse(f'the "test_command" gate failed with exit {result.returncode}: {command}\n'
+                  f"last {TEST_OUTPUT_TAIL} lines:\n{tail}\n"
+                  f"Fix the suite. Never weaken a test to get past this")
+
+
 def step_done(root, config, step_id, stamp):
     dirname, path, fields = locate_step(root, step_id)
     if dirname is None:
@@ -939,6 +986,9 @@ def step_done(root, config, step_id, stamp):
         return refuse(f"the completion stamp must record the README and MANUAL check "
                       f"(concluding that neither needs a change is a valid outcome, "
                       f"not checking is not)")
+    gate = run_test_command(root, config)
+    if gate is not None:
+        return gate
 
     set_field(path, "done", stamp)
     for parent_id, parent_path, parent_fields in steps["plan_current"]:

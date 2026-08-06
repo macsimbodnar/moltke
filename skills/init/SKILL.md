@@ -47,7 +47,11 @@ Then, in the same turn:
 
 1. Set `surface_guard` in `.moltke.json` to `cli`, `api`, `both`, or `none`
    depending on what this project actually exposes. `none` is only valid with a
-   `decisions.md` entry stating why the project has no checkable surface.
+   `decisions.md` entry stating why the project has no checkable surface. Ask for
+   the project's test command and set `test_command` in the same file, so
+   `--step done` enforces a green suite instead of trusting one; omit the key if
+   the project has no suite yet, and say plainly that completion will then be
+   unenforced.
 2. Fill `adocs/specs.md`: the prime directive, then numbered invariants. This
    is the one file the workflow cannot write for the user. Ask for the prime
    directive if it is not obvious from the repository.

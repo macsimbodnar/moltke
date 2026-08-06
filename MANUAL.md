@@ -62,7 +62,8 @@ prime directive, and the invariants as numbered testable properties.
   "enabled": true,
   "plan_active_max": 1,
   "plan_stack_max": 3,
-  "surface_guard": "cli"
+  "surface_guard": "cli",
+  "test_command": "python3 -m unittest discover -s tests"
 }
 ```
 
@@ -71,6 +72,16 @@ prime directive, and the invariants as numbered testable properties.
 how deep the paused stack may go. `surface_guard` is `cli`, `api`, `both`, or
 `none`, and `none` is only valid alongside a decision entry saying why the
 project has no checkable surface.
+
+`test_command` is optional and is the only key that makes the "green suite at
+completion" rule real: `--step done` runs it from the repository root with a
+shell, under a 600 second timeout, and refuses on a non-zero exit with the last
+20 lines of output. Leave it out and nothing runs your suite — `--step done` says
+so each time rather than letting the silence read as a pass. It must be a
+non-empty string if present; a blank one is a marker violation, because a gate
+that silently checks nothing is worse than no gate. The command runs with your
+shell and your privileges, so treat the marker as executable content: do not set
+it to something you would not run by hand.
 
 ## Daily use
 
@@ -100,7 +111,7 @@ Cursor) must, since hooks exist only in Claude Code.
 | `--step new <name>` | allocate the next step id, write the step file, list it in `plan.md` |
 | `--step start <id>` | move a step from `plan_todo/` to `plan_current/` |
 | `--step block <parent> <name>` | create a blocking child in `plan_current/` and pause its parent |
-| `--step done <id>` | complete a step and move it to `plan_done/`, refusing if anything is missing |
+| `--step done <id>` | complete a step and move it to `plan_done/`, refusing if anything is missing. Runs the `test_command` suite gate when the marker sets one, and refuses on a non-zero exit |
 | `--step status` | regenerate `status.md` from the filesystem, keeping the Parked list |
 | `--audit new <type>` | open `adocs/audit/YYYY-MM-DD_<type>.md`; never overwrites a report — a same-day re-run becomes `YYYY-MM-DD_<type>.2.md`, and its findings are numbered from that name. Also records a working-tree baseline for `--audit check` |
 | `--audit list` | every finding, its status, and what references it; exits 1 while an open finding has neither a step nor a decision |
@@ -144,7 +155,9 @@ subdirectory move as the escape hatch if it ever matters.
 **The README and MANUAL gate is mechanical.** `--step done` and the Stop hook
 require the completion stamp to mention README and MANUAL. They cannot tell
 whether you actually looked. The check enforces that the question was asked,
-not that it was answered honestly.
+not that it was answered honestly. The same used to be true of the green-suite
+requirement — nothing ran a suite at all — which is what `test_command` fixes;
+without that key set, completion is still trusted rather than checked.
 
 **The reviewer's write fence covers `Write` and `Edit`, not `Bash`.** The
 PreToolUse hook confines `adversarial_reviewer` to `adocs/audit/` by matching

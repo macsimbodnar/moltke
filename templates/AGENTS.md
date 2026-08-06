@@ -14,11 +14,14 @@ Absent: ask once whether to set the workflow up, then write the marker either wa
   "enabled": true,
   "plan_active_max": 1,
   "plan_stack_max": 3,
-  "surface_guard": "cli"
+  "surface_guard": "cli",
+  "test_command": "python3 -m unittest discover -s tests"
 }
 ```
 
 `surface_guard` is one of `cli`, `api`, `both`, `none`. `none` is only valid alongside a `decisions.md` entry stating why this project has no checkable surface.
+
+`test_command` is optional. Set it and step completion runs it and refuses on failure; leave it out and the green-suite rule of §4 and §11 rests on the agent alone, which the tool will say out loud each time rather than implying the suite was checked.
 
 ## 1. Reading order and precedence
 

@@ -7,4 +7,4 @@ decisions:  DEC-023
 closes:     2026-08-06_adversarial-F07
 blocks:
 paused_by:
-done:
+done:      2026-08-06: optional test_command in .moltke.json; --step done runs it from the repo root under a 600s timeout and refuses with the last 20 lines on failure; absent, it says out loud that nothing ran the suite. Non-string or blank is a marker violation. Schema stays 1. 6 tests, red observed. Suite 151 OK, --validate green. README test count 145 to 151; MANUAL gained the key in the marker block plus a paragraph on it and narrowed the mechanical-gate entry; AGENTS.md and templates/AGENTS.md changed identically; init skill now asks for the test command.

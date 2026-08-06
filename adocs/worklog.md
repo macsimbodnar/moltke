@@ -659,3 +659,45 @@ silently. That is audit finding F14, reproduced and planned as S014.
 - Tests added: 3 new plus 1 re-targeted, red observed. Suite 145 OK,
   `--validate` green.
 - Next: S021, optional test_command gate on --step done.
+
+## 2026-08-06T17:54+02:00 prompt
+
+> next
+
+## 2026-08-06 recap — S021 optional test_command gate on --step done
+
+- S021 done, closing audit finding F07 (stays `planned` until S027 re-runs the
+  audit). Implements DEC-023.
+- `.moltke.json` gains an optional `test_command`. `--step done` runs it after
+  every other gate and before touching anything, from the repository root, with a
+  shell, under a 600 second timeout, and refuses on non-zero with the command,
+  the exit code, and the last 20 lines of combined output. A timeout or a command
+  that cannot start is a refusal, not a pass.
+- Absent, behaviour is unchanged and `--step done` now says out loud that nothing
+  ran the suite. That is the honest half of the fix: AGENTS.md sections 4 and 11
+  require a green suite, nothing enforced it, and MANUAL disclosed only the
+  weaker README/MANUAL mechanical-gate problem, which read as though the suite
+  check was real.
+- A non-string or blank `test_command` is a marker violation. Blank goes beyond
+  the step's stated acceptance deliberately: a gate that silently checks nothing
+  is the exact defect being removed here.
+- Schema stays 1 — the key is validated only when present, and every other test
+  in the suite still runs on a marker without it.
+- Dogfooded: this repository's marker now sets
+  `python3 -m unittest discover -s tests`, and S021's own completion ran through
+  the gate, printing `moltke: running the suite gate` before moving the step.
+- Deviation from the step's `touches`: `templates/moltke.json` was left alone.
+  Shipping the key with an empty value would be a marker violation by the rule
+  above, and shipping a guessed command would fail on first use in most projects.
+  The `init` skill now asks the user for the test command instead, which is where
+  a project-specific value belongs.
+- Red observed: `AssertionError: 0 != 1 : moltke: S003 completed and moved to
+  plan_done/` for the failing-command case, `AssertionError: 'test_command' not
+  found in ...` for the unconfigured notice, and `moltke: all checks pass` for the
+  non-string marker.
+- Files: `bin/moltke.py`, `tests/test_s007_step.py`, `.moltke.json`, `AGENTS.md`,
+  `templates/AGENTS.md`, `skills/init/SKILL.md`, `adocs/specs.md`,
+  `adocs/testing.md` (+8 rows), `MANUAL.md`, `README.md` (145 to 151 tests),
+  `adocs/status.md`, `plan_current/S021` moved to `plan_done/`.
+- Tests added: 6, red observed. Suite 151 OK, `--validate` green.
+- Next: S022, worklog secret-shape check runs in the suite.
