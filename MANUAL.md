@@ -123,10 +123,31 @@ Cursor) must, since hooks exist only in Claude Code.
 | `--stop` | Stop hook: refuse to end a turn on violations, a stale `status.md`, or unrecapped source changes |
 
 `--step new` takes `--goal TEXT`; `--step done` takes `--stamp TEXT` and
-requires it. Exit codes: `0` fine, `1` violations on stdout, `2` blocked with
-the reason on stderr. Every mode exits 0 immediately in a repository with no
-marker, or one whose marker says `enabled: false` — except `--scaffold` and
-`--decline`, which exist to create that marker.
+requires it. Every mode exits 0 immediately in a repository with no marker, or
+one whose marker says `enabled: false` — except `--scaffold` and `--decline`,
+which exist to create that marker.
+
+Exit codes and streams:
+
+| Exit | Meaning | Stream |
+|---|---|---|
+| `0` | clean, or a hook with nothing to say | stdout, when there is output |
+| `1` | findings — invariant violations, audit bookkeeping, `--audit check` | stdout |
+| `1` | refusals — a command declining to proceed, and why | stderr |
+| `2` | a blocked action, with what to do about it | stderr |
+
+Exit `1` means two different things and they arrive on different streams:
+`--validate`, `--audit list`, and `--audit check` print findings to stdout, while
+every refusal — `--step` transitions, `--audit new` on an existing report, an
+unknown operation, a failing `test_command` — goes to stderr. **If you script
+this, capture both**, or you will get an exit code with no message. That matters
+most outside Claude Code, where `--validate` is the only lever you have.
+
+Two more details for anyone parsing output. `--post-write` returns `2` but is
+non-blocking by contract: the tool it follows has already run, and the exit code
+only surfaces the text. And stderr is not exclusively for failures — `--audit new`
+outside a git worktree warns there that `--audit check` will not be able to
+reconcile the run, while still exiting `0`.
 
 ## Known issues
 

@@ -43,7 +43,7 @@ Full suite:
 python3 -m unittest discover -s tests
 ```
 
-163 tests, no skips. A test whose precondition is genuinely absent skips with a
+173 tests, no skips. A test whose precondition is genuinely absent skips with a
 message saying what would activate it, rather than passing silently.
 
 Check this repository against its own rules, which is also what other tools
@@ -65,8 +65,21 @@ python3 bin/moltke.py --audit check
 python3 bin/moltke.py --audit list
 ```
 
-Exit codes: `0` clean, `1` invariant violations listed on stdout, `2` a blocked
-action with the reason on stderr.
+Exit codes and streams, traced to the code that produces them:
+
+| Exit | Meaning | Stream | Produced by |
+|---|---|---|---|
+| `0` | clean, or a hook with nothing to say | stdout, when there is output | every mode's success path |
+| `1` | **findings**: invariants, audit bookkeeping, reconciliation | stdout | `run_validate`, `audit_list`, `audit_check` |
+| `1` | **refusals**: a command that will not proceed, and why | stderr | `refuse`, which is the return path for every `--step` and `--audit new` refusal, the `test_command` gate, and an unknown operation |
+| `2` | a blocked action, with what to do about it | stderr | `mode_pre_write`, `mode_stop`, `mode_post_write` |
+
+Exit `1` therefore does not tell you which stream to read: findings go to stdout,
+refusals to stderr. If you script this, capture both. Two further details worth
+knowing when parsing: `--post-write` returns `2` but is non-blocking by contract,
+since the tool it follows has already run, and stderr can carry a warning on an
+exit `0` path — `--audit new` outside a git worktree says so there while still
+succeeding.
 
 After deliberately changing the CLI surface, and only after describing the
 change in `adocs/specs.md` and `MANUAL.md` in the same commit:

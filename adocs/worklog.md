@@ -823,3 +823,49 @@ silently. That is audit finding F14, reproduced and planned as S014.
 - MANUAL checked, no change needed: it never describes INV-3 by direction.
 - Tests added: 4. Suite 163 OK, `--validate` green.
 - Next: S025, documented exit-code semantics match the code.
+
+## 2026-08-06T20:08+02:00 prompt
+
+> what is left from the plan?
+
+## 2026-08-06T20:09+02:00 prompt
+
+> next
+
+## 2026-08-06 recap — S025 documented exit-code semantics match the code
+
+- S025 done, closing audit finding F06 (stays `planned` until S027 re-runs the
+  audit).
+- The documented rule — exit 1 with violations on stdout — held for two modes out
+  of eleven. `refuse` prints to stderr and returns 1, and it is the return path
+  for every `--step` refusal, `--audit new` on an existing report, the
+  `test_command` gate, and an unknown operation.
+- Derived the real mapping by probing rather than by reading: eleven invocations
+  across two throwaway repositories, one without git and one with, recording exit
+  code and which streams carried output. The README and MANUAL tables were written
+  from that matrix.
+- The mapping: findings exit 1 on stdout (`run_validate`, `audit_list`,
+  `audit_check`); refusals exit 1 on stderr (`refuse`); blocks exit 2 on stderr
+  (`mode_pre_write`, `mode_stop`, `mode_post_write`). Exit 1 alone does not tell a
+  script which stream to read, so both documents now say to capture both.
+- Two details the probe turned up that no document mentioned. `--post-write`
+  returns 2 while being non-blocking by contract, since the tool it follows has
+  already run. And stderr carries a warning on an exit 0 path: `--audit new`
+  outside a git worktree says `--audit check` cannot reconcile the run, and still
+  succeeds. Both now documented, because each breaks an assumption a script would
+  otherwise make.
+- Deviation from the step's `touches`, which listed only the two documents: added
+  `tests/test_s025_exit_codes.py`. A doc claim is a claim about code (AGENTS.md
+  section 7), and nothing pinned streams, so the same drift could recur silently.
+  Red observed by routing `refuse` to stdout — exactly what README used to claim:
+  three failures, `AssertionError: '' is not true : a refusal must say why, on
+  stderr`. File restored and verified byte-identical.
+- No stream was changed. The step's excludes rule it out, because something may
+  already parse them.
+- Files: new `tests/test_s025_exit_codes.py`, `README.md` (exit-code line replaced
+  with a four-row table, 163 to 173 tests), `MANUAL.md` (one-line claim replaced
+  with a table plus a scripting warning), `adocs/testing.md` (+6 rows),
+  `adocs/status.md`, `plan_current/S025` moved to `plan_done/`.
+- specs needed no edit: no behaviour changed and it never made a stream claim.
+- Tests added: 10. Suite 173 OK, `--validate` green.
+- Next: S026, documentation drift pass.
