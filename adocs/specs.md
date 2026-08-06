@@ -241,6 +241,13 @@ updating the docs, with `python3 tests/test_s009_surface.py --refresh`. The
 same check runs against `MANUAL.md` and is skipped until that file exists in
 S011; closing that gap is part of S011.
 
+2026-08-06 (S019): the rule below was stated universally and had one exception
+until now — `finding_references` read `decisions.md` raw, so a finding id inside
+a fenced example discharged a real open finding, and the scaffolded
+`decisions.md` ships exactly such an example (finding F05). It reads through
+`strip_guidance` like everything else. That makes the sentence below true rather
+than aspirational; it is the fifth time this defect appeared.
+
 2026-08-01 (S008): **template guidance is never data.** Every scanner reads
 its input through `strip_guidance`, which drops fenced blocks and HTML
 comments, so a commented example step is not planned, an example finding is

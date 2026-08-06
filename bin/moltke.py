@@ -315,7 +315,10 @@ def finding_references(root):
             references.append(field_value(fields, "closes"))
     decisions = root / DOCS / "decisions.md"
     if decisions.is_file():
-        references.append(decisions.read_text(encoding="utf-8"))
+        # Through strip_guidance like every other scanner (S019, F05): a finding
+        # id inside a fenced example is guidance, and the scaffolded
+        # decisions.md ships exactly such an example.
+        references.append(strip_guidance(decisions.read_text(encoding="utf-8")))
     return "\n".join(references)
 
 

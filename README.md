@@ -43,7 +43,7 @@ Full suite:
 python3 -m unittest discover -s tests
 ```
 
-138 tests, no skips. A test whose precondition is genuinely absent skips with a
+142 tests, no skips. A test whose precondition is genuinely absent skips with a
 message saying what would activate it, rather than passing silently.
 
 Check this repository against its own rules, which is also what other tools

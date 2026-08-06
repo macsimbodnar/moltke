@@ -94,6 +94,62 @@ class TestAuditList(unittest.TestCase):
             self.assertIn("2026-08-01_adversarial-F01", result.stdout)
 
 
+class TestGuidanceNeverDischargesAFinding(unittest.TestCase):
+    """S019 (F05): finding_references was the one scanner that read decisions.md
+    raw, so a finding id inside a fenced example discharged a real finding — and
+    templates/adocs/decisions.md ships exactly such an example."""
+
+    FINDING = "2026-08-01_adversarial-F01"
+
+    def unreferenced(self, tmp):
+        root = workflow_repo(tmp)
+        audit_report(root, [(self.FINDING, "open")])
+        return root
+
+    def append_to_decisions(self, root, text):
+        path = root / "adocs" / "decisions.md"
+        path.write_text(path.read_text(encoding="utf-8") + text, encoding="utf-8")
+
+    def test_a_fenced_example_does_not_discharge_a_finding(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.unreferenced(tmp)
+            # Baseline first, exactly as the audit reproduced it: unreferenced is
+            # a violation, so a later exit 1 is not just the check being broken.
+            self.assertEqual(run_moltke(root, "--validate").returncode, 1)
+            self.append_to_decisions(root, f"\n```\nSee {self.FINDING} for the format.\n```\n")
+            result = run_moltke(root, "--validate")
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn("INV-10", result.stdout)
+
+    def test_an_html_comment_does_not_discharge_a_finding(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.unreferenced(tmp)
+            self.assertEqual(run_moltke(root, "--validate").returncode, 1)
+            self.append_to_decisions(root, f"\n<!-- example: {self.FINDING} -->\n")
+            result = run_moltke(root, "--validate")
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn("INV-10", result.stdout)
+
+    def test_a_real_entry_still_discharges_it(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.unreferenced(tmp)
+            self.append_to_decisions(
+                root,
+                f"\n## DEC-002  2026-08-02  accept the finding\nTags: audit\n"
+                f"Context: {self.FINDING} is by design\nDecision: accept it\n"
+                f"Rejected: fixing it\nConsequences: none\n")
+            result = run_moltke(root, "--validate")
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_audit_list_agrees_with_validate(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.unreferenced(tmp)
+            self.append_to_decisions(root, f"\n```\n{self.FINDING}\n```\n")
+            result = run_moltke(root, "--audit", "list")
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertNotIn("referenced in decisions.md", result.stdout)
+
+
 class TestFindingIds(unittest.TestCase):
     def test_finding_id_must_match_its_report(self):
         with tempfile.TemporaryDirectory() as tmp:

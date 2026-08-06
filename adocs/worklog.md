@@ -593,3 +593,37 @@ silently. That is audit finding F14, reproduced and planned as S014.
   `plan_current/S018` moved to `plan_done/`.
 - Tests added: 6, red observed. Suite 138 OK, `--validate` green.
 - Next: S019, fenced guidance never discharges a finding.
+
+## 2026-08-06T17:09+02:00 prompt
+
+> newxt
+
+## 2026-08-06 recap — S019 fenced guidance never discharges a finding
+
+- S019 done, closing audit finding F05 (stays `planned` until S027 re-runs the
+  audit). Smallest fix of the session: one call to `strip_guidance`.
+- `finding_references` was the only scanner reading `decisions.md` raw, while the
+  `strip_guidance` docstring and the specs both state the rule universally. So a
+  finding id inside a fenced example discharged a real open finding — and the
+  scaffolded `templates/adocs/decisions.md` ships exactly such an example, which
+  is what made this reachable rather than theoretical.
+- Both new violation tests assert the baseline first, the way the audit
+  reproduced it: unreferenced open finding is a violation, then adding only a
+  fenced mention must still be a violation. Otherwise exit 1 could just mean the
+  check is broken.
+- Red observed: `AssertionError: 0 != 1 : moltke: all checks pass` for the fenced
+  and comment cases, and for `--audit list`:
+  `2026-08-01_adversarial-F01  open  (referenced in decisions.md)`.
+- Checked the tightening does not orphan anything here: `--audit list` still
+  attributes all 14 findings of the 2026-08-06 report to S014..S026 and exits 0,
+  so none was relying on a fenced reference.
+- specs gained a dated note saying the universal rule had one exception until
+  now. This is the fifth appearance of the same defect, which the S008 note
+  already counted four times.
+- Files: `bin/moltke.py`, `tests/test_s008_audit.py`, `adocs/specs.md`,
+  `adocs/testing.md` (+5 rows), `README.md` (138 to 142 tests),
+  `adocs/status.md`, `plan_current/S019` moved to `plan_done/`.
+- MANUAL checked, no change needed: it never described how a finding is
+  discharged.
+- Tests added: 4, red observed. Suite 142 OK, `--validate` green.
+- Next: S020, an audit can be re-run the same day.
