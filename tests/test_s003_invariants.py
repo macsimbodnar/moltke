@@ -73,6 +73,39 @@ class TestInvariants(unittest.TestCase):
             step_file(root / "adocs" / "plan_todo", "S009", "orphan")
             self.assert_violation(root, "INV-3")
 
+    def test_inv3_plan_id_with_no_step_file(self):
+        # S024 (F11): a mistyped id becomes the derived next step forever, and
+        # status.md agrees with it, so nothing looks wrong.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            (root / "adocs" / "plan.md").write_text(
+                "# Plan\n\n1. S001\n2. S002\n3. S003\n4. S099 typo\n", encoding="utf-8")
+            result = run_validate(root)
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn("INV-3", result.stdout)
+            self.assertIn("S099", result.stdout)
+
+    def test_inv3_ignores_a_phantom_id_that_is_only_guidance(self):
+        # The scaffolded plan.md ships a commented example step; counting it
+        # would make every fresh repository violate INV-3 on creation.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            (root / "adocs" / "plan.md").write_text(
+                "# Plan\n\n<!-- 1. S099  example -->\n\n1. S001\n2. S002\n3. S003\n",
+                encoding="utf-8")
+            result = run_validate(root)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_inv3_counts_a_completed_step_as_present(self):
+        # Non-vacuity for the check above: plan_done/ holds S001, and a plan that
+        # lists it must stay legal or every finished project would be a violation.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            result = run_validate(root)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertIn("S001", (root / "adocs" / "plan.md").read_text(encoding="utf-8"))
+            self.assertTrue((root / "adocs" / "plan_done" / "S001_base.md").is_file())
+
     def test_inv4_done_step_still_blocking(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = workflow_repo(tmp)

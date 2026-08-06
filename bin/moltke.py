@@ -159,6 +159,16 @@ def inv_3_steps_in_plan(root, config):
             if not re.search(rf"\b{step_id}\b", plan):
                 violations.append(f"INV-3: {path.relative_to(root)} is not listed in plan.md; "
                                   f"add {step_id} to the plan order or remove the file")
+    # And the reverse (S024, F11): derived_next returns the first id in plan.md
+    # order regardless of whether a file exists, so a mistyped id becomes the
+    # next step forever, and status.md agrees with it so nothing looks wrong.
+    filed = {step_id for dirname in PLAN_DIRS for step_id, _p, _f in steps[dirname]}
+    for step_id in dict.fromkeys(re.findall(r"\bS\d{3}\b", plan)):
+        if step_id not in filed:
+            violations.append(f"INV-3: plan.md lists {step_id} but no step file exists in "
+                              f"plan_todo/, plan_current/, or plan_done/; create it with "
+                              f"--step new, or fix the id in plan.md — until then {step_id} "
+                              f"is the derived next step and cannot be worked on")
     return violations
 
 

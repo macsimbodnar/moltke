@@ -789,3 +789,37 @@ silently. That is audit finding F14, reproduced and planned as S014.
   `plan_done/`.
 - Tests added: 5. Suite 160 OK, `--validate` green.
 - Next: S024, a plan.md id with no step file is a violation.
+
+## 2026-08-06T18:37+02:00 prompt
+
+> next
+
+## 2026-08-06 recap — S024 a plan.md id with no step file is a violation
+
+- S024 done, closing audit finding F11 (stays `planned` until S027 re-runs the
+  audit).
+- INV-3 was one-directional: every step file had to appear in `plan.md`, but not
+  the reverse. `derived_next` returns the first id in plan order whether or not a
+  file exists, so a mistyped id became the next step permanently, and because
+  `--step status` writes that same value into `status.md`, the two agreed and
+  nothing looked wrong.
+- The reverse check reads ids through `strip_guidance` like everything else, and
+  that mattered immediately: the scaffolded `plan.md` ships a commented example
+  step, so counting it would have made every fresh repository violate INV-3 on
+  creation. Covered by its own test, with a completed-step test as the
+  non-vacuity anchor.
+- Red observed: `AssertionError: 0 != 1 : moltke: all checks pass`.
+- Probed in a throwaway repo whose plan lists `S099` first, to check the claim in
+  the acceptance rather than assume it: `--validate` exit 1, `--post-write` exit 2,
+  `--stop` exit 2, each printing the phantom by name.
+- Residual recorded rather than fixed: `--session-start` still reports
+  `Derived next step: S099`, because this step's excludes rule out changing
+  `derived_next`. So a phantom is loud in three channels but a resumed session
+  still sees it announced first. In specs and in the testing ledger.
+- Files: `bin/moltke.py`, `tests/test_s003_invariants.py`, `adocs/specs.md`
+  (INV-3 wording plus a dated note), `adocs/testing.md` (+5 rows), `README.md`
+  (160 to 163 tests), `adocs/status.md`, `plan_current/S024` moved to
+  `plan_done/`.
+- MANUAL checked, no change needed: it never describes INV-3 by direction.
+- Tests added: 4. Suite 163 OK, `--validate` green.
+- Next: S025, documented exit-code semantics match the code.

@@ -27,7 +27,7 @@ Enforced by `bin/moltke.py` in marked repositories:
 
 - INV-1  `plan_current/` holds at most `plan_active_max` non-paused steps.
 - INV-2  stack depth in `plan_current/` never exceeds `plan_stack_max`.
-- INV-3  every step file in `plan_todo/` and `plan_current/` appears in `plan.md`.
+- INV-3  every step file in `plan_todo/` and `plan_current/` appears in `plan.md`, and every id `plan.md` lists has a step file in one of the three directories. 2026-08-06 (S024): the second half is new; the invariant was one-directional before.
 - INV-4  no step moves to `plan_done/` while another step names it in `blocks:`.
 - INV-5  no step reaches `plan_done/` without a `done:` stamp and at least one `testing.md` row referencing its id.
 - INV-6  step ids are unique across all three plan directories.
@@ -240,6 +240,18 @@ so refreshing the golden alone never makes the suite green. Refresh, after
 updating the docs, with `python3 tests/test_s009_surface.py --refresh`. The
 same check runs against `MANUAL.md` and is skipped until that file exists in
 S011; closing that gap is part of S011.
+
+2026-08-06 (S024): INV-3 gained its reverse direction. `derived_next` returns the
+first id in `plan.md` order regardless of whether a file exists, so a mistyped id
+became the next step forever — `--session-start` announced it every session and
+`--step status` wrote it into `status.md`, so the two agreed and nothing looked
+wrong (finding F11). An id listed in `plan.md` with no file in any of the three
+plan directories is now a violation naming the id and both fixes. Ids are read
+through `strip_guidance` like everything else, so the scaffolded plan's commented
+example step is still not a phantom. `derived_next` itself is unchanged and still
+returns the phantom: the reported residual is that `--session-start` announces it
+while `--validate`, `--post-write`, and `--stop` all name it as a violation, so it
+is loud rather than silent, but a resumed session sees the phantom first.
 
 2026-08-06 (S023): the surface guard covers what a plugin user touches, not only
 argparse. The golden gained three lines — the declared skills, the declared hook
