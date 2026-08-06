@@ -288,3 +288,14 @@ silently. That is audit finding F14, reproduced and planned as S014.
 - Verified: `--validate` green, suite 112 tests OK.
 - Commit: 5ae769c.
 - Next: S014, prompt logging never fails silently.
+
+## 2026-08-06T15:04+02:00 prompt
+
+> Scan the project and list what is the next item in the plan if any
+
+## 2026-08-06T15:08+02:00 prompt
+
+> Read the repo goals and the repo plan, verify the implementation plan and rearange it if necessary or if better plan can be generated. Add to the plan :
+> 
+> * Planning fase during initialization.
+> * How to handle plugin initialization if it was initialized on a different machine already?

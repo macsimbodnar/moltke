@@ -37,3 +37,5 @@ Order lives here and nowhere else (DEC-008). Step detail lives in the step files
 25. S025  documented exit-code semantics match the code
 26. S026  documentation drift pass
 27. S027  bump 0.3.0, re-run the audit, close findings
+28. S028  init drives a guided planning phase after scaffolding
+29. S029  init handles a repo already initialized on another machine
