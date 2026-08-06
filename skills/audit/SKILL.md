@@ -14,8 +14,9 @@ python3 ${CLAUDE_PLUGIN_ROOT}/bin/moltke.py --audit new <type>
 ```
 
 Types are free-form; `adversarial`, `security`, and `bugs` are the usual ones.
-It creates `adocs/audit/YYYY-MM-DD_<type>.md` and refuses to overwrite an
-existing report, because a report is evidence of one run.
+It creates `adocs/audit/YYYY-MM-DD_<type>.md` and never overwrites an existing
+report, because a report is evidence of one run. A second run on the same day
+becomes `YYYY-MM-DD_<type>.2.md`, and its findings are numbered from that name.
 
 ## 2. Run the reviewer
 
@@ -71,7 +72,8 @@ A finding moves to `closed` only after the audit is re-run and no longer
 reports it. Fixing without re-running leaves it `planned`. That is deliberate:
 "I fixed it" is a claim, "the audit no longer finds it" is evidence.
 
-Re-running means step 1 again with a new date, and comparing.
+Re-running means step 1 again and comparing. It does not mean waiting for
+tomorrow: a same-day re-run gets its own suffixed report.
 
 ## Rules that hold regardless
 

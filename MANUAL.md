@@ -102,7 +102,7 @@ Cursor) must, since hooks exist only in Claude Code.
 | `--step block <parent> <name>` | create a blocking child in `plan_current/` and pause its parent |
 | `--step done <id>` | complete a step and move it to `plan_done/`, refusing if anything is missing |
 | `--step status` | regenerate `status.md` from the filesystem, keeping the Parked list |
-| `--audit new <type>` | open `adocs/audit/YYYY-MM-DD_<type>.md`; refuses to overwrite a report. Also records a working-tree baseline for `--audit check` |
+| `--audit new <type>` | open `adocs/audit/YYYY-MM-DD_<type>.md`; never overwrites a report — a same-day re-run becomes `YYYY-MM-DD_<type>.2.md`, and its findings are numbered from that name. Also records a working-tree baseline for `--audit check` |
 | `--audit list` | every finding, its status, and what references it; exits 1 while an open finding has neither a step nor a decision |
 | `--audit check` | reconcile what the run changed against that baseline: the report and new files under `tests/` are expected, anything else exits 1. Run it after the reviewer returns, before acting on a finding |
 | `--session-start` | SessionStart hook: emit the stack and derived next step as context |

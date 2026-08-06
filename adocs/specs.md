@@ -139,7 +139,7 @@ which is the only enforcement available outside Claude Code.
 | `--validate` | manual, any tool | run every invariant, report all violations, exit non-zero |
 | `--scaffold` | `init` skill | create the marker, `AGENTS.md`, `CLAUDE.md`, the Cursor pointer, and `adocs/` from templates; never overwrites an existing file |
 | `--decline` | `init` skill | write `{"schema": 1, "enabled": false}`, durably; refuses to disable an already-enabled repository |
-| `--audit OP ...` | `audit` skill | 2026-08-01 (S008): `new <type>` opens `adocs/audit/YYYY-MM-DD_<type>.md` from the template and refuses to overwrite; `list` prints every finding with its status and what references it, exiting non-zero while an open finding has neither a step nor a decision. 2026-08-06 (S017): `new` also records a working-tree baseline in `.git/moltke_audit_baseline.json`, and `check` reconciles the run against it, printing expected and unexpected changes and exiting 1 on anything unexpected |
+| `--audit OP ...` | `audit` skill | 2026-08-01 (S008): `new <type>` opens `adocs/audit/YYYY-MM-DD_<type>.md` from the template and never overwrites, taking a `.2`, `.3` sequence suffix on a same-day re-run (S020); `list` prints every finding with its status and what references it, exiting non-zero while an open finding has neither a step nor a decision. 2026-08-06 (S017): `new` also records a working-tree baseline in `.git/moltke_audit_baseline.json`, and `check` reconciles the run against it, printing expected and unexpected changes and exiting 1 on anything unexpected |
 | `--step OP ...` | `step` skill | 2026-08-01 (S007): lifecycle operations `new <name> [--goal]`, `start <id>`, `block <parent> <name>`, `done <id> --stamp`, `status`. Each refuses rather than repairs, naming the missing condition; no transition may leave INV-1..INV-7 violated |
 
 Every mode exits 0 immediately when `.moltke.json` is absent or `enabled` is
@@ -240,6 +240,16 @@ so refreshing the golden alone never makes the suite green. Refresh, after
 updating the docs, with `python3 tests/test_s009_surface.py --refresh`. The
 same check runs against `MANUAL.md` and is skipped until that file exists in
 S011; closing that gap is part of S011.
+
+2026-08-06 (S020): `--audit new` allows a same-day re-run. Closure requires a
+re-run and the filename came from today's date, so a finding fixed on the day it
+was reported had no compliant way to close — the tool's own advice was to wait a
+day or invent a type name, which corrupts the stem that INV-10 keys on (finding
+F09). Re-runs take a sequence suffix, `YYYY-MM-DD_<type>.2.md`, `.3.md`, and an
+existing report is still never overwritten. INV-10's stem check becomes an exact
+`<stem>-F<nn>` match rather than `startswith`, because the suffix makes the first
+report's stem a prefix of the re-run's and a re-run's finding id would otherwise
+sit unnoticed inside the first report.
 
 2026-08-06 (S019): the rule below was stated universally and had one exception
 until now — `finding_references` read `decisions.md` raw, so a finding id inside

@@ -179,7 +179,7 @@ Ids are referenced from step files, commit messages, code comments, and `specs.m
 
 ## 10. Audit
 
-`adocs/audit/` holds reports from adversarial verification, security audits, and bug hunts. One file per run, named `YYYY-MM-DD_type.md`.
+`adocs/audit/` holds reports from adversarial verification, security audits, and bug hunts. One file per run, named `YYYY-MM-DD_type.md`, and a re-run on the same day takes a sequence suffix: `YYYY-MM-DD_type.2.md`. A report is never overwritten, so closing a finding on the day it was found is a normal re-run rather than a wait.
 
 - The report is written **before** any fix. A report edited while fixing stops being evidence of what was found.
 - Every finding gets an id `YYYY-MM-DD_type-F<nn>`, a severity, and a status of `open`, `planned`, `closed`, or `accepted`.

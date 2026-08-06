@@ -7,4 +7,4 @@ decisions:
 closes:     2026-08-06_adversarial-F09
 blocks:
 paused_by:
-done:
+done:      2026-08-06: --audit new takes a .2/.3 sequence suffix on a same-day re-run and still never overwrites; INV-10's stem check tightened from startswith to an exact <stem>-F<nn> match, which the suffix made necessary. 4 tests, red observed. Suite 145 OK, --validate green. README test count 142 to 145; MANUAL --audit new row updated; AGENTS.md section 10 and templates/AGENTS.md changed identically; skills/audit/SKILL.md steps 1 and 5 no longer say to wait for tomorrow.

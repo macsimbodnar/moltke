@@ -58,15 +58,54 @@ class TestAuditNew(unittest.TestCase):
             listing = run_moltke(root, "--audit", "list")
             self.assertIn("no findings", listing.stdout.lower())
 
-    def test_refuses_to_overwrite_an_existing_report(self):
+    def test_a_same_day_rerun_suffixes_instead_of_overwriting(self):
+        # S020 (F09): closure requires a re-run, so refusing a same-day re-run
+        # left no compliant way to close a finding fixed the day it was found.
+        # The no-overwrite property is what this test used to assert and still does.
         with tempfile.TemporaryDirectory() as tmp:
             root = workflow_repo(tmp)
             run_moltke(root, "--audit", "new", "adversarial")
-            report = root / "adocs" / "audit" / f"{TODAY}_adversarial.md"
-            report.write_text("# real findings\n", encoding="utf-8")
+            first = root / "adocs" / "audit" / f"{TODAY}_adversarial.md"
+            first.write_text("# real findings\n", encoding="utf-8")
             result = run_moltke(root, "--audit", "new", "adversarial")
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertEqual(first.read_text(encoding="utf-8"), "# real findings\n")
+            second = root / "adocs" / "audit" / f"{TODAY}_adversarial.2.md"
+            self.assertTrue(second.is_file(), result.stdout + result.stderr)
+            self.assertIn(second.name, result.stdout)
+
+    def test_reruns_keep_counting_up(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            for expected in (f"{TODAY}_adversarial.md", f"{TODAY}_adversarial.2.md",
+                             f"{TODAY}_adversarial.3.md"):
+                result = run_moltke(root, "--audit", "new", "adversarial")
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                self.assertTrue((root / "adocs" / "audit" / expected).is_file(), expected)
+
+    def test_a_rerun_report_states_its_own_finding_ids(self):
+        # INV-10 keys findings to their report's stem, so the re-run's template
+        # has to name the suffixed stem or the first finding written violates it.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            run_moltke(root, "--audit", "new", "adversarial")
+            result = run_moltke(root, "--audit", "new", "adversarial")
+            self.assertIn(f"{TODAY}_adversarial.2-F01", result.stdout)
+            second = root / "adocs" / "audit" / f"{TODAY}_adversarial.2.md"
+            self.assertIn(f"{TODAY}_adversarial.2-F", second.read_text(encoding="utf-8"))
+            validate = run_moltke(root, "--validate")
+            self.assertEqual(validate.returncode, 0, validate.stdout)
+
+    def test_a_rerun_finding_id_does_not_satisfy_the_first_report(self):
+        # The suffix makes the first report's stem a prefix of the re-run's, so
+        # startswith would let a re-run id sit in the first report unnoticed.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            audit_report(root, [(f"{TODAY}_adversarial.2-F01", "accepted")],
+                         name=f"{TODAY}_adversarial.md")
+            result = run_moltke(root, "--validate")
             self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
-            self.assertEqual(report.read_text(encoding="utf-8"), "# real findings\n")
+            self.assertIn("INV-10", result.stdout)
 
 
 class TestAuditList(unittest.TestCase):

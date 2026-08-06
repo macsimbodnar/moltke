@@ -343,7 +343,10 @@ def inv_10_audit_findings(root, config):
     violations = []
     for report in sorted(audit_dir.glob("*.md")):
         for finding_id, status in report_findings(report):
-            if not finding_id.startswith(report.stem):
+            # Exact, not startswith: a same-day re-run is `<stem>.2`, so the first
+            # report's stem is a prefix of the re-run's and a re-run id would
+            # otherwise sit unnoticed in the first report (S020).
+            if not re.fullmatch(rf"{re.escape(report.stem)}-F\d{{2}}", finding_id):
                 violations.append(f"INV-10: finding {finding_id} lives in {report.name}; "
                                   f"finding ids carry their own report's name, so it should "
                                   f"read {report.stem}-F<nn>")
@@ -1030,12 +1033,25 @@ def worktree_state(root):
     return state
 
 
+def next_report_path(root, audit_type):
+    """Today's report, or the next free sequence suffix (S020, F09).
+
+    Closure requires a re-run, so refusing a same-day re-run left no compliant
+    way to close a finding fixed on the day it was found. A report is still never
+    overwritten: each run gets its own file, and its own finding-id stem.
+    """
+    audit_dir = root / DOCS / "audit"
+    stem = f"{datetime.date.today().isoformat()}_{audit_type}"
+    report = audit_dir / f"{stem}.md"
+    run = 1
+    while report.exists():
+        run += 1
+        report = audit_dir / f"{stem}.{run}.md"
+    return report
+
+
 def audit_new(root, config, audit_type):
-    report = root / DOCS / "audit" / f"{datetime.date.today().isoformat()}_{audit_type}.md"
-    if report.exists():
-        return refuse(f"{report.relative_to(root)} already exists; a report is evidence of one "
-                      f"run and is never edited afterwards. Use a different type name, or "
-                      f"re-run the audit tomorrow.")
+    report = next_report_path(root, audit_type)
     # Captured before the report exists, so the report itself shows up as part of
     # the run's footprint and is classified there rather than being invisible.
     baseline = worktree_state(root)

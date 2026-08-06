@@ -627,3 +627,35 @@ silently. That is audit finding F14, reproduced and planned as S014.
   discharged.
 - Tests added: 4, red observed. Suite 142 OK, `--validate` green.
 - Next: S020, an audit can be re-run the same day.
+
+## 2026-08-06T17:26+02:00 prompt
+
+> next
+
+## 2026-08-06 recap — S020 an audit can be re-run the same day
+
+- S020 done, closing audit finding F09 (stays `planned` until S027 re-runs the
+  audit). This is the step S027 depends on: closing the 2026-08-06 findings
+  requires re-running that audit today.
+- `--audit new` now takes a sequence suffix when today's report exists:
+  `YYYY-MM-DD_<type>.2.md`, `.3.md`. The no-overwrite property is unchanged, and
+  the test that used to assert the refusal was re-targeted to assert the suffix
+  plus the untouched first report, not deleted.
+- Second-order effect found while designing it, not after: the suffix makes the
+  first report's stem a prefix of the re-run's, so INV-10's
+  `finding_id.startswith(report.stem)` would let a re-run's finding id sit
+  unnoticed inside the first report. Tightened to an exact `<stem>-F<nn>` match
+  and covered by its own test.
+- Red observed: `AssertionError: 1 != 0 : moltke: adocs/audit/2026-08-06_adversarial.md
+  already exists; ... Use a different type name, or re-run the audit tomorrow.`
+  — the refusal quoted in the finding, and the advice that corrupts the stem.
+- Docs: specs CLI row and a dated note; MANUAL's `--audit new` row; AGENTS.md
+  section 10 plus `templates/AGENTS.md` byte-identically; the audit skill's
+  steps 1 and 5, which told the agent to wait for a new date.
+- Files: `bin/moltke.py`, `tests/test_s008_audit.py`, `AGENTS.md`,
+  `templates/AGENTS.md`, `skills/audit/SKILL.md`, `adocs/specs.md`,
+  `adocs/testing.md` (+4 rows), `MANUAL.md`, `README.md` (142 to 145 tests),
+  `adocs/status.md`, `plan_current/S020` moved to `plan_done/`.
+- Tests added: 3 new plus 1 re-targeted, red observed. Suite 145 OK,
+  `--validate` green.
+- Next: S021, optional test_command gate on --step done.
