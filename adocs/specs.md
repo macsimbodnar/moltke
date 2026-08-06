@@ -241,6 +241,22 @@ updating the docs, with `python3 tests/test_s009_surface.py --refresh`. The
 same check runs against `MANUAL.md` and is skipped until that file exists in
 S011; closing that gap is part of S011.
 
+2026-08-06 (S022, DEC-024): `tests/test_s022_secrets.py` fails when a prefixed
+key shape or a PEM private-key header appears in `adocs/worklog.md`, satisfying
+AGENTS.md section 6's requirement that secret-leak checks run inside the normal
+suite. Prompts are written verbatim, so the worklog is a secret sink in a tracked
+file that DEC-002 makes public here (finding F08). Detection, not redaction:
+DEC-024 rejected redacting at write time because it contradicts the verbatim
+guarantee and a false positive would destroy forensic content silently. Fixed
+prefixes and PEM headers only — no entropy or bare-hex rule, which would fire on
+the commit sha in every recap. Non-vacuous by construction: each shape is first
+asserted to match its own synthetic example, and the scan is asserted to report a
+planted one at the right line, before either is pointed at the real file. S030
+already removed the worse half of F08: the worklog left INV-8, so cleaning a leak
+is an ordinary edit rather than an invariant violation. Two limits stand: the
+check lives in moltke's own suite and does not travel to repositories that install
+the plugin, which is S031, and it scans the worklog only.
+
 2026-08-06 (S021, DEC-023): `.moltke.json` gains an optional `test_command`
 string, and `--step done` runs it after every other gate and before it touches
 anything, refusing on a non-zero exit with the command, the exit code, and the

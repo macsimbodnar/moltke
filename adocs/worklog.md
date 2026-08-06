@@ -701,3 +701,47 @@ silently. That is audit finding F14, reproduced and planned as S014.
   `adocs/status.md`, `plan_current/S021` moved to `plan_done/`.
 - Tests added: 6, red observed. Suite 151 OK, `--validate` green.
 - Next: S022, worklog secret-shape check runs in the suite.
+
+## 2026-08-06T18:17+02:00 prompt
+
+> next
+
+## 2026-08-06 recap — S022 worklog secret-shape check runs in the suite
+
+- S022 done, closing audit finding F08 (stays `planned` until S027 re-runs the
+  audit). Implements DEC-024.
+- New `tests/test_s022_secrets.py` fails when a prefixed key shape or a PEM
+  private-key header appears in `adocs/worklog.md`. Eleven shapes: AWS, GitHub
+  classic and fine-grained, Anthropic, OpenAI, Slack, Google, Stripe live, npm,
+  PEM, JWT.
+- Non-vacuity is not a comment, it is two tests: every shape must first match its
+  own synthetic example, and the scan must report a planted one at the right line.
+  That guard earned itself on the first run — the Google example was 36 characters
+  against a 35-character pattern:
+  `AssertionError: None is not true : Google API key no longer matches its own
+  example; the check below would pass by failing to look`. Without it the shape
+  would have sat there matching nothing.
+- Red observed on the real file, not just a fixture: planted a synthetic AWS key
+  in `adocs/worklog.md`, ran the check, restored the file and verified the restore.
+  `AssertionError: Lists differ: [('AWS access key id', 709, 'AKIAIOSF')] != []`,
+  exit 1. The report gives label, line, and 8 characters — never the whole value.
+- No entropy or bare-hex rule, deliberately: every recap here carries a commit sha
+  and several carry md5 digests, so those heuristics would make the suite red
+  every turn. A benign-strings test locks that in.
+- S030 had already removed the worse half of F08. The worklog left INV-8, so
+  cleaning a leak is an ordinary edit — no invariant to work around, no decision
+  entry needed to authorise it. MANUAL's escape procedure says rotate the
+  credential first, then edit, and explains why history rewriting is not the fix:
+  the value stays recoverable from any clone regardless.
+- Gap found and not papered over: the check lives in moltke's own suite, so a
+  repository that installs the plugin does not inherit it. That is independent
+  work, so it went to `plan_todo/` as S031 rather than being done now. Its
+  acceptance requires a decision on where the check runs, because a false positive
+  on someone else's worklog must not be able to deadlock their session.
+- Files: new `tests/test_s022_secrets.py`, `MANUAL.md`, `adocs/specs.md`,
+  `adocs/testing.md` (+4 rows), `README.md` (151 to 155 tests), `adocs/plan.md`,
+  new `adocs/plan_todo/S031_worklog_secret_check_ships.md`, `adocs/status.md`,
+  `plan_current/S022` moved to `plan_done/`.
+- Tests added: 4. Suite 155 OK, `--validate` green, and completion ran through
+  S021's suite gate.
+- Next: S023, surface guard covers skills, hooks, and marker keys.

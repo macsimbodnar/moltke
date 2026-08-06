@@ -40,3 +40,4 @@ Order lives here and nowhere else (DEC-008). Step detail lives in the step files
 28. S027  bump 0.3.0, re-run the audit, close findings
 29. S028  init drives a guided planning phase after scaffolding
 30. S029  init handles a repo already initialized on another machine
+31. S031  target repositories inherit the worklog secret check, not just moltke's own suite
