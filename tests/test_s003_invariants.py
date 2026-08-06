@@ -119,6 +119,48 @@ class TestInvariants(unittest.TestCase):
             (root / "adocs" / "plan_done" / "S001_base.md").unlink()
             self.assert_violation(root, "INV-7")
 
+    def test_inv7_survives_the_commit_that_hides_it(self):
+        # S018 (F04): HEAD is not a baseline, it is a moving target, and the
+        # workflow commits at every step completion. Committing the tampering
+        # used to erase the violation.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            git(root, "init", "-q")
+            git(root, "add", "-A")
+            git(root, "commit", "-qm", "base")
+            done = root / "adocs" / "plan_done" / "S001_base.md"
+            done.write_text(done.read_text(encoding="utf-8") + "tampered\n",
+                            encoding="utf-8")
+            self.assert_violation(root, "INV-7")  # precondition: seen uncommitted
+            git(root, "add", "-A")
+            git(root, "commit", "-qm", "hide the tampering")
+            self.assert_violation(root, "INV-7")
+
+    def test_inv7_survives_a_committed_deletion(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            git(root, "init", "-q")
+            git(root, "add", "-A")
+            git(root, "commit", "-qm", "base")
+            (root / "adocs" / "plan_done" / "S001_base.md").unlink()
+            (root / "adocs" / "testing.md").write_text(
+                "# Testing ledger\n\n| Step | Criterion | Test | Result |\n|---|---|---|---|\n",
+                encoding="utf-8")
+            git(root, "add", "-A")
+            git(root, "commit", "-qm", "remove history")
+            self.assert_violation(root, "INV-7")
+
+    def test_inv7_abstains_without_history(self):
+        # Non-vacuity: the same tree with history reports the violation.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            done = root / "adocs" / "plan_done" / "S001_base.md"
+            done.write_text(done.read_text(encoding="utf-8") + "tampered\n",
+                            encoding="utf-8")
+            git(root, "init", "-q")
+            result = run_validate(root)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
     def test_inv7_added_done_step_is_allowed(self):
         # Append by move only: additions are the one legal change.
         with tempfile.TemporaryDirectory() as tmp:

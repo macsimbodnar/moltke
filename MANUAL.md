@@ -174,10 +174,20 @@ which is flagged as unexpected rather than hidden; and pre-existing dirt in your
 tree is in the baseline, so it is never blamed on the audit. Without git, or
 before `--audit new` has run, the check refuses instead of passing quietly.
 
-**Immutability checks need git.** INV-7 (`plan_done/` unchanged) and INV-8
-(`adocs/decisions.md` append-only) compare against `git HEAD`. In a repository with no history,
-or for a file not yet committed, there is no baseline and the check abstains
-rather than guessing.
+**Immutability checks need git, and read history as well as HEAD.** INV-7
+(`plan_done/` unchanged) and INV-8 (`adocs/decisions.md` append-only) compare the
+working tree against `git HEAD`, which covers changes you have not committed, and
+also walk `git log`, which covers changes you have. Committing tampering
+therefore does not hide it: the violation names the commit that did it. In a
+repository with no history, or for a file not yet committed, there is no baseline
+and the check abstains rather than guessing.
+
+What this cannot do is unwrite history. Both checks report; neither reverts, and
+the fix is a new commit restoring the content, never a rewrite. Rewriting git
+history would remove the evidence along with the tampering, and the agent is
+barred from it. Two known limits: a file created and deleted inside the same
+commit leaves nothing to detect, and `Bash` writes reach `plan_done/` without
+ever meeting the PreToolUse fence — the history check is what notices afterwards.
 
 **The recap gate reads headings, not sizes.** `Stop` refuses when source changed
 and no `## …recap…` heading follows the last `## … prompt` heading in the

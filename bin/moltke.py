@@ -191,21 +191,56 @@ def inv_6_unique_ids(root, config):
     return violations
 
 
+def history_blocks(root, *args):
+    """[(sha, [detail lines])] oldest first, or None without history.
+
+    S018 (F04): HEAD is not a baseline, it is a moving target — the workflow
+    commits at every step completion, so a working-tree comparison stops seeing
+    tampering the moment it is committed. History is the only fixed baseline.
+    --no-renames throughout, so a move into a directory reads as the addition it
+    is and a move out reads as the deletion it is.
+    """
+    lines = _git_lines(root, "log", "--reverse", "--no-renames", "--format=%H", *args)
+    if lines is None:
+        return None
+    blocks = []
+    for line in lines:
+        if "\t" in line:
+            if blocks:
+                blocks[-1][1].append(line)
+        elif re.fullmatch(r"[0-9a-f]{7,40}", line):
+            blocks.append((line, []))
+    return blocks
+
+
 def inv_7_done_immutable(root, config):
-    # Checked against git HEAD: tracked plan_done files never change or vanish;
-    # additions are the one legal change (append by move only). Repos without
-    # git history have no baseline, so the check abstains.
+    # Two baselines, because they catch different things: git HEAD sees tampering
+    # that is not committed yet, history sees tampering that is. Additions are
+    # the one legal change (append by move only). No git history, no baseline, so
+    # the check abstains.
     result = subprocess.run(
         ["git", "-C", str(root), "status", "--porcelain", "--", f"{DOCS}/plan_done"],
         capture_output=True, text=True)
-    if result.returncode != 0:
-        return []
     violations = []
-    for line in result.stdout.splitlines():
-        status, _, entry = line[:2], line[2], line[3:]
-        if any(code in status for code in ("M", "D", "R", "C", "U")):
-            violations.append(f"INV-7: {entry.strip()} changed under plan_done/; history is "
-                              f"immutable: restore it with git checkout -- {entry.strip()}")
+    if result.returncode == 0:
+        for line in result.stdout.splitlines():
+            status, _, entry = line[:2], line[2], line[3:]
+            if any(code in status for code in ("M", "D", "R", "C", "U")):
+                violations.append(f"INV-7: {entry.strip()} changed under plan_done/; history is "
+                                  f"immutable: restore it with git checkout -- {entry.strip()}")
+
+    seen = set()
+    for sha, details in history_blocks(root, "--name-status", "--", f"{DOCS}/plan_done") or []:
+        for detail in details:
+            status, entry = detail.split("\t")[0], detail.split("\t")[-1]
+            if status.startswith("A") or entry in seen:
+                continue
+            seen.add(entry)
+            violations.append(
+                f"INV-7: {entry} was {status} in commit {sha[:8]} after it landed under "
+                f"plan_done/, which is append by move only. Recover the original with "
+                f"git show $(git log --diff-filter=A --format=%H -- {entry} | tail -1):{entry} "
+                f"and restore it in a new commit; never rewrite the history that recorded it")
     return violations
 
 
@@ -219,8 +254,27 @@ FINDING_RE = re.compile(r"^###\s+(\S*-F\d{2})\b", re.M)
 
 
 def inv_8_append_only(root, config):
-    # Baseline is git HEAD, same reasoning as INV-7; untracked files have none.
+    # Two baselines, same reasoning as INV-7: HEAD for the uncommitted window,
+    # history for everything already committed. Untracked files have neither.
     violations = []
+    for rel in APPEND_ONLY_FILES:
+        # A commit that removes lines rewrote what was already there. Line
+        # granularity, not bytes: an in-place byte edit still reads as one line
+        # removed and one added, so it is caught either way.
+        for sha, details in history_blocks(root, "--numstat", "--", rel) or []:
+            for detail in details:
+                fields = detail.split("\t")
+                if len(fields) == 3 and fields[1].isdigit() and int(fields[1]) > 0:
+                    violations.append(
+                        f"INV-8: {rel} lost {fields[1]} line(s) in commit {sha[:8]}; it grows "
+                        f"only at the end, because DEC ids are cited from code, commits, and "
+                        f"specs and a rewritten entry changes what those citations mean. "
+                        f"Restore the removed content in a new commit; a reversal is a new "
+                        f"entry marking the old one VOID, never an edit")
+                    break
+            else:
+                continue
+            break
     for rel in APPEND_ONLY_FILES:
         shown = subprocess.run(["git", "-C", str(root), "show", f"HEAD:{rel}"],
                                capture_output=True)

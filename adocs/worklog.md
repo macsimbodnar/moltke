@@ -548,3 +548,48 @@ silently. That is audit finding F14, reproduced and planned as S014.
 - Tests added: none; one re-targeted, three unchanged and now load-bearing as the
   precondition. Suite 132 OK, `--validate` green.
 - Next: S018, plan_done and append-only immutability survives a commit.
+
+## 2026-08-06T16:35+02:00 prompt
+
+> next
+
+## 2026-08-06 recap — S018 immutability survives a commit
+
+- S018 done, closing findings F04 and F12 (both stay `planned` until S027 re-runs
+  the audit).
+- Root cause was not the comparison, it was the baseline: HEAD moves at every
+  step completion, and AGENTS.md section 5 has the agent commit at every step
+  completion. So the guarantee only ever held inside the uncommitted window,
+  which this workflow deliberately keeps as short as possible.
+- Both invariants now check two baselines. HEAD covers what is not committed yet;
+  `git log` covers what is. INV-7 reads `--name-status` over `plan_done/` and
+  treats any status other than `A` as a violation, naming the commit. INV-8 reads
+  `--numstat` over `decisions.md` and treats any commit that removed lines as a
+  violation.
+- `--numstat` is line granularity, not bytes. That is sufficient: an in-place
+  byte edit still reads as one line removed and one added.
+- `--no-renames` on both, which is what keeps the S013 `project/` to `adocs/`
+  rename legal — a move into the directory reads as the addition it is, a move
+  out as the deletion it is. Verified against this repository's real history
+  rather than assumed: all 18 `plan_done` entries report `A` and nothing else,
+  and no commit has ever removed a line from `decisions.md`.
+- Red observed on all four committed-tampering tests as
+  `AssertionError: 0 != 1 : moltke: all checks pass` — the audit's own
+  reproduction, and the exact shape of F04.
+- Each committed-tampering test asserts the uncommitted violation first, so a
+  green result cannot come from the check having stopped working.
+- F12 closed in the same commit: INV-7's "byte-identical to its state at session
+  start" is marked superseded in place. It promised a session-scoped guarantee
+  the code never implemented.
+- Two limits recorded in MANUAL rather than fixed: a file created and deleted
+  inside one commit leaves nothing to detect, and `Bash` writes reach
+  `plan_done/` without meeting the PreToolUse fence — the history check is what
+  notices afterwards. Neither check reverts anything; the fix is a new commit
+  restoring the content, never a rewrite, since rewriting history would remove
+  the evidence along with the tampering.
+- Files: `bin/moltke.py`, `tests/test_s003_invariants.py`,
+  `tests/test_s004_invariants.py`, `adocs/specs.md`, `adocs/testing.md` (+7 rows),
+  `MANUAL.md`, `README.md` (132 to 138 tests), `adocs/status.md`,
+  `plan_current/S018` moved to `plan_done/`.
+- Tests added: 6, red observed. Suite 138 OK, `--validate` green.
+- Next: S019, fenced guidance never discharges a finding.

@@ -7,4 +7,4 @@ decisions:  DEC-025
 closes:     2026-08-06_adversarial-F04, 2026-08-06_adversarial-F12
 blocks:
 paused_by:
-done:
+done:      2026-08-06: INV-7 and INV-8 each check two baselines, HEAD for the uncommitted window and git log for everything committed; --no-renames keeps a move in as an addition, which is what keeps the S013 rename legal. INV-7's specs wording restated with the session-start sentence marked superseded (F12). 6 tests, red observed as 'moltke: all checks pass' after committing the tampering. Suite 138 OK, --validate green including this repo's own 18-entry plan_done history. README test count 132 to 138; MANUAL immutability entry rewritten to say history is read too, with the two known limits and the fact that neither check reverts anything.

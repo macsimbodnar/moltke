@@ -31,7 +31,7 @@ Enforced by `bin/moltke.py` in marked repositories:
 - INV-4  no step moves to `plan_done/` while another step names it in `blocks:`.
 - INV-5  no step reaches `plan_done/` without a `done:` stamp and at least one `testing.md` row referencing its id.
 - INV-6  step ids are unique across all three plan directories.
-- INV-7  `plan_done/` is byte-identical to its state at session start.
+- INV-7  a file under `plan_done/` never changes or disappears after the commit that added it. 2026-08-06 (S018, F12): the original wording, "`plan_done/` is byte-identical to its state at session start", is superseded — it promised a session-scoped guarantee the code never implemented, and the 2026-08-01 amendment below redefined it without saying so.
 - INV-8  `decisions.md` grows only by appending; earlier bytes are unchanged. 2026-08-06 (S030, DEC-025): narrowed from "`worklog.md` and `decisions.md`", which is superseded. The worklog is append-only by convention and no longer checked.
 - INV-9  every `decisions.md` entry has a unique `DEC-<nnn>` id.
 - INV-10 every audit finding is `open`, `planned`, `closed`, or `accepted`, and no report has `open` findings without a step or decision referencing them.
@@ -52,6 +52,20 @@ a `Status: <value>` line in its section; the S008 report template must conform.
 (append by move only). Repos without git history have no baseline, so the
 check abstains. INV-3 additionally treats a missing `plan.md` in an enabled
 repo as a violation.
+
+2026-08-06 (S018): INV-7 and INV-8 each check two baselines, because HEAD alone
+was never a baseline — it moves at every step completion, so committing the
+tampering erased the violation (finding F04). The working-tree comparisons above
+stay, covering the uncommitted window; git history covers everything already
+committed. INV-7 reads `git log --name-status` over `plan_done/` and treats any
+status other than `A` as a violation, naming the commit. INV-8 reads
+`git log --numstat` over `decisions.md` and treats any commit that removed lines
+as a violation, which is line granularity rather than bytes: an in-place edit
+still reads as one line removed and one added, so it is caught either way. Both
+pass `--no-renames`, so a move into the directory reads as the addition it is —
+this is what keeps the S013 `project/` to `adocs/` rename legal — and a move out
+reads as the deletion it is. Both still abstain with no history. Neither is in
+`CHEAP_CHECKS`, so `--post-write` does not pay for them.
 
 Each invariant gets a test, and each test gets a `testing.md` row. Red-first
 applies: write the test, watch it fail against a deliberately broken fixture

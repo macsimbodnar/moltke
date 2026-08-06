@@ -18,12 +18,16 @@ def run_validate(cwd):
     )
 
 
+def git(root, *args):
+    return subprocess.run(
+        ["git", "-C", str(root), "-c", "user.name=t", "-c", "user.email=t@t", *args],
+        capture_output=True, text=True, check=True,
+    )
+
+
 def git_baseline(root):
     for args in (("init", "-q"), ("add", "-A"), ("commit", "-qm", "base")):
-        subprocess.run(
-            ["git", "-C", str(root), "-c", "user.name=t", "-c", "user.email=t@t", *args],
-            capture_output=True, text=True, check=True,
-        )
+        git(root, *args)
 
 
 class TestAppendOnly(unittest.TestCase):
@@ -75,6 +79,42 @@ class TestAppendOnly(unittest.TestCase):
             worklog.unlink()
             deleted = run_validate(root)
             self.assertEqual(deleted.returncode, 0, deleted.stdout + deleted.stderr)
+
+    def test_committing_a_rewrite_does_not_hide_it(self):
+        # S018 (F04): HEAD moves at every step completion, so a rewrite that got
+        # committed used to become invisible to every moltke mode.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            git_baseline(root)
+            path = root / "adocs" / "decisions.md"
+            path.write_text(path.read_text(encoding="utf-8").replace("base decision",
+                            "edited decision"), encoding="utf-8")
+            self.assert_violation(root, "INV-8")  # precondition: seen uncommitted
+            git(root, "add", "-A")
+            git(root, "commit", "-qm", "hide the rewrite")
+            self.assert_violation(root, "INV-8")
+
+    def test_committed_appends_stay_legal(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            git_baseline(root)
+            path = root / "adocs" / "decisions.md"
+            for entry in ("## DEC-002  2026-08-02  second\n", "## DEC-003  2026-08-03  third\n"):
+                path.write_text(path.read_text(encoding="utf-8") + "\n" + entry,
+                                encoding="utf-8")
+                git(root, "add", "-A")
+                git(root, "commit", "-qm", "append a decision")
+            result = run_validate(root)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_committed_deletion_of_decisions_is_caught(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            git_baseline(root)
+            (root / "adocs" / "decisions.md").unlink()
+            git(root, "add", "-A")
+            git(root, "commit", "-qm", "drop the decision log")
+            self.assert_violation(root, "INV-8")
 
     def test_deleting_append_only_file_fails(self):
         with tempfile.TemporaryDirectory() as tmp:
