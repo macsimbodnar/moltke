@@ -142,6 +142,18 @@ same prompt it allows the stop with a warning (state in
 `--stop`'s README/MANUAL gate is mechanical: a step file newly moved into
 `plan_done/` must mention README and MANUAL in its `done:` stamp.
 
+2026-08-06 (S015): `--stop`'s recap gate no longer reads worklog growth. Growth
+cannot be the signal, because `UserPromptSubmit` appends the prompt before the
+turn begins, so by the time `Stop` runs the worklog has always grown and the
+comparison was always false (finding F01). The gate now asks whether a `## …`
+heading containing `recap` follows the last heading ending in `prompt`. A heading
+matching both reads as a recap, so a recap titled after prompt handling still
+counts. Headings inside fenced blocks are guidance, not data. The gate abstains
+when the repository has no `HEAD` commit: there is no history a recap would sit
+alongside, and a fresh `--scaffold` is not work — the same abstain INV-7 and
+INV-8 make. This removes `--stop`'s last dependence on the worklog's git
+baseline, which DEC-025 is about to drop.
+
 2026-08-06 (S014): `--log-prompt` creates `adocs/` before appending, so a marked
 repository whose docs tree is missing still records the prompt. When the append
 fails anyway it writes `.git/moltke_log_failure.json` (`since`, `count`,

@@ -179,11 +179,27 @@ class TestPostWrite(unittest.TestCase):
             self.assertIn("INV-6", result.stderr)
 
 
+def log_prompt(root, text="a prompt"):
+    """S015: every Stop fixture logs a prompt first, because UserPromptSubmit
+    always has. A Stop test that skips this states a precondition no live
+    session ever has (F01)."""
+    result = run_moltke(root, "--log-prompt", stdin=json.dumps({"prompt": text}))
+    assert result.returncode == 0, result.stderr
+    return result
+
+
+def append_recap(root, heading="## 2026-08-01 recap S003"):
+    worklog = root / "adocs" / "worklog.md"
+    worklog.write_text(worklog.read_text(encoding="utf-8") + f"\n{heading}\n\n- did things\n",
+                       encoding="utf-8")
+
+
 class TestStop(unittest.TestCase):
     def test_clean_repo_allows_stop(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = workflow_repo(tmp)
             git_baseline(root)
+            log_prompt(root)
             result = run_moltke(root, "--stop", stdin="{}")
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
@@ -191,6 +207,7 @@ class TestStop(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = workflow_repo(tmp)
             git_baseline(root)
+            log_prompt(root)
             step_file(root / "adocs" / "plan_todo", "S003", "dupe")
             result = run_moltke(root, "--stop", stdin="{}")
             self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
@@ -202,6 +219,7 @@ class TestStop(unittest.TestCase):
             (root / "adocs" / "status.md").write_text(
                 "# Status\n\n- Next: S001\n", encoding="utf-8")
             git_baseline(root)
+            log_prompt(root)
             result = run_moltke(root, "--stop", stdin="{}")
             self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
             self.assertIn("status.md", result.stderr)
@@ -212,6 +230,7 @@ class TestStop(unittest.TestCase):
             git_baseline(root)
             (root / "src").mkdir()
             (root / "src" / "main.py").write_text("print('x')\n", encoding="utf-8")
+            log_prompt(root)  # the growth the old size comparison mistook for a recap
             result = run_moltke(root, "--stop", stdin="{}")
             self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
             self.assertIn("recap", result.stderr)
@@ -222,17 +241,76 @@ class TestStop(unittest.TestCase):
             git_baseline(root)
             (root / "src").mkdir()
             (root / "src" / "main.py").write_text("print('x')\n", encoding="utf-8")
-            worklog = root / "adocs" / "worklog.md"
-            worklog.write_text(worklog.read_text(encoding="utf-8")
-                               + "\n## 2026-08-01 recap S003\n\n- did things\n",
-                               encoding="utf-8")
+            log_prompt(root)
+            append_recap(root)
             result = run_moltke(root, "--stop", stdin="{}")
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_recap_older_than_the_last_prompt_does_not_count(self):
+        # A recap discharges the turn it belongs to, not every later one.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            git_baseline(root)
+            (root / "src").mkdir()
+            (root / "src" / "main.py").write_text("print('x')\n", encoding="utf-8")
+            log_prompt(root, "first prompt")
+            append_recap(root)
+            log_prompt(root, "second prompt")
+            result = run_moltke(root, "--stop", stdin="{}")
+            self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+            self.assertIn("recap", result.stderr)
+
+    def test_recap_inside_a_fenced_block_does_not_count(self):
+        # Guidance is never data (specs, S008): a recap heading quoted inside a
+        # code fence is an example, not a recap.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            git_baseline(root)
+            (root / "src").mkdir()
+            (root / "src" / "main.py").write_text("print('x')\n", encoding="utf-8")
+            log_prompt(root)
+            append_recap(root, "```\n## 2026-08-01 recap S003\n```\n## not a heading")
+            result = run_moltke(root, "--stop", stdin="{}")
+            self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+            self.assertIn("recap", result.stderr)
+
+    def test_recap_about_prompts_is_still_a_recap(self):
+        # This repo's own S014 recap heading ends in the word "prompt". Reading
+        # it as a prompt heading would leave the turn looking unrecapped.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            git_baseline(root)
+            (root / "src").mkdir()
+            (root / "src" / "main.py").write_text("print('x')\n", encoding="utf-8")
+            log_prompt(root)
+            append_recap(root, "## 2026-08-06 recap - S014 never lose a prompt")
+            result = run_moltke(root, "--stop", stdin="{}")
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_recap_gate_abstains_before_the_first_commit(self):
+        # A repo with no HEAD has no history a recap would sit alongside, so a
+        # fresh scaffold must not block. Precondition first: the same tree with
+        # a commit behind it does block, or this proves nothing.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            subprocess.run(["git", "-C", str(root), "init", "-q"], check=True)
+            (root / "src").mkdir()
+            (root / "src" / "main.py").write_text("print('x')\n", encoding="utf-8")
+            log_prompt(root)
+            self.assertEqual(run_moltke(root, "--stop", stdin="{}").returncode, 0,
+                             "no commit yet: the recap gate must abstain")
+            git_baseline(root)
+            (root / "src" / "main.py").write_text("print('y')\n", encoding="utf-8")
+            blocked = run_moltke(root, "--stop", stdin="{}")
+            self.assertEqual(blocked.returncode, 2,
+                             "with a commit behind it the same change must block")
+            self.assertIn("recap", blocked.stderr)
 
     def test_block_cap_prevents_deadlock(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = workflow_repo(tmp)
             git_baseline(root)
+            log_prompt(root)
             step_file(root / "adocs" / "plan_todo", "S003", "dupe")
             payload = json.dumps({"prompt_id": "p1"})
             for _ in range(3):

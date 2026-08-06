@@ -386,3 +386,42 @@ silently. That is audit finding F14, reproduced and planned as S014.
   `adocs/plan_todo/S018_immutable_baseline.md`, `adocs/status.md`.
 - Tests added: none, planning only. Suite 116 OK, `--validate` green.
 - Next: S015, Stop's recap gate fires in a live session.
+
+## 2026-08-06T15:48+02:00 prompt
+
+> next
+
+## 2026-08-06 recap — S015 Stop's recap gate fires in a live session
+
+- S015 done, closing audit finding F01 (stays `planned` until S027 re-runs the
+  audit).
+- `mode_stop` no longer compares worklog size against `git show HEAD:`. New
+  `recap_pending` walks `## ` headings in order: a heading containing `recap`
+  sets the flag, a heading ending in `prompt` clears it, so the answer is "does
+  a recap follow the last logged prompt". Read through `strip_guidance`, so a
+  recap heading inside a fenced block is an example, not a recap.
+- Recap wins when a heading reads as both. Found before it bit: this repo's own
+  S014 recap heading is `## 2026-08-06 recap — S014 prompt logging never fails
+  silently`, which the first ambiguous version classified as the last prompt.
+  Red observed against that version:
+  `AssertionError: 2 != 0 : moltke: source changed but adocs/worklog.md has no
+  recap heading after the last logged prompt`.
+- Regression caught by the existing suite: the old code abstained implicitly
+  because `git show HEAD:` fails with no commit, so a fresh scaffold passed.
+  `test_s006_scaffold.py` failed with `AssertionError: 2 != 0 : a freshly
+  scaffolded repo must not block the first stop`. The abstain is now explicit and
+  tested in both directions, matching INV-7 and INV-8's no-baseline abstain.
+- Red observed on the main gate: `AssertionError: 0 != 2 : ` with empty stderr —
+  the gate produced no message at all, which is exactly F01.
+- Every `TestStop` fixture now calls `log_prompt` before stopping, so no Stop
+  test states a precondition a live session never has.
+- Behaviour worth knowing, recorded in MANUAL: a recap for an earlier turn does
+  not discharge a later one. Committing the change satisfies the gate as well as
+  a recap does, and the refusal message says so, keeping INV-12.
+- Removes `--stop`'s last dependence on the worklog's git baseline, which
+  DEC-025 and S030 are about to drop anyway.
+- Files: `bin/moltke.py`, `tests/test_s005_hooks.py`, `adocs/specs.md` (dated
+  note), `adocs/testing.md` (+6 rows), `MANUAL.md`, `README.md` (116 to 120
+  tests), `adocs/status.md`, `plan_current/S015` moved to `plan_done/`.
+- Tests added: 6, all observed red. Suite 120 OK, `--validate` green.
+- Next: S016, reviewer fence matches the scoped agent_type.

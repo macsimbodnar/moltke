@@ -7,4 +7,4 @@ decisions:
 closes:     2026-08-06_adversarial-F01
 blocks:
 paused_by:
-done:
+done:      2026-08-06: recap gate reads headings, not worklog growth; abstains before the first commit; recap wins when a heading reads as both. 6 tests in test_s005_hooks.py, all observed red, every TestStop fixture now logs a prompt first. Suite 120 OK, --validate green. README test count 116 to 120; MANUAL entry rewritten from 'one hook enforces less' to the two live consequences, earlier-turn recap and pre-commit abstain. F01 stays planned until S027 re-runs the audit; inert in live sessions until 0.3.0 is installed.

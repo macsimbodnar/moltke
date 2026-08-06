@@ -515,6 +515,33 @@ def _git_lines(root, *args):
     return result.stdout.splitlines() if result.returncode == 0 else None
 
 
+WORKLOG_HEADING = re.compile(r"^##\s.*$", re.M)
+RECAP_HEADING = re.compile(r"\brecap\b", re.I)
+PROMPT_HEADING = re.compile(r"\bprompt\s*$", re.I)
+
+
+def recap_pending(root):
+    """S015 (F01): a recap is a heading after the last logged prompt, not growth.
+    Growth cannot work as the signal — UserPromptSubmit appends the prompt before
+    the turn begins, so the worklog has always grown by the time Stop runs.
+
+    Recap wins over prompt when a heading reads as both: a recap whose title is
+    about prompts ("recap - prompt logging never fails silently") is a recap.
+    """
+    worklog = root / DOCS / "worklog.md"
+    if not worklog.is_file():
+        return True
+    text = strip_guidance(worklog.read_text(encoding="utf-8", errors="replace"))
+    recapped = False
+    for heading in WORKLOG_HEADING.finditer(text):
+        line = heading.group(0)
+        if RECAP_HEADING.search(line):
+            recapped = True
+        elif PROMPT_HEADING.search(line):
+            recapped = False
+    return not recapped
+
+
 def mode_stop(root, config, marker_violations):
     problems = list(marker_violations)
     for _name, fn in INVARIANT_CHECKS:
@@ -529,15 +556,14 @@ def mode_stop(root, config, marker_violations):
     if porcelain is not None:
         changed_source = [line for line in porcelain
                           if not line[3:].startswith((f"{DOCS}/", ".claude"))]
-        if changed_source:
-            shown = subprocess.run(["git", "-C", str(root), "show", f"HEAD:{DOCS}/worklog.md"],
-                                   capture_output=True)
-            worklog = root / DOCS / "worklog.md"
-            current = worklog.read_bytes() if worklog.is_file() else b""
-            if shown.returncode == 0 and len(current) <= len(shown.stdout):
-                problems.append(f"source changed but {DOCS}/worklog.md gained no recap; "
-                                "append a recap (step id, what changed, files, tests, commit) "
-                                "before ending the turn.")
+        # No commit yet means no history a recap would sit alongside, and the
+        # scaffold's own files are not work: abstain, as INV-7 and INV-8 do.
+        committed = _git_lines(root, "rev-parse", "HEAD") is not None
+        if changed_source and committed and recap_pending(root):
+            problems.append(f"source changed but {DOCS}/worklog.md has no recap heading after "
+                            f"the last logged prompt; append a recap (step id, what changed, "
+                            f"files, tests, commit) before ending the turn, or commit the "
+                            f"change if the turn that made it was already recapped.")
         for line in porcelain:
             entry = line[3:]
             if line[:2] in ("??", "A ") and entry.startswith(f"{DOCS}/plan_done/"):

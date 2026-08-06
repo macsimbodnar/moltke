@@ -165,14 +165,15 @@ prevent it.
 or for a file not yet committed, there is no baseline and the check abstains
 rather than guessing.
 
-**One hook enforces less than it appears to.** All five events were verified
-firing from an installed plugin on 2026-08-06, on two machines (step S012):
-`SessionStart`, `UserPromptSubmit`, `PreToolUse` for both refusals,
-`PostToolUse`, and `Stop`. One gap remains inside them: the `Stop` hook's
-"source changed without a worklog recap" refusal cannot fire in a live session,
-because `UserPromptSubmit` has already appended the prompt to the worklog before
-the turn starts, which is the growth the check looks for (finding F01, step
-S015).
+**The recap gate reads headings, not sizes.** `Stop` refuses when source changed
+and no `## …recap…` heading follows the last `## … prompt` heading in the
+worklog. It does not measure growth, because `UserPromptSubmit` appends the
+prompt before the turn starts, so growth is always present by then (finding F01,
+fixed in step S015). Two consequences worth knowing. A recap written for an
+earlier turn does not discharge a later one, so an uncommitted change carried
+across a question-only turn is asked about again — committing it satisfies the
+gate just as a recap does, and the message says so. And the gate abstains in a
+repository with no commit yet, so a fresh `--scaffold` never blocks.
 
 **A prompt can still be lost, but never quietly.** `--log-prompt` creates
 `adocs/` before appending, so a missing docs tree no longer discards prompts
