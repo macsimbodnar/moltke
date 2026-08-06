@@ -7,4 +7,4 @@ decisions:
 closes:     2026-08-06_adversarial-F14
 blocks:
 paused_by:
-done:
+done:      2026-08-06: mkdir before append plus a .git breadcrumb reported once through SessionStart additionalContext; 4 tests in test_s005_hooks.py, 3 observed red first, suite 116 OK, --validate green. README test count updated to 116; MANUAL known issue narrowed from silent loss to unrecoverable-but-loud, F01 entry retitled to one hook. F14 stays planned until S027 re-runs the audit; the fix is inert in live sessions until 0.3.0 is installed.

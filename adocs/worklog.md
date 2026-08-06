@@ -321,3 +321,39 @@ silently. That is audit finding F14, reproduced and planned as S014.
 - Tests added: none, planning only. Suite 112 OK, --validate green.
 - Commit: 21a3581.
 - Next: S014, prompt logging never fails silently.
+
+## 2026-08-06T15:15+02:00 prompt
+
+> next step
+
+## 2026-08-06 recap — S014 prompt logging never fails silently
+
+- S014 done, closing audit finding F14 (which stays `planned` until S027 re-runs
+  the audit; fixing without re-running does not close a finding).
+- `mode_log_prompt` now creates `adocs/` before appending. `open(..., "a")` does
+  not create parents, so a marked repository without the docs tree discarded
+  every prompt at exit 0.
+- A failed append writes `.git/moltke_log_failure.json` (`since`, `count`,
+  `error`); `--session-start` reports it once in `additionalContext` and deletes
+  it. Reporting once keeps it self-healing: a persisting failure rewrites the
+  breadcrumb on the next prompt, a fixed one goes quiet with nothing to clear
+  by hand. Nothing is written outside `.git/`, because an untracked file at the
+  repo root reads as a source change to `--stop`. No `.git` means stderr only.
+- Lost prompts are not recovered. Max chose no spill: the breadcrumb records
+  that logging failed, not what was said. Recovery would have put prompt text in
+  a second unpruned location that DEC-024's secret check does not scan.
+- Red observed before the fix, all three new assertions:
+  `AssertionError: False is not true : prompt lost: .../adocs/worklog.md was never created`
+  and twice `AssertionError: 'not appended' not found in 'moltke stack ...'`.
+  The failure is forced by making `adocs/worklog.md` a directory, which raises
+  `IsADirectoryError` at any privilege level, unlike `chmod 0` under root.
+- The report test asserts the append really failed before asserting the report,
+  so it cannot pass for the wrong reason (AGENTS.md §6).
+- Files: `bin/moltke.py`, `tests/test_s005_hooks.py`, `adocs/specs.md` (dated
+  note), `adocs/testing.md` (+4 rows), `MANUAL.md`, `README.md` (112 to 116
+  tests), `adocs/status.md`, `plan_current/S014` moved to `plan_done/`.
+- Tests added: 4, three of them observed red. Suite 116 OK, `--validate` green.
+- Open, raised by Max this turn and not yet decided: drop the append-only
+  immutability requirement on `worklog.md` (INV-8). Scope not settled — whether
+  `decisions.md` keeps it — so no code, spec, or AGENTS.md change was made.
+  Affects INV-8, AGENTS.md §2/§9/§11, `templates/AGENTS.md`, and S018's scope.

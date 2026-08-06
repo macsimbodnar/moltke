@@ -165,13 +165,21 @@ prevent it.
 or for a file not yet committed, there is no baseline and the check abstains
 rather than guessing.
 
-**Two hooks enforce less than they appear to.** All five events were verified
+**One hook enforces less than it appears to.** All five events were verified
 firing from an installed plugin on 2026-08-06, on two machines (step S012):
 `SessionStart`, `UserPromptSubmit`, `PreToolUse` for both refusals,
-`PostToolUse`, and `Stop`. Two gaps remain inside them. The `Stop` hook's
+`PostToolUse`, and `Stop`. One gap remains inside them: the `Stop` hook's
 "source changed without a worklog recap" refusal cannot fire in a live session,
 because `UserPromptSubmit` has already appended the prompt to the worklog before
 the turn starts, which is the growth the check looks for (finding F01, step
-S015). And prompt logging fails silently when `adocs/` is missing or unwritable:
-the append does not create the directory and the error is swallowed on a zero
-exit (finding F14, step S014).
+S015).
+
+**A prompt can still be lost, but never quietly.** `--log-prompt` creates
+`adocs/` before appending, so a missing docs tree no longer discards prompts
+(finding F14, fixed in step S014). If the append fails for any other reason —
+unwritable path, `adocs/worklog.md` occupied by something that is not a file —
+the prompt itself is gone and is not recovered. What the fix guarantees is that
+you hear about it: the next `SessionStart` reports how many prompts were dropped,
+since when, and the error, then stops repeating it. Outside a git repository
+there is no breadcrumb to leave, so the failure only reaches stderr, which a
+zero-exit `UserPromptSubmit` hook does not surface.

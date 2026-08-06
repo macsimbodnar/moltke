@@ -142,6 +142,19 @@ same prompt it allows the stop with a warning (state in
 `--stop`'s README/MANUAL gate is mechanical: a step file newly moved into
 `plan_done/` must mention README and MANUAL in its `done:` stamp.
 
+2026-08-06 (S014): `--log-prompt` creates `adocs/` before appending, so a marked
+repository whose docs tree is missing still records the prompt. When the append
+fails anyway it writes `.git/moltke_log_failure.json` (`since`, `count`,
+`error`), and `--session-start` reports that once in `additionalContext` and then
+removes it: `UserPromptSubmit` must exit 0, so stderr reaches nobody, and
+`SessionStart` is the only channel that reaches the model. Reporting once rather
+than until cleared keeps it self-healing — a failure that persists rewrites the
+breadcrumb on the next prompt, one that is fixed goes quiet. Nothing is written
+outside `.git/`, because an untracked file at the repo root reads as a source
+change to `--stop`. Without a `.git` directory there is no breadcrumb and the
+failure is stderr-only. Lost prompts are not recovered: the breadcrumb records
+that logging failed, not what was said (finding F14).
+
 2026-08-02 (S011): `README.md` and `MANUAL.md` exist, so the MANUAL half of the
 surface guard is live: it was verified to bite by removing `--decline` and
 `--audit list` from MANUAL and observing the failure name exactly those two.

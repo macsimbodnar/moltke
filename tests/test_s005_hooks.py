@@ -11,7 +11,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from fixtures import step_file, workflow_repo
+from fixtures import marked_repo, step_file, workflow_repo
 
 MOLTKE = Path(__file__).resolve().parent.parent / "bin" / "moltke.py"
 
@@ -49,6 +49,67 @@ class TestLogPrompt(unittest.TestCase):
             root = workflow_repo(tmp)
             result = run_moltke(root, "--log-prompt", stdin="not json at all")
             self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_prompt_survives_a_missing_docs_directory(self):
+        # S014 (F14): append mode does not create adocs/, so a marked repo
+        # without it discarded every prompt on a zero exit.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = marked_repo(tmp)
+            result = run_moltke(root, "--log-prompt", stdin=json.dumps({"prompt": "kept"}))
+            self.assertEqual(result.returncode, 0, result.stderr)
+            worklog = root / "adocs" / "worklog.md"
+            self.assertTrue(worklog.is_file(), f"prompt lost: {worklog} was never created")
+            self.assertIn("> kept", worklog.read_text(encoding="utf-8"))
+
+
+def break_worklog(root):
+    """Make the append fail for a reason no privilege level can bypass: a
+    directory where the file belongs raises IsADirectoryError, while chmod 0
+    is ignored when the suite runs as root."""
+    worklog = root / "adocs" / "worklog.md"
+    worklog.unlink()
+    worklog.mkdir()
+    return worklog
+
+
+def session_context(root):
+    result = run_moltke(root, "--session-start")
+    return json.loads(result.stdout)["hookSpecificOutput"]["additionalContext"]
+
+
+class TestLogPromptFailureIsLoud(unittest.TestCase):
+    """S014: UserPromptSubmit must exit 0, so stderr reaches nobody. A swallowed
+    append has to surface through SessionStart's additionalContext instead."""
+
+    def test_failed_append_is_reported_at_session_start(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            git_baseline(root)  # the breadcrumb lives in .git/
+            worklog = break_worklog(root)
+            result = run_moltke(root, "--log-prompt", stdin=json.dumps({"prompt": "lost"}))
+            self.assertEqual(result.returncode, 0, result.stderr)
+            # Precondition first: without an actual failure the report below
+            # would prove nothing (AGENTS.md §6, non-vacuous by construction).
+            self.assertEqual(list(worklog.iterdir()), [], "the append unexpectedly succeeded")
+            context = session_context(root)
+            self.assertIn("not appended", context)
+            self.assertIn("worklog.md", context)
+
+    def test_report_stops_once_the_failure_stops(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            git_baseline(root)
+            break_worklog(root)
+            run_moltke(root, "--log-prompt", stdin=json.dumps({"prompt": "lost"}))
+            self.assertIn("not appended", session_context(root))
+            self.assertNotIn("not appended", session_context(root))
+
+    def test_a_healthy_append_reports_nothing(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            git_baseline(root)
+            run_moltke(root, "--log-prompt", stdin=json.dumps({"prompt": "fine"}))
+            self.assertNotIn("not appended", session_context(root))
 
 
 class TestPreWrite(unittest.TestCase):

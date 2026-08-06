@@ -367,11 +367,68 @@ def mode_session_start(root, config):
     if stated != nxt:
         lines.append(f"status.md is stale (says Next: {stated}, filesystem says {nxt}); "
                      f"regenerate it from plan_current/ before working.")
+    lost = take_log_failure(root)
+    if lost:
+        lines.append(lost)
     print(json.dumps({"hookSpecificOutput": {
         "hookEventName": "SessionStart",
         "additionalContext": "\n".join(lines),
     }}))
     return EXIT_OK
+
+
+def _log_failure_path(root):
+    git_dir = root / ".git"
+    return git_dir / "moltke_log_failure.json" if git_dir.is_dir() else None
+
+
+def record_log_failure(root, stamp, exc):
+    """S014 (F14): a swallowed append needs a channel a zero exit still reaches.
+    Nothing is written outside .git/, because an untracked file at the repo root
+    reads as a source change to the Stop hook."""
+    path = _log_failure_path(root)
+    if path is None:
+        return
+    since, count = stamp, 0
+    try:
+        previous = json.loads(path.read_text(encoding="utf-8"))
+        if isinstance(previous, dict):
+            since = previous.get("since") or since
+            count = previous.get("count") if isinstance(previous.get("count"), int) else 0
+    except (OSError, ValueError):
+        pass
+    try:
+        path.write_text(
+            json.dumps({"since": since, "count": count + 1, "error": str(exc)}) + "\n",
+            encoding="utf-8")
+    except OSError:
+        pass
+
+
+def take_log_failure(root):
+    """Report a swallowed prompt append once, then drop the breadcrumb: a
+    failure that persists rewrites it on the next prompt, one that is fixed
+    goes quiet without anyone clearing it by hand."""
+    path = _log_failure_path(root)
+    if path is None or not path.is_file():
+        return None
+    try:
+        state = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        state = {}
+    if not isinstance(state, dict):
+        state = {}
+    try:
+        path.unlink()
+    except OSError:
+        pass
+    count = state.get("count")
+    what = f"{count} prompt(s)" if isinstance(count, int) and count > 0 else "at least one prompt"
+    return (f"moltke: {what} not appended to {DOCS}/worklog.md since "
+            f"{state.get('since') or 'an earlier turn'} "
+            f"({state.get('error') or 'error unrecorded'}). UserPromptSubmit cannot report this "
+            f"itself, because exit 2 there erases the prompt. The forensic log stays incomplete "
+            f"until that path is writable; the lost prompts are not recoverable.")
 
 
 def mode_log_prompt(root, config):
@@ -383,10 +440,14 @@ def mode_log_prompt(root, config):
     stamp = datetime.datetime.now().astimezone().isoformat(timespec="minutes")
     quoted = "\n".join(f"> {line}" for line in prompt.splitlines())
     try:
+        # Append mode does not create parents, so a marked repo whose adocs/ is
+        # missing used to discard every prompt (F14).
+        (root / DOCS).mkdir(parents=True, exist_ok=True)
         with open(root / DOCS / "worklog.md", "a", encoding="utf-8") as worklog:
             worklog.write(f"\n## {stamp} prompt\n\n{quoted}\n")
     except OSError as exc:
         print(f"moltke --log-prompt: {exc}", file=sys.stderr)
+        record_log_failure(root, stamp, exc)
     return EXIT_OK
 
 
