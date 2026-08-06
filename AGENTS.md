@@ -51,10 +51,10 @@ Code that disagrees with specs is a bug or an unrecorded decision. It is never s
 | `adocs/plan_done/` | completed steps, immutable history | append by move only | step completed |
 | `adocs/testing.md` | acceptance ledger | append rows | with the feature, never after |
 | `adocs/decisions.md` | decision log, newest last | append only | before or alongside the change |
-| `adocs/worklog.md` | prompts and recaps | append only | every prompt, recap on work turns |
+| `adocs/worklog.md` | prompts and recaps | append by convention, not enforced | every prompt, recap on work turns |
 | `adocs/audit/` | adversarial, security, bug hunt reports | add files | per audit run |
 
-Append-only files are never reordered, rewritten, or trimmed. Superseded content is marked, not deleted.
+`adocs/decisions.md` and `adocs/plan_done/` are never reordered, rewritten, or trimmed, and this is enforced: superseded content is marked, not deleted. The worklog follows the same habit but is not checked, so a genuine correction — a mistyped recap, a secret pasted into a prompt — is a normal edit rather than a rule violation.
 
 ## 3. Prime directive and invariants
 
@@ -169,7 +169,7 @@ Ids are referenced from step files, commit messages, code comments, and `specs.m
 
 ## 9. Worklog
 
-`adocs/worklog.md`, append only.
+`adocs/worklog.md`, append by convention. Unlike `decisions.md` it is not enforced: nothing cites a worklog line by id, so correcting or trimming it is an ordinary edit and needs no ceremony. Do not make a habit of it — the value is that it records what actually happened.
 
 - Every prompt is appended verbatim with a timestamp. This is written mechanically and is not the agent's responsibility.
 - Work turns additionally get a recap: step id, what changed, files touched, tests added, commit sha.
@@ -195,7 +195,7 @@ The agent does not:
 
 - push, force push, or rewrite git history
 - write to `adocs/plan_done/`
-- reorder, rewrite, or delete entries in `adocs/worklog.md` or `adocs/decisions.md`
+- reorder, rewrite, or delete entries in `adocs/decisions.md`
 - delete or weaken a test to make a change pass
 - create plan step files outside the three plan directories
 - claim a step complete before the suite is green and `testing.md` rows exist

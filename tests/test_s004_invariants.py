@@ -27,7 +27,8 @@ def git_baseline(root):
 
 
 class TestAppendOnly(unittest.TestCase):
-    """INV-8: worklog.md and decisions.md grow only at the end."""
+    """INV-8: decisions.md grows only at the end. The worklog left this invariant
+    under DEC-025 — it is history nothing cites by id, so it is convention."""
 
     def assert_violation(self, root, needle):
         result = run_validate(root)
@@ -54,13 +55,26 @@ class TestAppendOnly(unittest.TestCase):
                             "edited decision"), encoding="utf-8")
             self.assert_violation(root, "INV-8")
 
-    def test_rewriting_worklog_fails(self):
+    def test_rewriting_or_deleting_the_worklog_is_no_longer_a_violation(self):
+        # DEC-025 re-targets this case rather than deleting it. Precondition
+        # first: the identical tampering against decisions.md still violates, so
+        # a green result here cannot come from the checker having stopped working.
         with tempfile.TemporaryDirectory() as tmp:
             root = workflow_repo(tmp)
             git_baseline(root)
-            (root / "adocs" / "worklog.md").write_text("# Worklog\n(trimmed)\n",
-                                                         encoding="utf-8")
+            decisions = root / "adocs" / "decisions.md"
+            intact = decisions.read_text(encoding="utf-8")
+            decisions.write_text("# Decisions\n(trimmed)\n", encoding="utf-8")
             self.assert_violation(root, "INV-8")
+            decisions.write_text(intact, encoding="utf-8")
+
+            worklog = root / "adocs" / "worklog.md"
+            worklog.write_text("# Worklog\n(trimmed)\n", encoding="utf-8")
+            trimmed = run_validate(root)
+            self.assertEqual(trimmed.returncode, 0, trimmed.stdout + trimmed.stderr)
+            worklog.unlink()
+            deleted = run_validate(root)
+            self.assertEqual(deleted.returncode, 0, deleted.stdout + deleted.stderr)
 
     def test_deleting_append_only_file_fails(self):
         with tempfile.TemporaryDirectory() as tmp:

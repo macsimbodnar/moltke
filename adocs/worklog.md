@@ -509,3 +509,42 @@ silently. That is audit finding F14, reproduced and planned as S014.
   `plan_current/S017` moved to `plan_done/`.
 - Tests added: 11, red observed. Suite 132 OK, `--validate` green.
 - Next: S030, INV-8 covers decisions.md only.
+
+## 2026-08-06T16:24+02:00 prompt
+
+> next
+
+## 2026-08-06 recap — S030 INV-8 covers decisions.md only
+
+- S030 done, applying DEC-025. No audit finding: this was Max's decision, taken
+  during S014.
+- `APPEND_ONLY_FILES` is now `(adocs/decisions.md,)`. Rewriting, trimming, or
+  deleting `adocs/worklog.md` is no longer a violation. INV-7 and `plan_done/`
+  untouched.
+- The INV-8 refusal message now states why decisions.md is enforced: DEC ids are
+  cited from code, commits, and specs, so a rewritten entry changes what those
+  citations mean, and a reversal is a new entry marking the old one VOID.
+- The S004 worklog test was re-targeted, not deleted, and asserts the
+  decisions.md violation first so a green worklog result cannot come from a
+  broken checker. Red observed: `AssertionError: 1 != 0 : VIOLATION: INV-8:
+  adocs/worklog.md changed earlier bytes`.
+- Caught by the existing suite: the first draft cited `(DEC-025)` in AGENTS.md
+  prose, which ships as `templates/AGENTS.md` into repositories where that id
+  means something else entirely. `AssertionError: Lists differ: ['DEC-025',
+  'DEC-025'] != []`. The ruleset stays id-free by design; traceability lives in
+  specs.md and decisions.md, which are per-project.
+- AGENTS.md changed in three places — the file-map write mode, the append-only
+  sentence in section 2, section 9's opening, and the section 11 prohibition —
+  then copied to `templates/AGENTS.md` byte-identically.
+- MANUAL: the daily-use line now says the worklog may be corrected and only
+  decisions.md is enforced; INV-8's git-baseline entry names decisions.md.
+  README checked, no change needed — it never claimed the worklog was immutable.
+- Consequence for DEC-024, already recorded there: cleaning a leaked secret from
+  the worklog no longer needs a decisions.md entry authorising it. S022's
+  detection is still wanted.
+- Files: `bin/moltke.py`, `tests/test_s004_invariants.py`, `AGENTS.md`,
+  `templates/AGENTS.md`, `adocs/specs.md`, `adocs/testing.md` (+3 rows),
+  `MANUAL.md`, `adocs/status.md`, `plan_current/S030` moved to `plan_done/`.
+- Tests added: none; one re-targeted, three unchanged and now load-bearing as the
+  precondition. Suite 132 OK, `--validate` green.
+- Next: S018, plan_done and append-only immutability survives a commit.

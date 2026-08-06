@@ -209,7 +209,11 @@ def inv_7_done_immutable(root, config):
     return violations
 
 
-APPEND_ONLY_FILES = (f"{DOCS}/worklog.md", f"{DOCS}/decisions.md")
+# decisions.md only, since DEC-025: DEC ids are cited from code comments, commit
+# messages, specs.md, and step files, so a rewritten entry silently changes what
+# those citations mean. worklog.md is history nothing cites by id, so it is
+# append-only by convention and unchecked.
+APPEND_ONLY_FILES = (f"{DOCS}/decisions.md",)
 FINDING_STATUSES = ("open", "planned", "closed", "accepted")
 FINDING_RE = re.compile(r"^###\s+(\S*-F\d{2})\b", re.M)
 
@@ -224,11 +228,14 @@ def inv_8_append_only(root, config):
             continue
         path = root / rel
         if not path.is_file():
-            violations.append(f"INV-8: {rel} was deleted; append-only files are never removed: "
+            violations.append(f"INV-8: {rel} was deleted; it is append-only and never removed: "
                               f"restore it with git checkout -- {rel}")
         elif not path.read_bytes().startswith(shown.stdout):
-            violations.append(f"INV-8: {rel} changed earlier bytes; append-only files grow only "
-                              f"at the end: restore the committed content and re-append")
+            violations.append(f"INV-8: {rel} changed earlier bytes; it grows only at the end, "
+                              f"because DEC ids are cited from code, commits, and specs and a "
+                              f"rewritten entry changes what those citations mean: restore the "
+                              f"committed content and re-append. A reversal is a new entry "
+                              f"marking the old one VOID")
     return violations
 
 

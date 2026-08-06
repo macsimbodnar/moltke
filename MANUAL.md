@@ -78,7 +78,8 @@ Nothing to remember. Hooks fire on their own:
 
 - session start prints the current stack and the next step, and says so when
   `status.md` disagrees with the filesystem
-- every prompt is appended verbatim to `adocs/worklog.md`
+- every prompt is appended verbatim to `adocs/worklog.md`, which is history you
+  may correct or trim: only `adocs/decisions.md` is enforced append-only
 - writes into completed history are refused
 - the turn will not end with a stale `status.md`, an invariant violation, or
   source changes with no worklog recap
@@ -174,7 +175,7 @@ tree is in the baseline, so it is never blamed on the audit. Without git, or
 before `--audit new` has run, the check refuses instead of passing quietly.
 
 **Immutability checks need git.** INV-7 (`plan_done/` unchanged) and INV-8
-(append-only files) compare against `git HEAD`. In a repository with no history,
+(`adocs/decisions.md` append-only) compare against `git HEAD`. In a repository with no history,
 or for a file not yet committed, there is no baseline and the check abstains
 rather than guessing.
 

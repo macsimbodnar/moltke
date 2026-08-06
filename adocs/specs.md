@@ -32,7 +32,7 @@ Enforced by `bin/moltke.py` in marked repositories:
 - INV-5  no step reaches `plan_done/` without a `done:` stamp and at least one `testing.md` row referencing its id.
 - INV-6  step ids are unique across all three plan directories.
 - INV-7  `plan_done/` is byte-identical to its state at session start.
-- INV-8  `worklog.md` and `decisions.md` grow only by appending; earlier bytes are unchanged.
+- INV-8  `decisions.md` grows only by appending; earlier bytes are unchanged. 2026-08-06 (S030, DEC-025): narrowed from "`worklog.md` and `decisions.md`", which is superseded. The worklog is append-only by convention and no longer checked.
 - INV-9  every `decisions.md` entry has a unique `DEC-<nnn>` id.
 - INV-10 every audit finding is `open`, `planned`, `closed`, or `accepted`, and no report has `open` findings without a step or decision referencing them.
 
@@ -141,6 +141,15 @@ same prompt it allows the stop with a warning (state in
 `.git/moltke_stop_state.json`), preserving the DEC-006 no-deadlock property.
 `--stop`'s README/MANUAL gate is mechanical: a step file newly moved into
 `plan_done/` must mention README and MANUAL in its `done:` stamp.
+
+2026-08-06 (S030, DEC-025): `APPEND_ONLY_FILES` holds `decisions.md` alone.
+Rewriting, trimming, or deleting `adocs/worklog.md` is no longer a violation:
+nothing cites a worklog line by id, it is forensic and never a context source
+(DEC-011), and enforcing it is what made a secret pasted into a prompt
+unremovable. `decisions.md` keeps enforcement because `DEC-<nnn>` ids are cited
+from code comments, commit messages, `specs.md`, and step files, so a rewritten
+entry silently changes what every one of those citations means; the refusal now
+says so. INV-7 and `plan_done/` are untouched.
 
 2026-08-06 (S017, DEC-022): prevention gives way to reconciliation. `--audit new`
 records a working-tree baseline in `.git/moltke_audit_baseline.json` — captured

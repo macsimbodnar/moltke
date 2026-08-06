@@ -7,4 +7,4 @@ decisions:  DEC-025
 closes:
 blocks:
 paused_by:
-done:
+done:      2026-08-06: APPEND_ONLY_FILES is decisions.md alone; INV-8 refusal now explains the DEC id citation reason. AGENTS.md sections 2, 9, 11 and templates/AGENTS.md changed identically and id-free. S004 worklog test re-targeted, not deleted. Suite 132 OK, --validate green. README checked, no change needed: it never claimed the worklog was immutable. MANUAL updated in two places, the daily-use line and INV-8's git-baseline entry.
