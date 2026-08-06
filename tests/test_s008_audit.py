@@ -90,20 +90,29 @@ class TestFindingIds(unittest.TestCase):
             self.assertIn("INV-10", result.stdout)
 
 
+# Observed live on 2026-08-06 (S016) by instrumenting the installed 0.2.0 hook
+# and spawning each agent through the plugin. The scoped form is what Claude Code
+# actually sends; the bare form is what the fence used to compare against.
+SCOPED_REVIEWER = "moltke:adversarial_reviewer"
+BARE_REVIEWER = "adversarial_reviewer"
+
+
 class TestReviewerWriteFence(unittest.TestCase):
     """The reviewer produces evidence, not patches (specs: subagent section)."""
 
-    def pre_write(self, root, path):
-        payload = json.dumps({"agent_type": "adversarial_reviewer",
+    def pre_write(self, root, path, agent_type=SCOPED_REVIEWER):
+        payload = json.dumps({"agent_type": agent_type,
                               "tool_input": {"file_path": path}})
         return run_moltke(root, "--pre-write", stdin=payload)
 
     def test_reviewer_cannot_write_source(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = workflow_repo(tmp)
-            result = self.pre_write(root, "src/main.py")
-            self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
-            self.assertIn("adocs/audit/", result.stderr)
+            for agent_type in (SCOPED_REVIEWER, BARE_REVIEWER):
+                result = self.pre_write(root, "src/main.py", agent_type)
+                self.assertEqual(result.returncode, 2,
+                                 (agent_type, result.stdout + result.stderr))
+                self.assertIn("adocs/audit/", result.stderr)
 
     def test_reviewer_cannot_write_plan_or_specs(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -120,11 +129,24 @@ class TestReviewerWriteFence(unittest.TestCase):
 
     def test_other_agents_are_unaffected(self):
         # Non-vacuity: the same path is fine for anyone who is not the reviewer.
+        # general-purpose is the observed agent_type of a built-in subagent.
         with tempfile.TemporaryDirectory() as tmp:
             root = workflow_repo(tmp)
-            payload = json.dumps({"agent_type": "general-purpose",
-                                  "tool_input": {"file_path": "src/main.py"}})
-            self.assertEqual(run_moltke(root, "--pre-write", stdin=payload).returncode, 0)
+            for agent_type in ("general-purpose", "Explore", "other:adversarial-reviewer"):
+                payload = json.dumps({"agent_type": agent_type,
+                                      "tool_input": {"file_path": "src/main.py"}})
+                self.assertEqual(
+                    run_moltke(root, "--pre-write", stdin=payload).returncode, 0, agent_type)
+
+    def test_main_thread_is_unaffected(self):
+        # Observed: the main thread sends no agent_type and no agent_id at all.
+        # A missing field must not read as the reviewer, and must not fence the
+        # session that does the actual work.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            payload = json.dumps({"tool_input": {"file_path": "src/main.py"}})
+            result = run_moltke(root, "--pre-write", stdin=payload)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
 
 class TestDefinitions(unittest.TestCase):

@@ -466,7 +466,14 @@ def mode_pre_write(root, config, path_arg):
     parts = rel.parts
     # The reviewer produces evidence, not patches: a reviewer that can fix what
     # it finds stops recording findings and starts writing code.
-    if payload.get("agent_type") == REVIEWER_AGENT and parts[:2] != (DOCS, "audit"):
+    # Observed live 2026-08-06 (S016): Claude Code sends the scoped name
+    # "moltke:adversarial_reviewer", and no agent_type key at all on the main
+    # thread, so bare equality never matched and the fence failed open (F02).
+    # Suffix match rather than an exact pair, so renaming the plugin cannot
+    # silently reopen it; the cost is fencing another plugin's agent of the same
+    # name, which at least blocks loudly instead of failing open.
+    agent = (payload.get("agent_type") or "").split(":")[-1]
+    if agent == REVIEWER_AGENT and parts[:2] != (DOCS, "audit"):
         print(f"moltke: the {REVIEWER_AGENT} may only write under {DOCS}/audit/, and {rel} "
               f"is outside it. Record what you found as a finding in your report; fixes are "
               f"planned as steps afterwards, by someone else.", file=sys.stderr)

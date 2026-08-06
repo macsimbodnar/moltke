@@ -142,6 +142,20 @@ same prompt it allows the stop with a warning (state in
 `--stop`'s README/MANUAL gate is mechanical: a step file newly moved into
 `plan_done/` must mention README and MANUAL in its `done:` stamp.
 
+2026-08-06 (S016): the reviewer write fence matches the scoped `agent_type`.
+Observed live, by instrumenting the installed 0.2.0 hook to dump its PreToolUse
+payload and spawning each agent through the plugin: a plugin subagent sends
+`agent_type: "moltke:adversarial_reviewer"` plus an `agent_id`, a built-in
+subagent sends `agent_type: "general-purpose"`, and the main thread sends neither
+key. So bare equality never matched and the fence failed open (F02). The match is
+now on the part after the last colon, which keeps working if the plugin is
+installed under another name; the cost is that another plugin's agent named
+`adversarial_reviewer` would also be fenced, chosen deliberately because that
+blocks loudly while the alternative fails open silently. An absent `agent_type`
+is the main thread and is never fenced. The fence covers `Write` and `Edit` only:
+the reviewer also holds `Bash`, whose writes no PreToolUse matcher sees, which is
+DEC-022's territory and S017's.
+
 2026-08-06 (S015): `--stop`'s recap gate no longer reads worklog growth. Growth
 cannot be the signal, because `UserPromptSubmit` appends the prompt before the
 turn begins, so by the time `Stop` runs the worklog has always grown and the

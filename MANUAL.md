@@ -144,21 +144,22 @@ require the completion stamp to mention README and MANUAL. They cannot tell
 whether you actually looked. The check enforces that the question was asked,
 not that it was answered honestly.
 
-**The reviewer's write fence does not hold.** `adversarial_reviewer` is supposed
-to be confined to `adocs/audit/` by the PreToolUse hook reading `agent_type`.
-It is not. Verified on 2026-08-06 by spawning the reviewer through the installed
-plugin: it wrote a file to the repository root unblocked. The hook compares
-`agent_type` against the bare name `adversarial_reviewer` while plugin
-components are namespaced, so the comparison is false and the fence opens
-silently instead of failing closed. Recorded as finding F02 in
-`adocs/audit/2026-08-06_adversarial.md`, fixed by step S016. Until then the
-reviewer is confined by its prompt, not by enforcement.
+**The reviewer's write fence covers `Write` and `Edit`, not `Bash`.** The
+PreToolUse hook confines `adversarial_reviewer` to `adocs/audit/` by matching
+`agent_type`. Until 0.3.0 it compared against the bare name while Claude Code
+sends the scoped one, so it never matched and opened silently; the value was
+observed directly on 2026-08-06 — a plugin subagent sends
+`moltke:adversarial_reviewer`, the main thread sends no `agent_type` at all — and
+the match now reads the part after the last colon (finding F02, fixed in step
+S016).
 
-The fence would not be airtight even once F02 is fixed: it is a `Write|Edit`
-matcher, and the reviewer also holds `Bash`, which writes files the hook never
-sees. That is deliberate (DEC-022) — mutation during an audit is legitimate, and
-`--audit check` reports what a run actually changed rather than trying to
-prevent it.
+Two limits remain by design. The reviewer also holds `Bash`, whose writes no
+PreToolUse matcher sees, so mutation during an audit is possible and is treated
+as legitimate (DEC-022): `--audit check` reports what a run actually changed
+rather than trying to prevent it. And because the match is by suffix, another
+plugin shipping an agent named `adversarial_reviewer` would be fenced too. That
+is the deliberate direction of failure: a wrong block says so out loud, while a
+wrong pass is what F02 was.
 
 **Immutability checks need git.** INV-7 (`plan_done/` unchanged) and INV-8
 (append-only files) compare against `git HEAD`. In a repository with no history,

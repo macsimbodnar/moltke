@@ -425,3 +425,45 @@ silently. That is audit finding F14, reproduced and planned as S014.
   tests), `adocs/status.md`, `plan_current/S015` moved to `plan_done/`.
 - Tests added: 6, all observed red. Suite 120 OK, `--validate` green.
 - Next: S016, reviewer fence matches the scoped agent_type.
+
+## 2026-08-06T15:57+02:00 prompt
+
+> next
+
+## 2026-08-06 recap — S016 reviewer fence matches the scoped agent_type
+
+- S016 done, closing audit finding F02 (stays `planned` until S027 re-runs the
+  audit).
+- The observation the step demanded first: `agent_type` is
+  `'moltke:adversarial_reviewer'` for a plugin-spawned subagent, with `agent_id`
+  present; `'general-purpose'` for a built-in subagent; and both keys are absent
+  on the main thread. So F02 was namespacing, not an absent field, and a suffix
+  match is sufficient.
+- How it was observed, since hooks turned out not to be observable any other way:
+  hook *registrations* do not reload mid-session — a PreToolUse dump hook added to
+  `.claude/settings.local.json` never fired — but hook *commands* re-execute per
+  call, so the installed 0.2.0 script itself was instrumented to dump its
+  payload. Max chose this over restarting the session. Backed up first, restored
+  byte-identical afterwards, md5 `c52956752a8b022715f7dfdf49ca52d9` before and
+  after, instrumentation grep-verified gone. The local settings hook and all
+  three probe files were removed.
+- The first reviewer spawn, asked to write outside the fence, declined on its own
+  instructions and said so: a self-refusal is not evidence about the hook,
+  because a compliant subagent and a working fence look identical from outside.
+  It was right. The payload was captured from an in-fence write instead, which
+  needs no violation at all. Recorded in `testing.md` as not-evidence rather than
+  as a pass.
+- Fix: `(payload.get("agent_type") or "").split(":")[-1] == REVIEWER_AGENT`.
+  Suffix rather than an exact pair, so installing the plugin under another name
+  cannot silently reopen the fence. Cost, recorded in MANUAL and specs: another
+  plugin's agent named `adversarial_reviewer` would also be fenced. Deliberate
+  direction — a wrong block is loud, a wrong pass is F02.
+- Red observed with the real value: `AssertionError: 0 != 2 :
+  ('moltke:adversarial_reviewer', '')`, empty stderr, the fence emitting nothing.
+- Files: `bin/moltke.py`, `tests/test_s008_audit.py`, `adocs/specs.md` (dated
+  note), `adocs/testing.md` (+6 rows, one of them not-evidence), `MANUAL.md`,
+  `README.md` (120 to 121 tests), `adocs/status.md`, `plan_current/S016` moved to
+  `plan_done/`.
+- Tests added: 3 new, 2 widened to cover both `agent_type` forms; red observed.
+  Suite 121 OK, `--validate` green.
+- Next: S017, `--audit check` reconciles what an audit changed.
