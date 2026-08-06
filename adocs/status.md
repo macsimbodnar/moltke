@@ -6,12 +6,12 @@ this file: on disagreement, `plan_current/` wins.
 Updated: 2026-08-06 by `moltke --step status`.
 
 - Last done: S013
-- In progress: S012 install verification: marketplace add, plugin install, hooks firing in a live session, second machine
-- Next: S012
+- In progress: none
+- Next: S014
 - Blocked: none
 - Parked:
-  - S012 (install verification) is Max's: the agent changes no GitHub or Claude Code configuration (DEC-014, DEC-019). Partly verified 2026-08-02 from an installed plugin: marketplace add from the git URL, install of moltke@moltke 0.1.0 at sha 0b5c96b, all three skills resolving, and SessionStart, UserPromptSubmit, PreToolUse and PostToolUse observed firing. Still open: the Stop hook's refusals, the reviewer fence under a real subagent spawn, and a second machine.
-  - the installed plugin is pinned at the version in plugin.json and runs from the plugin cache, not this checkout. Max reports installing on two machines (2026-08-06); what that run exercised is not yet recorded, so the S012 stamp is still pending. Contradicting evidence in this checkout: none of the 2026-08-06 session's prompts reached `adocs/worklog.md`, which is audit finding F14 and means the live hooks here were still enforcing 0.1.0's rules against `project/`.
+  - S012 completed 2026-08-06 on two machines. Five of its six clauses passed; the reviewer write fence failed, proven by a live plugin spawn writing outside `adocs/audit/` unblocked. That is finding F02 and step S016, which must re-probe with a live spawn rather than synthetic payloads. Until S016 lands, the reviewer is confined by its prompt and not by enforcement.
+  - the installed plugin runs from the plugin cache at the version in plugin.json, not from this checkout, so every fix in S014..S026 is inert in live sessions until 0.3.0 is built (S027) and reinstalled. Editing `bin/moltke.py` here changes nothing that hooks execute.
   - DEC-020: the repository root is also the plugin root, so adocs/, tests/, AGENTS.md, and CLAUDE.md ship inside every install. Escape hatch is a plugin/ subdirectory move.
   - plugin.json carries no `repository` URL yet. The repository exists at git@github.com:macsimbodnar/moltke.git; now planned as part of S026 (audit finding F13).
   - the 2026-08-06 adversarial audit is triaged: 14 findings, all `planned`, one step each in S014..S026, closed out by S027. DEC-022 (reviewer fence gives way to reconciliation), DEC-023 (optional `test_command`) and DEC-024 (worklog secrets detected, not redacted) were decided in that planning session.

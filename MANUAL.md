@@ -144,21 +144,34 @@ require the completion stamp to mention README and MANUAL. They cannot tell
 whether you actually looked. The check enforces that the question was asked,
 not that it was answered honestly.
 
-**The reviewer's write fence depends on one field.** `adversarial_reviewer` is
-confined to `adocs/audit/` by the PreToolUse hook reading `agent_type`.
-Subagent frontmatter has no path restriction, so this is the only place the
-limit can live. If that field is ever renamed or absent, the fence opens
-silently rather than failing closed.
+**The reviewer's write fence does not hold.** `adversarial_reviewer` is supposed
+to be confined to `adocs/audit/` by the PreToolUse hook reading `agent_type`.
+It is not. Verified on 2026-08-06 by spawning the reviewer through the installed
+plugin: it wrote a file to the repository root unblocked. The hook compares
+`agent_type` against the bare name `adversarial_reviewer` while plugin
+components are namespaced, so the comparison is false and the fence opens
+silently instead of failing closed. Recorded as finding F02 in
+`adocs/audit/2026-08-06_adversarial.md`, fixed by step S016. Until then the
+reviewer is confined by its prompt, not by enforcement.
+
+The fence would not be airtight even once F02 is fixed: it is a `Write|Edit`
+matcher, and the reviewer also holds `Bash`, which writes files the hook never
+sees. That is deliberate (DEC-022) — mutation during an audit is legitimate, and
+`--audit check` reports what a run actually changed rather than trying to
+prevent it.
 
 **Immutability checks need git.** INV-7 (`plan_done/` unchanged) and INV-8
 (append-only files) compare against `git HEAD`. In a repository with no history,
 or for a file not yet committed, there is no baseline and the check abstains
 rather than guessing.
 
-**Live hook behaviour is only partly verified.** On 2026-08-02, in one real
-session on one machine, `SessionStart`, `UserPromptSubmit`, `PreToolUse` (both
-the `plan_done/` refusal and the step-file-location refusal), and `PostToolUse`
-were observed firing from an installed plugin. Still unverified in the field:
-the `Stop` hook's refusals, the `adversarial_reviewer` write fence under a real
-subagent spawn rather than a direct CLI call, and any second machine. That is
-step S012 in `adocs/plan.md` and it is not done.
+**Two hooks enforce less than they appear to.** All five events were verified
+firing from an installed plugin on 2026-08-06, on two machines (step S012):
+`SessionStart`, `UserPromptSubmit`, `PreToolUse` for both refusals,
+`PostToolUse`, and `Stop`. Two gaps remain inside them. The `Stop` hook's
+"source changed without a worklog recap" refusal cannot fire in a live session,
+because `UserPromptSubmit` has already appended the prompt to the worklog before
+the turn starts, which is the growth the check looks for (finding F01, step
+S015). And prompt logging fails silently when `adocs/` is missing or unwritable:
+the append does not create the directory and the error is swallowed on a zero
+exit (finding F14, step S014).

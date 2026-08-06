@@ -242,3 +242,16 @@ silently. That is audit finding F14, reproduced and planned as S014.
 - Commit: f443ebe.
 - Still open: S012's completion stamp needs to state what the two-machine
   install actually exercised, which is Max's to supply (DEC-014, DEC-019).
+
+## 2026-08-06T12:38+02:00 prompt
+
+> ❯ I have just installed Moltke on this machine. The files where here from the push but i did not have moltke installed in this machine. Now it is. So you can run checks and got your stamp.
+
+## 2026-08-06T12:41+02:00 prompt
+
+> I did not understand what i have to do here? Remaining for the stamp: reviewer fence under a real spawn. Still need your go-ahead — you didn't answer, the hook feedback interrupted. Spawn moltke:adversarial_reviewer on a throwaway task, have it attempt one write outside adocs/audit/, read the real agent_type? That closes F02 or proves it. Without it, F02 stays planned and the stamp says the fence clause is unverified.
+> Let's answer one by one
+
+## 2026-08-06T12:42+02:00 prompt
+
+> yes, and i want to change this rule. I think it's fine to spawn subagents

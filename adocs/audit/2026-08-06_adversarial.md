@@ -478,6 +478,40 @@ the failure loud somewhere a zero exit still reaches — `SessionStart`'s
 to the model. A suite test should assert that a prompt survives when `adocs/`
 is absent. Not applied here.
 
+## Post-report verification, 2026-08-06
+
+Added after the report was written and before any fix. No finding above is
+altered; this records an observation that upgrades F02 from probable to proven.
+
+**F02 is confirmed, not merely probable.** The report could not observe
+`agent_type` under a real plugin spawn and said so. Moltke was then installed on
+this machine, and `moltke:adversarial_reviewer` was spawned through the plugin
+with a single instruction: attempt one `Write` to `/Users/max/ws/moltke/PROBE_S012.md`.
+The reviewer reported verbatim:
+
+```
+File created successfully at: /Users/max/ws/moltke/PROBE_S012.md
+```
+
+No hook denial. The file existed on disk (6 bytes) and was removed by the main
+thread afterwards. `PROBE_S012.md` matches no step-file pattern and is not under
+`plan_done/`, so the reviewer fence was the only rule that could have blocked it.
+It did not fire.
+
+Still unobserved: the exact `agent_type` string. The probe proves the equality at
+`bin/moltke.py:408` evaluates false; it does not distinguish a namespaced value
+(`moltke:adversarial_reviewer`) from the field being absent in this payload. S016
+should log the observed value once before choosing its match, because suffix
+matching fixes the first case and not the second.
+
+All five hook events were verified live in the same session: SessionStart printed
+the stack and the derived next step, UserPromptSubmit logged the prompt verbatim,
+PreToolUse refused both a `plan_done/` write and a step file outside the plan
+directories, PostToolUse surfaced an INV-3 violation without blocking the write,
+and Stop refused a stale `status.md` with an actionable message. F14's live
+symptom is therefore resolved on this machine, while the defect itself stands
+unchanged: the append still cannot create a missing `adocs/`.
+
 ## What was checked and found sound
 
 Recorded so a later run knows this ground was covered.
