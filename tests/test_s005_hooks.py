@@ -5,6 +5,7 @@ Stop has no documented block cap, so moltke imposes its own.
 """
 
 import json
+import re
 import subprocess
 import sys
 import tempfile
@@ -161,6 +162,71 @@ class TestSessionStart(unittest.TestCase):
             result = run_moltke(root, "--session-start")
             context = json.loads(result.stdout)["hookSpecificOutput"]["additionalContext"]
             self.assertIn("stale", context.lower())
+
+
+class TestStatusStaleness(unittest.TestCase):
+    """S039 (F08): only the Next: line was compared, and that is the one field
+    the file and the filesystem rarely disagree about, because both derive it the
+    same way. The in-progress stack is what a crashed session actually corrupts."""
+
+    def stale_status(self, root, body):
+        (root / "adocs" / "status.md").write_text(body, encoding="utf-8")
+
+    def test_a_wrong_in_progress_is_reported(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)  # S003 is in plan_current/
+            self.stale_status(root, "# Status\n\n- Last done: S001\n- In progress: none\n"
+                                    "- Next: S002\n- Blocked: none\n")
+            context = session_context(root)
+            self.assertIn("stale", context.lower())
+            self.assertIn("In progress", context)
+
+    def test_a_wrong_last_done_is_reported(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            self.stale_status(root, "# Status\n\n- Last done: S999\n- In progress: S003 active\n"
+                                    "- Next: S002\n- Blocked: none\n")
+            self.assertIn("Last done", session_context(root))
+
+    def test_stop_refuses_a_stale_in_progress(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            self.stale_status(root, "# Status\n\n- Last done: S001\n- In progress: none\n"
+                                    "- Next: S002\n- Blocked: none\n")
+            git_baseline(root)
+            log_prompt(root)
+            result = run_moltke(root, "--stop", stdin="{}")
+            self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+            self.assertIn("status.md", result.stderr)
+
+    def test_regenerating_clears_it(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            self.stale_status(root, "# Status\n\n- Last done: S999\n- In progress: none\n"
+                                    "- Next: S002\n- Blocked: none\n")
+            self.assertIn("stale", session_context(root).lower())
+            run_moltke(root, "--step", "status")
+            self.assertNotIn("stale", session_context(root).lower())
+
+    def test_an_accurate_status_is_not_reported(self):
+        # Non-vacuity: the fixture repo's own status.md must stay clean, or every
+        # assertion above passes for the wrong reason.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            run_moltke(root, "--step", "status")
+            self.assertNotIn("stale", session_context(root).lower())
+
+    def test_the_parked_block_and_the_date_are_the_humans_to_write(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            run_moltke(root, "--step", "status")
+            status = root / "adocs" / "status.md"
+            text = status.read_text(encoding="utf-8")
+            text = re.sub(r"^Updated:.*$", "Updated: some other day, by hand", text,
+                          flags=re.M)
+            status.write_text(text.rstrip("\n") + "\n  - a note nobody derived\n",
+                              encoding="utf-8")
+            self.assertNotIn("stale", session_context(root).lower())
 
 
 class TestPostWrite(unittest.TestCase):

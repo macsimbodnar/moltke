@@ -54,6 +54,20 @@ a `Status: <value>` line in its section; the S008 report template must conform.
 check abstains. INV-3 additionally treats a missing `plan.md` in an enabled
 repo as a violation.
 
+2026-08-07 (S039): `status.md` staleness is judged on all four derived fields —
+Last done, In progress, Next, Blocked — against exactly what `--step status`
+would regenerate, sharing one `status_lines` so the check compares against the
+writer rather than against a second description of it. The `Updated:` line and
+everything from `- Parked:` onward are the human's and are ignored. Only `Next:`
+was compared before, and that is the one field the file and the filesystem rarely
+disagree about, because both derive it the same way; the in-progress stack is
+what a crashed session corrupts, and AGENTS.md section 1 names exactly that
+scenario (finding 2026-08-07_adversarial-F08). Two consequences of the stricter
+comparison: `status_lines` distinguishes "no steps planned yet" from "no steps
+left in plan.md", so a freshly scaffolded `status.md` matches what would be
+regenerated, and `Last done` is read through `plan_order` rather than every id in
+`plan.md`, which S045 had already fixed for `derived_next` and not here.
+
 2026-08-07 (S038): `--step` receives the marker violations, as `--validate`,
 `--post-write`, and `--stop` already did, and refuses every operation while the
 marker is malformed. `check_marker` flagged a bad `test_command` and `mode_step`

@@ -569,12 +569,36 @@ def derived_next(root):
     return None
 
 
-def status_next(root):
-    status_path = root / DOCS / "status.md"
-    if not status_path.is_file():
-        return None
-    match = re.search(r"Next:.*?\b(S\d{3})\b", status_path.read_text(encoding="utf-8"))
-    return match.group(1) if match else None
+STATUS_FIELDS = ("Last done", "In progress", "Next", "Blocked")
+
+
+def status_fields(text):
+    """{field: value} for the four derived lines of status.md.
+
+    Everything from `- Parked:` onward is the human's to write, and the
+    `Updated:` line is a timestamp, so neither is compared.
+    """
+    head = text.split("\n- Parked:")[0]
+    found = {}
+    for line in head.splitlines():
+        match = re.match(r"^-\s*([A-Za-z ]+?):\s*(.*)$", line)
+        if match and match.group(1) in STATUS_FIELDS:
+            found.setdefault(match.group(1), match.group(2).strip())
+    return found
+
+
+def status_disagreements(root):
+    """[(field, what status.md says, what the filesystem says)].
+
+    S039 (F08): only `Next:` used to be compared, and that is the one field the
+    file and the filesystem rarely disagree about, because both derive it the
+    same way. The in-progress stack is the field a crashed session corrupts.
+    """
+    path = root / DOCS / "status.md"
+    stated = status_fields(path.read_text(encoding="utf-8")) if path.is_file() else {}
+    derived = status_fields("\n".join(status_lines(root)))
+    return [(field, stated.get(field, "nothing"), value)
+            for field, value in derived.items() if stated.get(field) != value]
 
 
 def mode_session_start(root, config):
@@ -591,10 +615,12 @@ def mode_session_start(root, config):
     nxt = derived_next(root)
     if nxt:
         lines.append(f"Derived next step: {nxt} (first in plan.md order not in plan_done/).")
-    stated = status_next(root)
-    if stated != nxt:
-        lines.append(f"status.md is stale (says Next: {stated}, filesystem says {nxt}); "
-                     f"regenerate it from plan_current/ before working.")
+    stale = status_disagreements(root)
+    if stale:
+        disagreements = "; ".join(f"{field} says {said!r}, filesystem says {real!r}"
+                                  for field, said, real in stale)
+        lines.append(f"status.md is stale ({disagreements}); regenerate it with "
+                     f"--step status before working.")
     lost = take_log_failure(root)
     if lost:
         lines.append(lost)
@@ -807,10 +833,9 @@ def mode_stop(root, config, marker_violations):
     for _name, fn in INVARIANT_CHECKS:
         problems.extend(fn(root, config))
 
-    nxt = derived_next(root)
-    if nxt and status_next(root) != nxt:
-        problems.append(f"status.md is stale or missing: the derived next step is {nxt}. "
-                        f"Rewrite {DOCS}/status.md from plan_current/ before ending the turn.")
+    for field, said, real in status_disagreements(root):
+        problems.append(f"status.md is stale or missing: {field} says {said!r}, the filesystem "
+                        f"says {real!r}. Run --step status before ending the turn.")
 
     porcelain = _git_lines(root, "status", "--porcelain")
     if porcelain is not None:
@@ -1183,30 +1208,40 @@ def parked_lines(root):
     return kept
 
 
-def step_status(root, config):
+def status_lines(root):
+    """The derived body of status.md, without the Updated: line or Parked block.
+
+    Shared with status_disagreements so the check compares against exactly what
+    a regeneration would write, rather than against a second description of it.
+    """
     steps = plan_steps(root)
     done_ids = [s for s, _p, _f in steps["plan_done"]]
-    ordered = []
-    for step_id in re.findall(r"\bS\d{3}\b", plan_text(root) or ""):
-        if step_id not in ordered:
-            ordered.append(step_id)
-    last_done = next((s for s in reversed(ordered) if s in done_ids), None)
-
-    lines = ["# Status", "",
-             "Convenience view, rewritten at the end of every work turn. The filesystem "
-             "beats", "this file: on disagreement, `plan_current/` wins.", "",
-             f"Updated: {datetime.date.today().isoformat()} by `moltke --step status`.", ""]
-    lines.append(f"- Last done: {last_done or 'nothing yet'}")
-
+    # plan_order, not every id in the file: a step named in the description is
+    # prose, and reading it here would pick the wrong Last done (S045).
+    last_done = next((s for s in reversed(plan_order(root) or []) if s in done_ids), None)
     active, paused = [], []
     for step_id, _p, fields in steps["plan_current"]:
         pauser = field_value(fields, "paused_by")
         goal = field_value(fields, "goal")
         (paused if pauser else active).append(
             f"{step_id} {goal}" + (f" (paused by {pauser})" if pauser else ""))
-    lines.append(f"- In progress: {'; '.join(active) if active else 'none'}")
-    lines.append(f"- Next: {derived_next(root) or 'no steps left in plan.md'}")
-    lines.append(f"- Blocked: {'; '.join(paused) if paused else 'none'}")
+    # A repository that has planned nothing and one that has finished everything
+    # are different states, and the scaffolded status.md says the first of them.
+    nothing = "no steps planned yet" if not plan_order(root) else "no steps left in plan.md"
+    return [
+        f"- Last done: {last_done or 'nothing yet'}",
+        f"- In progress: {'; '.join(active) if active else 'none'}",
+        f"- Next: {derived_next(root) or nothing}",
+        f"- Blocked: {'; '.join(paused) if paused else 'none'}",
+    ]
+
+
+def step_status(root, config):
+    lines = ["# Status", "",
+             "Convenience view, rewritten at the end of every work turn. The filesystem "
+             "beats", "this file: on disagreement, `plan_current/` wins.", "",
+             f"Updated: {datetime.date.today().isoformat()} by `moltke --step status`.", ""]
+    lines.extend(status_lines(root))
     lines.append("- Parked:")
     lines.extend(parked_lines(root))
 

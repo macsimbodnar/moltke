@@ -96,8 +96,10 @@ set it to something you would not run by hand.
 
 Nothing to remember. Hooks fire on their own:
 
-- session start prints the current stack and the next step, and says so when
-  `status.md` disagrees with the filesystem
+- session start prints the current stack and the next step, and names any field
+  where `status.md` disagrees with the filesystem — Last done, In progress, Next,
+  or Blocked. The `Updated:` line and the Parked block are yours; nothing
+  compares them
 - every prompt is appended verbatim to `adocs/worklog.md`, which is history you
   may correct or trim: only `adocs/decisions.md` is enforced append-only
 - writes into completed history are refused

@@ -1240,3 +1240,41 @@ silently. That is audit finding F14, reproduced and planned as S014.
   `plan_current/S038` moved to `plan_done/`.
 - Tests added: 2, with four subtests. Suite 206 OK, `--validate` green.
 - Next: S039, status.md staleness judged on the whole file.
+
+## 2026-08-07T15:26+02:00 prompt
+
+> next
+
+## 2026-08-07 recap — S039 status.md staleness is judged on the whole file
+
+- S039 done, closing 2026-08-07_adversarial-F08.
+- Only the `Next:` line was compared, and that is the one field the file and the
+  filesystem rarely disagree about, because both derive it the same way. The
+  in-progress stack is the field a crashed session corrupts, which is the exact
+  scenario AGENTS.md section 1 says the check exists for.
+- All four derived fields are now compared against what `--step status` would
+  write, sharing one `status_lines` so the check reads the writer rather than a
+  second description of it. `Updated:` and everything from `- Parked:` onward are
+  the human's and are ignored.
+- The stricter comparison immediately exposed two things that were wrong and are
+  fixed rather than worked around. A freshly scaffolded repository read as stale,
+  because the template says `no steps planned yet` while the code said `no steps
+  left in plan.md` — different states, and the template's wording is the right one
+  for a repo that has planned nothing, so `status_lines` distinguishes them. And
+  `Last done` was picked from every id in `plan.md` including prose, the same
+  defect S045 fixed for `derived_next` and missed here; it reads `plan_order` now.
+- The test fixture's `status.md` was an approximation that the old check never
+  noticed. It is now byte-for-byte what the tree derives, with a comment saying
+  why, since an approximation would make every fixture repository read as stale.
+- Red observed on four tests, including `AssertionError: 0 != 2` for the Stop
+  case.
+- The finding's own state was reproduced and is now named:
+  `status.md is stale (In progress says 'none', filesystem says 'S003 active')`,
+  with `--stop` exiting 2, where the finding measured silence from both.
+- Files: `bin/moltke.py` (`status_fields`, `status_disagreements`, `status_lines`
+  split out of `step_status`, both hook call sites; `status_next` removed),
+  `tests/test_s005_hooks.py`, `tests/fixtures.py`, `adocs/specs.md`,
+  `adocs/testing.md` (+6 rows), `MANUAL.md`, `README.md` (206 to 212 tests),
+  `adocs/status.md`, `plan_current/S039` moved to `plan_done/`.
+- Tests added: 6. Suite 212 OK, `--validate` green.
+- Next: S037, the Stop gate's `.claude` prefix.

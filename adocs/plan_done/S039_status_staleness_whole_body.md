@@ -7,4 +7,4 @@ decisions:
 closes:     2026-08-07_adversarial-F08
 blocks:
 paused_by:
-done:
+done:      2026-08-07: status.md staleness is judged on all four derived fields against exactly what --step status would write, sharing one status_lines; the Updated line and the Parked block are ignored. 6 tests, red observed. Suite 212 OK, --validate green, and the finding's own state now named by both --session-start and --stop. README test count 206 to 212; MANUAL's daily-use line now says which fields are compared and which are the human's. Two regressions the stricter check exposed were fixed rather than worked around: the fresh-scaffold wording and Last done reading prose ids.
