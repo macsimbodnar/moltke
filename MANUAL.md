@@ -222,7 +222,14 @@ Consequences worth knowing. A change to a `.gitignore`d path is invisible, becau
 git does not report those. Pre-existing dirt in your tree, and commits made before
 the run, are in the baseline and are never blamed on the audit. A commit that
 touches only the report and new files under `tests/` is expected; anything else in
-it is not. If the baseline `HEAD` is no longer reachable, that is reported rather
+it is not.
+
+`adocs/worklog.md` is expected too, but only while it has merely grown — the
+baseline records its length and hash, and the check confirms the file still starts
+with those bytes. Every prompt appends to it through the hook, so before 0.4.0 any
+audit that spanned a prompt reported a change the tool itself had made. A worklog
+that was truncated or rewritten during a run is still reported, because an append
+is what the hook does and a rewrite is not. If the baseline `HEAD` is no longer reachable, that is reported rather
 than skipped, because history was rewritten under the run. Without git, or before
 `--audit new` has run, the check refuses instead of passing quietly.
 

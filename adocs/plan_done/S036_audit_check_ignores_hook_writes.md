@@ -7,4 +7,4 @@ decisions:
 closes:     2026-08-07_adversarial-F05
 blocks:
 paused_by:
-done:
+done:      2026-08-07: --audit new records the worklog's length and hash, and --audit check treats a worklog change as expected only while the file still starts with those bytes, on the working-tree and the committed side alike. 4 tests, red observed as the finding's own false positive. Suite 217 OK, --validate green, and the finding's isolation sequence re-measured. README test count 213 to 217; MANUAL's --audit check entry now explains the worklog exemption and its limit.

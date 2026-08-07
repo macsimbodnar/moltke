@@ -1326,7 +1326,8 @@ def audit_new(root, config, audit_type):
         head = _git_lines(root, "rev-parse", "HEAD")
         baseline_path.write_text(json.dumps(
             {"report": str(report.relative_to(root)), "tree": baseline,
-             "head": head[0] if head else None}), encoding="utf-8")
+             "head": head[0] if head else None,
+             "worklog": worklog_prefix(root)}), encoding="utf-8")
     except OSError as exc:
         print(f"moltke: could not record the audit baseline ({exc}); --audit check will "
               f"refuse until --audit new runs again.", file=sys.stderr)
@@ -1335,6 +1336,38 @@ def audit_new(root, config, audit_type):
 
 def _is_new_file(status):
     return status in ("??", "A ")
+
+
+def worklog_prefix(root):
+    """[length, sha256] of the worklog as it stands, or None if there is none.
+
+    Enough to prove later that the file only grew, without keeping a copy of it:
+    hash the first `length` bytes again and compare (S036).
+    """
+    try:
+        content = (root / DOCS / "worklog.md").read_bytes()
+    except OSError:
+        return None
+    return [len(content), hashlib.sha256(content).hexdigest()]
+
+
+def worklog_only_grew(root, recorded):
+    """Whether the worklog still starts with exactly what it held at --audit new.
+
+    UserPromptSubmit appends to it on every prompt, so any audit spanning a
+    prompt has a worklog change in its footprint — one the reviewer is fenced out
+    of making. An append is what the hook does; a rewrite is what covering your
+    tracks looks like, and stays reported (F05).
+    """
+    if not (isinstance(recorded, list) and len(recorded) == 2):
+        return False
+    length, digest = recorded
+    try:
+        content = (root / DOCS / "worklog.md").read_bytes()
+    except OSError:
+        return False
+    return (len(content) >= length
+            and hashlib.sha256(content[:length]).hexdigest() == digest)
 
 
 def audit_check(root, config):
@@ -1359,8 +1392,12 @@ def audit_check(root, config):
     before, report = saved["tree"], saved.get("report", "")
     expected, unexpected = [], []
 
+    worklog = f"{DOCS}/worklog.md"
+    appended = worklog_only_grew(root, saved.get("worklog"))
+
     def classify(entry, note, is_new):
-        if entry == report or (entry.startswith("tests/") and is_new):
+        if (entry == report or (entry.startswith("tests/") and is_new)
+                or (entry == worklog and appended)):
             expected.append(note)
         else:
             unexpected.append(note)

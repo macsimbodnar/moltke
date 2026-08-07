@@ -54,6 +54,18 @@ a `Status: <value>` line in its section; the S008 report template must conform.
 check abstains. INV-3 additionally treats a missing `plan.md` in an enabled
 repo as a violation.
 
+2026-08-07 (S036): `--audit new` records the worklog's length and content hash,
+and `--audit check` treats a worklog change as expected when the file still
+starts with exactly those bytes. `UserPromptSubmit` appends on every prompt, so
+every audit spanning a prompt had a worklog change in its footprint, attributed
+to a reviewer that is fenced out of that file and never touched it — a gate wrong
+every time is one people learn to wave through, and F01 is what it was letting
+past while it cried wolf (finding 2026-08-07_adversarial-F05). Scoped to appends,
+not to the path: an append is what the hook does, a rewrite is what covering your
+tracks looks like and stays reported. The length-plus-hash pair proves growth
+without keeping a copy of the file. It applies to the committed side too, or
+committing during a run would bring the false positive back.
+
 2026-08-07 (S037): the `--stop` recap gate exempts `adocs/` and `.claude/` by
 directory, with their separators, listed in `RECAP_EXEMPT`. `.claude` as a bare
 prefix also matched `.claude-plugin/plugin.json` — the manifest whose `version`

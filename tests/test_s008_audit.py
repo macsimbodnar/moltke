@@ -397,6 +397,53 @@ class TestAuditReconciliation(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             self.assertNotIn("src/main.py", result.stdout)
 
+    def log_prompt(self, root, text="a prompt during the audit"):
+        result = run_moltke(root, "--log-prompt", stdin=json.dumps({"prompt": text}))
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_a_worklog_append_during_the_run_is_expected(self):
+        # S036 (F05): UserPromptSubmit appends on every prompt, so every audit
+        # that spans a prompt had a worklog change in its footprint — blamed on a
+        # reviewer that is fenced out of that file and never touched it. A gate
+        # that is wrong every time is one people learn to wave through.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.committed_repo(tmp)
+            run_moltke(root, "--audit", "new", "adversarial")
+            self.log_prompt(root)
+            result = self.check(root)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_a_committed_worklog_append_is_also_expected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.committed_repo(tmp)
+            run_moltke(root, "--audit", "new", "adversarial")
+            self.log_prompt(root)
+            git(root, "add", "-A")
+            git(root, "commit", "-qm", "the turn's prompts and the report")
+            result = self.check(root)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_a_worklog_rewrite_during_the_run_is_still_unexpected(self):
+        # Non-vacuity, and the point of scoping this to appends: an append is
+        # what the hook does, a rewrite is what covering your tracks looks like.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.committed_repo(tmp)
+            run_moltke(root, "--audit", "new", "adversarial")
+            write(root, "adocs/worklog.md", "# Worklog\n\n(history removed)\n")
+            result = self.check(root)
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn("worklog.md", result.stdout)
+
+    def test_a_worklog_append_after_a_rewrite_is_still_unexpected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.committed_repo(tmp)
+            run_moltke(root, "--audit", "new", "adversarial")
+            write(root, "adocs/worklog.md", "# Worklog\n\n(history removed)\n")
+            self.log_prompt(root)
+            result = self.check(root)
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn("worklog.md", result.stdout)
+
     def test_check_without_a_baseline_refuses_and_says_what_to_run(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = self.committed_repo(tmp)

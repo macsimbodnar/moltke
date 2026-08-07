@@ -1305,3 +1305,45 @@ silently. That is audit finding F14, reproduced and planned as S014.
   (212 to 213 tests), `adocs/status.md`, `plan_current/S037` moved to `plan_done/`.
 - Tests added: 1, covering nine paths. Suite 213 OK, `--validate` green.
 - Next: S036, --audit check blaming the hook's own worklog write on the reviewer.
+
+## 2026-08-07T15:53+02:00 prompt
+
+> next
+
+## 2026-08-07 recap — S036 --audit check does not blame the hook's worklog writes on the reviewer
+
+- S036 done, closing 2026-08-07_adversarial-F05.
+- `UserPromptSubmit` appends to the worklog on every prompt, so every audit that
+  spanned a prompt had a worklog change in its footprint, attributed to a reviewer
+  that is fenced out of that file and never touched it. The finding's point was
+  not the noise but the consequence: a gate that is wrong every time is one people
+  learn to wave through, and F01 is what it was letting past while it cried wolf.
+- `--audit new` now records the worklog's length and content hash, and the check
+  treats a worklog change as expected only while the file still starts with
+  exactly those bytes. Length plus hash proves growth without keeping a copy of
+  the file.
+- Scoped to appends rather than to the path, which is the whole distinction: an
+  append is what the hook does, a truncation or rewrite is what covering your
+  tracks looks like and stays reported. Applied to the committed side too, or
+  S032's commit comparison would have brought the false positive straight back.
+- Red observed as the finding's own output:
+  `unexpected, not attributable to writing the report: adocs/worklog.md: M`.
+- The finding's isolation sequence was re-measured: clean immediately after
+  `--audit new`, clean after one user prompt where it had been exit 1, and exit 1
+  again once the worklog is truncated.
+- Worth recording because it nearly fooled me: my first probe used a one-line
+  baseline worklog, so "truncating" it to longer text that started the same way
+  was a genuine append and correctly passed. The probe was wrong, not the code.
+  The unit tests use a worklog with prior content, which is what makes a
+  truncation detectable at all.
+- Also observed, not a defect: `--audit check` in this repository still reports a
+  large footprint, because the baseline is S027's and that run finished ten steps
+  ago. The worklog appears there as unexpected precisely because that baseline
+  predates this step and carries no worklog record, so the exemption fails closed.
+  The next `--audit new`, in S044, replaces the baseline.
+- Files: `bin/moltke.py` (`worklog_prefix`, `worklog_only_grew`, `audit_new`,
+  `audit_check`), `tests/test_s008_audit.py`, `adocs/specs.md`,
+  `adocs/testing.md` (+5 rows), `MANUAL.md`, `README.md` (213 to 217 tests),
+  `adocs/status.md`, `plan_current/S036` moved to `plan_done/`.
+- Tests added: 4. Suite 217 OK, `--validate` green.
+- Next: S041, the reviewer fence and relative paths.
