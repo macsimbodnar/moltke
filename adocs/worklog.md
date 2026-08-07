@@ -1543,3 +1543,45 @@ silently. That is audit finding F14, reproduced and planned as S014.
   (228 to 233 tests), `adocs/status.md`, `plan_current/S047` moved to `plan_done/`.
 - Tests added: 5. Suite 233 OK, `--validate` green.
 - Next: S048, INV-3 and plan_order disagreeing about what "listed" means.
+
+## 2026-08-08T00:11+02:00 prompt
+
+> ok let's start with decisions. Let's do all open points in an iterative way
+
+## 2026-08-08T00:20+02:00 prompt
+
+> I don't care about the security of the decision immutability. this is a tool to help me to avoid repeat always the same instructions to agents and to keep the memory between agents and sessions. I don't want to over engineer it, or to make it more complicated. Practicality and correctenes in work are priority over immutability.
+
+## 2026-08-07 recap — DEC-030 and S054, the threat model is accident, not malice
+
+- Max set the scope when asked to choose on INV-8: moltke exists so he does not
+  repeat the same instructions to every agent and so memory survives between
+  agents and sessions. Practicality and correctness of the work come first;
+  immutability for its own sake does not, and the tool should not grow to defend
+  against a hostile author.
+- Recorded as DEC-030 rather than applied silently, because it is a triage rule
+  for every future finding of that shape, not a one-off answer.
+- S054 done, closing 2026-08-07_adversarial.2-F07 by moving the documentation
+  rather than the code. INV-8 now reads "no line `decisions.md` has ever held is
+  removed or reordered", with the superseded "earlier bytes are unchanged" marked
+  in place, and both violation messages reworded to describe their own comparison
+  instead of restating the aspiration.
+- No behaviour changed, and the suite proves it: 233 tests green with no change to
+  `inv_8_append_only`'s logic.
+- One thing found while rewording that is worth having in writing: the two halves
+  of INV-8 do not agree with each other. The uncommitted window is a byte-prefix
+  comparison against HEAD, so a mid-file insertion is reported until it is
+  committed and then stops being reported. That asymmetry is now in specs rather
+  than smoothed over, and under DEC-030 it is not worth code to remove.
+- The accepted cost is stated on INV-8's own line, which is where `AGENTS.md`
+  section 3 points a new agent first: the ordering of the decision log is a
+  convention, and a careless edit can break it without the tool noticing.
+- Process note: running the suite directly and then completing the step in one
+  shell command ran it twice and hit the two-minute limit, killing the gate
+  mid-run. The testing rows had landed and the step had not. Re-run alone with a
+  longer timeout, which is the right shape now that the gate itself takes a minute.
+- Files: `bin/moltke.py` (two message strings), `adocs/decisions.md` (DEC-030),
+  `adocs/specs.md` (INV-8 line plus a dated note), `adocs/testing.md` (+5 rows),
+  `MANUAL.md`, `adocs/status.md`, `plan_current/S054` moved to `plan_done/`.
+- Tests added: none; this is a documentation correction by design.
+- Next: the remaining open decisions, then S048.

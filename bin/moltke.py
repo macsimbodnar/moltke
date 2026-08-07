@@ -386,11 +386,11 @@ def inv_8_append_only(root, config):
         if required is not None and not lines_survive(required, path.read_bytes().splitlines()):
             violations.append(
                 f"INV-8: {rel} no longer contains, in order, the lines it had at commit "
-                f"{required_sha[:8]}; it grows only at the end, because DEC ids are cited from "
-                f"code, commits, and specs and a rewritten entry changes what those citations "
-                f"mean. Put the removed content back where it was and this clears: "
-                f"git show {required_sha[:8]}:{rel}. A reversal is a new entry marking the old "
-                f"one VOID, never an edit")
+                f"{required_sha[:8]}; nothing it has held is removed or reordered, because DEC "
+                f"ids are cited from code, commits, and specs and a rewritten entry changes what "
+                f"those citations mean. Put the removed content back where it was and this "
+                f"clears: git show {required_sha[:8]}:{rel}. A reversal is a new entry marking "
+                f"the old one VOID, never an edit")
     for rel in APPEND_ONLY_FILES:
         shown = subprocess.run(["git", "-C", str(root), "show", f"HEAD:{rel}"],
                                capture_output=True)
@@ -401,11 +401,11 @@ def inv_8_append_only(root, config):
             violations.append(f"INV-8: {rel} was deleted; it is append-only and never removed: "
                               f"restore it with git checkout -- {rel}")
         elif not path.read_bytes().startswith(shown.stdout):
-            violations.append(f"INV-8: {rel} changed earlier bytes; it grows only at the end, "
-                              f"because DEC ids are cited from code, commits, and specs and a "
-                              f"rewritten entry changes what those citations mean: restore the "
-                              f"committed content and re-append. A reversal is a new entry "
-                              f"marking the old one VOID")
+            violations.append(f"INV-8: {rel} no longer starts with what HEAD holds, so something "
+                              f"above the end changed, because DEC ids are cited from code, "
+                              f"commits, and specs and a rewritten entry changes what those "
+                              f"citations mean: restore the committed content and re-append. "
+                              f"A reversal is a new entry marking the old one VOID")
     return violations
 
 

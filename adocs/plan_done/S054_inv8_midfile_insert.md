@@ -7,4 +7,4 @@ decisions:
 closes:     2026-08-07_adversarial.2-F07
 blocks:
 paused_by:
-done:
+done:      2026-08-07: INV-8's wording in specs.md and both violation messages now describe what the check does — no line ever held is removed or reordered — with the superseded 'earlier bytes are unchanged' marked in place, and the uncommitted/committed asymmetry documented rather than smoothed over. No behaviour change, per DEC-030. Suite 233 OK, --validate green. README needed no change; MANUAL's immutability entry rewritten and its pre-S046 baseline description removed.

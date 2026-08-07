@@ -263,19 +263,23 @@ repository with no history, or for a file not yet committed, there is no baselin
 and the check abstains rather than guessing.
 
 What this cannot do is unwrite history, and it does not try. Both checks compare
-what the file says **now** against the version it had at a fixed point — the
-commit that added a `plan_done/` file, the first commit for `decisions.md`. So
-the way back to green is the one the message tells you: restore those bytes in a
-new commit, and the violation clears. Leave it rewritten and it keeps reporting.
-Nothing is ever reverted for you, and git history stays intact as the record.
+what the file says **now** against a version from history — for a `plan_done/`
+file, the one at the commit that added it; for `decisions.md`, the most recent
+version that had not already lost something. So the way back to green is the one
+the message tells you: restore that content in a new commit, and the violation
+clears. Leave it rewritten and it keeps reporting. Nothing is ever reverted for
+you, and git history stays intact as the record.
 
 For `decisions.md` the comparison is by line, not by byte: every line the file
-legitimately had must still be there, in that order. So appending is free,
-inserting in the middle passes, and removing a line, rewriting one in place, or
-moving one to the end are all caught. Reordering entries is a violation until it
-is reversed.
+has ever held must still be there, in that order. Removing a line, rewriting one
+in place, moving one to the end, and reordering entries are all caught. Appending
+is free — and so is **inserting between existing entries**, because an insertion
+removes and reorders nothing. That is deliberate (DEC-030): these checks exist to
+catch an agent accidentally clobbering history, not to make forgery impossible for
+someone with a shell. The ordering of the log is a convention, and a careless
+edit can break it without the tool noticing.
 
-Three known limits. A file created and deleted inside the same commit leaves
+Three further limits. A file created and deleted inside the same commit leaves
 nothing to detect. `Bash` writes reach `plan_done/` without meeting the
 PreToolUse fence, so the history check is what notices afterwards. And a `plan_done/`
 file is compared byte for byte, so reformatting one — even a trailing newline —

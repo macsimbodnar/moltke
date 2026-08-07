@@ -32,7 +32,7 @@ Enforced by `bin/moltke.py` in marked repositories:
 - INV-5  no step reaches `plan_done/` without a `done:` stamp and at least one `testing.md` row referencing its id.
 - INV-6  step ids are unique across all three plan directories.
 - INV-7  a file under `plan_done/` never changes or disappears after the commit that added it. 2026-08-06 (S018, F12): the original wording, "`plan_done/` is byte-identical to its state at session start", is superseded — it promised a session-scoped guarantee the code never implemented, and the 2026-08-01 amendment below redefined it without saying so.
-- INV-8  `decisions.md` grows only by appending; earlier bytes are unchanged. 2026-08-06 (S030, DEC-025): narrowed from "`worklog.md` and `decisions.md`", which is superseded. The worklog is append-only by convention and no longer checked.
+- INV-8  no line `decisions.md` has ever held is removed or reordered. Inserting between entries passes; the ordering of the log is a convention, not an enforced property. 2026-08-06 (S030, DEC-025): narrowed from "`worklog.md` and `decisions.md`", which is superseded. The worklog is append-only by convention and no longer checked. 2026-08-07 (S054, DEC-030): the earlier wording, "grows only by appending; earlier bytes are unchanged", is superseded — it described an aspiration, not the check. The threat model is accident and drift, not a hostile author.
 - INV-9  every `decisions.md` entry has a unique `DEC-<nnn>` id.
 - INV-10 every audit finding is `open`, `planned`, `closed`, or `accepted`, and no report has `open` findings without a step or decision referencing them.
 - INV-13 `plan.md`, `decisions.md`, `worklog.md`, and every audit report have an even number of code-fence markers. 2026-08-07 (S033): added, because an unclosed fence makes content invisible to every scanner that reads the file.
@@ -53,6 +53,16 @@ a `Status: <value>` line in its section; the S008 report template must conform.
 (append by move only). Repos without git history have no baseline, so the
 check abstains. INV-3 additionally treats a missing `plan.md` in an enabled
 repo as a violation.
+
+2026-08-07 (S054, DEC-030): INV-8's wording now describes the check rather than
+an aspiration. What runs is a line rule — nothing the file has ever held is
+removed or reordered — so an insertion between entries passes once committed
+(finding 2026-08-07_adversarial.2-F07). The two halves of the check differ, and
+the difference is worth knowing rather than smoothing over: the uncommitted
+window is a byte-prefix comparison against `HEAD`, so a mid-file insertion is
+reported until it is committed and not after. Neither half is being grown to
+close that, because DEC-030 sets the threat model at accident and drift, and the
+line rule is what catches an agent clobbering history by mistake.
 
 2026-08-07 (S047, DEC-029): the `--stop` waiver counts retries within one turn.
 "The same turn" is `prompt_id` and `session_id` when the payload carries them,
