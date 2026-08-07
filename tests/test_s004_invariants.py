@@ -107,6 +107,40 @@ class TestAppendOnly(unittest.TestCase):
             result = run_validate(root)
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
+    def test_a_repair_commit_clears_a_committed_rewrite(self):
+        # DEC-026: append-only is judged as "current content still starts with
+        # every version it has ever had", which restoring the text makes true again.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            git_baseline(root)
+            path = root / "adocs" / "decisions.md"
+            original = path.read_text(encoding="utf-8")
+            path.write_text(original.replace("Rejected: none\n", ""), encoding="utf-8")
+            git(root, "add", "-A")
+            git(root, "commit", "-qm", "drop a line")
+            self.assert_violation(root, "INV-8")  # precondition: still caught
+            path.write_text(original, encoding="utf-8")
+            git(root, "add", "-A")
+            git(root, "commit", "-qm", "restore the removed line")
+            result = run_validate(root)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_a_repair_that_appends_instead_of_restoring_does_not_clear_it(self):
+        # Non-vacuity: putting the text back at the end is not putting it back.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            git_baseline(root)
+            path = root / "adocs" / "decisions.md"
+            original = path.read_text(encoding="utf-8")
+            path.write_text(original.replace("Rejected: none\n", ""), encoding="utf-8")
+            git(root, "add", "-A")
+            git(root, "commit", "-qm", "drop a line")
+            path.write_text(path.read_text(encoding="utf-8") + "Rejected: none\n",
+                            encoding="utf-8")
+            git(root, "add", "-A")
+            git(root, "commit", "-qm", "append it at the end instead")
+            self.assert_violation(root, "INV-8")
+
     def test_committed_deletion_of_decisions_is_caught(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = workflow_repo(tmp)

@@ -46,17 +46,19 @@ step instead.
 
 29. S045  plan order comes from the list, not from prose that happens to name an id
 30. S034  a committed immutability violation has a legal way back to green
-31. S035  moltke works in a linked worktree and a submodule
-32. S033  an unbalanced code fence cannot hide content from a scanner
-33. S032  --audit check sees a change the run commits
-34. S038  a malformed test_command refuses completion instead of disabling the gate
-35. S039  status.md staleness is judged on the whole file, not one line
-36. S037  the Stop recap gate stops treating .claude-plugin/ as not-source
-37. S036  --audit check does not blame the plugin's own worklog writes on the reviewer
-38. S041  the reviewer fence normalises paths before matching
-39. S040  an audit type cannot write outside adocs/audit/
-40. S042  the test_command refusal obeys the documented stream mapping
-41. S044  bump 0.4.0, re-run the audit, close the 2026-08-07 findings
-42. S028  init drives a guided planning phase after scaffolding
-43. S029  init handles a repo already initialized on another machine
-44. S031  target repositories inherit the worklog secret check, not just moltke's own suite
+31. S046  INV-8 catches a committed rewrite of text appended after the first commit
+32. S035  moltke works in a linked worktree and a submodule
+33. S033  an unbalanced code fence cannot hide content from a scanner
+34. S032  --audit check sees a change the run commits
+35. S038  a malformed test_command refuses completion instead of disabling the gate
+36. S039  status.md staleness is judged on the whole file, not one line
+37. S037  the Stop recap gate stops treating .claude-plugin/ as not-source
+38. S036  --audit check does not blame the plugin's own worklog writes on the reviewer
+39. S041  the reviewer fence normalises paths before matching
+40. S040  an audit type cannot write outside adocs/audit/
+41. S042  the test_command refusal obeys the documented stream mapping
+42. S044  bump 0.4.0, re-run the audit, close the 2026-08-07 findings
+43. S028  init drives a guided planning phase after scaffolding
+44. S029  init handles a repo already initialized on another machine
+45. S031  target repositories inherit the worklog secret check, not just moltke's own suite
+46. S046  inv8 post baseline rewrites

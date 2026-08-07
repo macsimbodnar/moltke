@@ -1012,3 +1012,38 @@ silently. That is audit finding F14, reproduced and planned as S014.
 - MANUAL checked, no change needed: it never describes how plan order is parsed.
 - Tests added: 4. Suite 177 OK, `--validate` green.
 - Next: S034, which needs a recorded decision before it can start.
+
+## 2026-08-07 recap — S034 a committed immutability violation has a legal way back to green
+
+- S034 done, closing 2026-08-07_adversarial-F03, the worst thing the re-run found
+  and a defect S018 introduced.
+- Max chose the terminal state: a repair commit clears it. DEC-026 records that,
+  with the two rejected options and their costs.
+- Both invariants now judge current content against a fixed historical version
+  rather than the existence of a bad commit. INV-7 compares each `plan_done/`
+  file against the version at the commit that added it; INV-8 compares
+  `decisions.md` against the version at its first commit. Blobs come from one
+  batched `git cat-file`, so both stay at two or three git processes per run.
+- The mechanism took three attempts and each was measured, not argued.
+  Requiring every past version to be a prefix is unsatisfiable after a repair,
+  because the tampered version is itself history — that is the same permanence
+  defect wearing a different shape. Forgiving a version when a longer one is a
+  prefix cleared the repair but also cleared a genuine same-position rewrite, and
+  the existing `test_committing_a_rewrite_does_not_hide_it` caught it. Pairwise
+  adjacent checks did not clear a correct repair. All three results are in
+  DEC-027 so the next person does not re-derive them.
+- The chosen rule is weaker than the one it replaces in one stated way, and the
+  gap was measured in a throwaway repository rather than guessed: legitimate
+  append exit 0, post-baseline rewrite uncommitted exit 1, the same rewrite
+  committed exit 0, baseline rewrite committed exit 1. Planned as S046 and
+  written into specs and MANUAL, not left in a code comment.
+- Red observed on both invariants, and both tests assert the violation before the
+  repair so a green result cannot come from the check having stopped working.
+- Files: `bin/moltke.py` (new `git_blobs`, rewritten history halves of
+  `inv_7_done_immutable` and `inv_8_append_only`), `tests/test_s003_invariants.py`,
+  `tests/test_s004_invariants.py`, `adocs/decisions.md` (DEC-026, DEC-027),
+  `adocs/plan.md`, new `adocs/plan_todo/S046_inv8_post_baseline_rewrites.md`,
+  `adocs/specs.md`, `adocs/testing.md` (+8 rows), `MANUAL.md`, `README.md`
+  (177 to 182 tests), `adocs/status.md`, `plan_current/S034` moved to `plan_done/`.
+- Tests added: 5. Suite 182 OK, `--validate` green.
+- Next: S046, then S035.

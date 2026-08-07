@@ -53,6 +53,22 @@ a `Status: <value>` line in its section; the S008 report template must conform.
 check abstains. INV-3 additionally treats a missing `plan.md` in an enabled
 repo as a violation.
 
+2026-08-07 (S034, DEC-026 and DEC-027): both invariants judge current content
+against a fixed historical version instead of the existence of a bad commit, so
+restoring what was removed clears the violation. S018's rule had no terminal
+state: history is permanent, so following the violation message left `--validate`
+at exit 1 forever and only a history rewrite — which the same message forbids —
+would have cleared it (finding 2026-08-07_adversarial-F03). INV-7 compares each
+`plan_done/` file against the version at the commit that added it, and a file
+that is gone is a violation until it is restored. INV-8 compares `decisions.md`
+against the version at its first commit. Both fetch blobs through one batched
+`git cat-file`. The naive form of INV-8, requiring every past version to be a
+prefix, is unsatisfiable after a repair because the tampered version is itself
+history; DEC-027 records that, the two alternatives measured against the suite,
+and the resulting gap — a rewrite of text appended after the first commit is
+reported while uncommitted and not once committed, which is S046. The HEAD
+comparisons covering the uncommitted window are unchanged.
+
 2026-08-06 (S018): INV-7 and INV-8 each check two baselines, because HEAD alone
 was never a baseline — it moves at every step completion, so committing the
 tampering erased the violation (finding F04). The working-tree comparisons above

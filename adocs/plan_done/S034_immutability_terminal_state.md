@@ -7,4 +7,4 @@ decisions:
 closes:     2026-08-07_adversarial-F03
 blocks:
 paused_by:
-done:
+done:      2026-08-07: INV-7 compares each plan_done file against its add-commit version and INV-8 compares decisions.md against its first-commit version, so a repair commit clears and history is never rewritten. DEC-026 records Max's choice of terminal state; DEC-027 records the mechanism, the two alternatives measured and rejected, and the resulting gap, planned as S046. 5 tests, red observed. Suite 182 OK, --validate green. README test count 177 to 182; MANUAL's immutability entry rewritten to say how to get back to green and to list three limits instead of two.

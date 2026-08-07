@@ -217,6 +217,35 @@ def inv_6_unique_ids(root, config):
     return violations
 
 
+def git_blobs(root, specs):
+    """{"<sha>:<path>": bytes} in one `git cat-file --batch`, missing keys absent.
+
+    One process rather than one per version: DEC-026 moved these checks from
+    reading a diff summary to comparing content, and --validate runs on every
+    Stop.
+    """
+    specs = list(dict.fromkeys(specs))
+    if not specs:
+        return {}
+    result = subprocess.run(["git", "-C", str(root), "cat-file", "--batch"],
+                            input=("\n".join(specs) + "\n").encode(), capture_output=True)
+    if result.returncode != 0:
+        return {}
+    blobs, out, pos = {}, result.stdout, 0
+    for spec in specs:
+        end = out.find(b"\n", pos)
+        if end < 0:
+            break
+        header = out[pos:end].decode(errors="replace").split()
+        pos = end + 1
+        if len(header) != 3 or not header[2].isdigit():
+            continue  # "<spec> missing"; the object simply is not there
+        size = int(header[2])
+        blobs[spec] = out[pos:pos + size]
+        pos += size + 1  # the trailing newline cat-file adds after each object
+    return blobs
+
+
 def history_blocks(root, *args):
     """[(sha, [detail lines])] oldest first, or None without history.
 
@@ -255,18 +284,33 @@ def inv_7_done_immutable(root, config):
                 violations.append(f"INV-7: {entry.strip()} changed under plan_done/; history is "
                                   f"immutable: restore it with git checkout -- {entry.strip()}")
 
-    seen = set()
+    # DEC-026: judge the content, not the existence of a bad commit. A file is
+    # clean when its bytes still match the version at the commit that added it,
+    # so restoring the original clears the violation and history is never
+    # rewritten. Judging on "an M commit exists" had no way back to green.
+    landed = {}
     for sha, details in history_blocks(root, "--name-status", "--", f"{DOCS}/plan_done") or []:
         for detail in details:
             status, entry = detail.split("\t")[0], detail.split("\t")[-1]
-            if status.startswith("A") or entry in seen:
-                continue
-            seen.add(entry)
+            if status.startswith("A") and entry not in landed:
+                landed[entry] = sha
+    blobs = git_blobs(root, [f"{sha}:{entry}" for entry, sha in landed.items()])
+    for entry, sha in sorted(landed.items()):
+        original = blobs.get(f"{sha}:{entry}")
+        if original is None:
+            continue  # nothing to compare against; abstain rather than guess
+        path = root / entry
+        if not path.is_file():
             violations.append(
-                f"INV-7: {entry} was {status} in commit {sha[:8]} after it landed under "
-                f"plan_done/, which is append by move only. Recover the original with "
-                f"git show $(git log --diff-filter=A --format=%H -- {entry} | tail -1):{entry} "
-                f"and restore it in a new commit; never rewrite the history that recorded it")
+                f"INV-7: {entry} landed in plan_done/ at commit {sha[:8]} and is gone; "
+                f"completed history is never removed. Restore it in a new commit: "
+                f"git show {sha[:8]}:{entry} > {entry}")
+        elif path.read_bytes() != original:
+            violations.append(
+                f"INV-7: {entry} no longer matches the version that landed at commit "
+                f"{sha[:8]}; plan_done/ is append by move only. Restore those bytes in a new "
+                f"commit and this clears: git show {sha[:8]}:{entry} > {entry}. Never rewrite "
+                f"the history that recorded the change")
     return violations
 
 
@@ -283,24 +327,36 @@ def inv_8_append_only(root, config):
     # Two baselines, same reasoning as INV-7: HEAD for the uncommitted window,
     # history for everything already committed. Untracked files have neither.
     violations = []
+    # DEC-026: append-only means the current content still starts with every
+    # version the file has ever had. Restoring removed text makes that true
+    # again, so a repair commit clears this; "a commit removed lines" never could.
     for rel in APPEND_ONLY_FILES:
-        # A commit that removes lines rewrote what was already there. Line
-        # granularity, not bytes: an in-place byte edit still reads as one line
-        # removed and one added, so it is caught either way.
-        for sha, details in history_blocks(root, "--numstat", "--", rel) or []:
-            for detail in details:
-                fields = detail.split("\t")
-                if len(fields) == 3 and fields[1].isdigit() and int(fields[1]) > 0:
-                    violations.append(
-                        f"INV-8: {rel} lost {fields[1]} line(s) in commit {sha[:8]}; it grows "
-                        f"only at the end, because DEC ids are cited from code, commits, and "
-                        f"specs and a rewritten entry changes what those citations mean. "
-                        f"Restore the removed content in a new commit; a reversal is a new "
-                        f"entry marking the old one VOID, never an edit")
-                    break
-            else:
-                continue
-            break
+        shas = [sha for sha, _details in history_blocks(root, "--", rel) or []]
+        if not shas:
+            continue
+        blobs = git_blobs(root, [f"{sha}:{rel}" for sha in shas])
+        path = root / rel
+        if not path.is_file():
+            violations.append(f"INV-8: {rel} has {len(shas)} commit(s) of history and is gone; "
+                              f"it is append-only and never removed: restore it in a new commit, "
+                              f"git show {shas[-1][:8]}:{rel} > {rel}")
+            continue
+        # One fixed baseline, the first committed version, exactly as INV-7 uses
+        # the add-commit version. Requiring every past version to be a prefix
+        # cannot work: after a repair the tampered version is itself history, and
+        # no restoration can ever make the file start with it again. DEC-027
+        # states the cost — a rewrite of text appended after the first commit is
+        # caught by the HEAD comparison below while uncommitted, and not after.
+        first = blobs.get(f"{shas[0]}:{rel}")
+        current = path.read_bytes()
+        if first is not None and not current.startswith(first):
+            violations.append(
+                f"INV-8: {rel} no longer starts with the version it had at commit "
+                f"{shas[0][:8]}; it grows only at the end, because DEC ids are cited from code, "
+                f"commits, and specs and a rewritten entry changes what those citations mean. "
+                f"Put the removed content back where it was and this clears: "
+                f"git show {shas[0][:8]}:{rel}. A reversal is a new entry marking the old one "
+                f"VOID, never an edit")
     for rel in APPEND_ONLY_FILES:
         shown = subprocess.run(["git", "-C", str(root), "show", f"HEAD:{rel}"],
                                capture_output=True)

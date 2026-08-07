@@ -183,6 +183,61 @@ class TestInvariants(unittest.TestCase):
             git(root, "commit", "-qm", "remove history")
             self.assert_violation(root, "INV-7")
 
+    def test_inv7_a_repair_commit_clears_it(self):
+        # DEC-026: history is permanent, so judging on "a bad commit exists" left
+        # no way back to green. The invariant judges current content instead.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            git(root, "init", "-q")
+            git(root, "add", "-A")
+            git(root, "commit", "-qm", "base")
+            done = root / "adocs" / "plan_done" / "S001_base.md"
+            original = done.read_text(encoding="utf-8")
+            done.write_text(original + "tampered\n", encoding="utf-8")
+            git(root, "add", "-A")
+            git(root, "commit", "-qm", "tamper")
+            self.assert_violation(root, "INV-7")  # precondition: still caught
+            done.write_text(original, encoding="utf-8")
+            git(root, "add", "-A")
+            git(root, "commit", "-qm", "restore the original bytes")
+            result = run_validate(root)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_inv7_a_near_miss_repair_does_not_clear_it(self):
+        # Non-vacuity for the row above: only the original bytes clear it.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            git(root, "init", "-q")
+            git(root, "add", "-A")
+            git(root, "commit", "-qm", "base")
+            done = root / "adocs" / "plan_done" / "S001_base.md"
+            done.write_text(done.read_text(encoding="utf-8") + "tampered\n", encoding="utf-8")
+            git(root, "add", "-A")
+            git(root, "commit", "-qm", "tamper")
+            done.write_text(done.read_text(encoding="utf-8").replace("tampered\n", "almost\n"),
+                            encoding="utf-8")
+            git(root, "add", "-A")
+            git(root, "commit", "-qm", "not quite a restore")
+            self.assert_violation(root, "INV-7")
+
+    def test_inv7_a_committed_deletion_clears_when_the_file_comes_back(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            git(root, "init", "-q")
+            git(root, "add", "-A")
+            git(root, "commit", "-qm", "base")
+            done = root / "adocs" / "plan_done" / "S001_base.md"
+            original = done.read_text(encoding="utf-8")
+            done.unlink()
+            git(root, "add", "-A")
+            git(root, "commit", "-qm", "delete history")
+            self.assert_violation(root, "INV-7")
+            done.write_text(original, encoding="utf-8")
+            git(root, "add", "-A")
+            git(root, "commit", "-qm", "put it back")
+            result = run_validate(root)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
     def test_inv7_abstains_without_history(self):
         # Non-vacuity: the same tree with history reports the violation.
         with tempfile.TemporaryDirectory() as tmp:

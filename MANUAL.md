@@ -223,12 +223,20 @@ therefore does not hide it: the violation names the commit that did it. In a
 repository with no history, or for a file not yet committed, there is no baseline
 and the check abstains rather than guessing.
 
-What this cannot do is unwrite history. Both checks report; neither reverts, and
-the fix is a new commit restoring the content, never a rewrite. Rewriting git
-history would remove the evidence along with the tampering, and the agent is
-barred from it. Two known limits: a file created and deleted inside the same
-commit leaves nothing to detect, and `Bash` writes reach `plan_done/` without
-ever meeting the PreToolUse fence — the history check is what notices afterwards.
+What this cannot do is unwrite history, and it does not try. Both checks compare
+what the file says **now** against the version it had at a fixed point — the
+commit that added a `plan_done/` file, the first commit for `decisions.md`. So
+the way back to green is the one the message tells you: restore those bytes in a
+new commit, and the violation clears. Leave it rewritten and it keeps reporting.
+Nothing is ever reverted for you, and git history stays intact as the record.
+
+Three known limits. A file created and deleted inside the same commit leaves
+nothing to detect. `Bash` writes reach `plan_done/` without meeting the
+PreToolUse fence, so the history check is what notices afterwards. And for
+`decisions.md`, a rewrite of text that was appended *after* the first commit is
+reported while it is uncommitted and not once it is committed — the baseline is
+the first version, not every version, because requiring every version would mean
+no repair could ever clear anything.
 
 **Prompts are recorded verbatim, so a pasted secret is written to disk.** Every
 `UserPromptSubmit` appends your prompt to `adocs/worklog.md`, which is tracked and
