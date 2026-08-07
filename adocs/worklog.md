@@ -1169,3 +1169,43 @@ silently. That is audit finding F14, reproduced and planned as S014.
   tests), `adocs/status.md`, `plan_current/S033` moved to `plan_done/`.
 - Tests added: 13. Suite 200 OK, `--validate` green.
 - Next: S032, `--audit check` sees a change the run commits.
+
+## 2026-08-07T15:08+02:00 prompt
+
+> next
+
+## 2026-08-07 recap — S032 --audit check sees a change the run commits
+
+- S032 done, closing 2026-08-07_adversarial-F01.
+- The check diffed two `git status` snapshots. A clean tracked file that the run
+  patched and committed was in neither, so it was not misclassified, it was
+  absent — and the check printed "no change since --audit new" for a run that had
+  rewritten source. DEC-022 traded the write fence away for this check, so
+  `git commit` defeated the thing that replaced the fence, and the audit skill
+  tells the operator a clean check means the report is uncontaminated.
+- `--audit new` now records the `HEAD` sha next to the worktree snapshot, and
+  `--audit check` reports `git diff --name-status --no-renames` from it as part of
+  the footprint. Commits are classified by the same rule as working-tree changes:
+  the report and files added under `tests/` are expected, anything else is not.
+- An unreachable baseline `HEAD` is reported rather than skipped, because that
+  means history was rewritten under the run — silence there would be the same
+  class of defect as the one being fixed.
+- The second failure the finding noted inside the first is fixed too: the exit-0
+  message claimed the report had not been written yet while it had been written
+  and committed. It now names both halves of what it checked.
+- Red observed as the finding's own message, verbatim:
+  `AssertionError: 0 != 1 : no change since --audit new; the report itself has
+  not been written yet.`
+- The finding's F1 scenario was re-run end to end: exit 1, `src/main.py: M in a
+  commit made during this run` listed as unexpected, the report's own commit
+  still expected.
+- MANUAL's claim that a committed change "shows up as reverted or committed,
+  which is flagged as unexpected rather than hidden" was false for the common
+  case and is gone; that branch only ever fired for a file already dirty at
+  baseline.
+- Files: `bin/moltke.py` (`audit_new` records `head`, `audit_check` reads
+  commits), `tests/test_s008_audit.py`, `adocs/specs.md`, `adocs/testing.md`
+  (+6 rows), `MANUAL.md`, `README.md` (200 to 204 tests), `adocs/status.md`,
+  `plan_current/S032` moved to `plan_done/`.
+- Tests added: 4. Suite 204 OK, `--validate` green.
+- Next: S038, the malformed test_command.

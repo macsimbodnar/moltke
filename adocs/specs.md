@@ -54,6 +54,18 @@ a `Status: <value>` line in its section; the S008 report template must conform.
 check abstains. INV-3 additionally treats a missing `plan.md` in an enabled
 repo as a violation.
 
+2026-08-07 (S032): `--audit new` records the `HEAD` sha alongside the worktree
+snapshot, and `--audit check` reports `git diff --name-status --no-renames` from
+that sha to `HEAD` as part of the run's footprint. Comparing two `git status`
+snapshots alone meant a clean tracked file the run patched and committed appeared
+in neither, so the check printed "no change since --audit new" for a run that had
+rewritten source — and DEC-022 traded the write fence away for exactly this check,
+so `git commit` defeated its replacement (finding 2026-08-07_adversarial-F01). A
+commit is classified by the same rule as a working-tree change: the report and
+files added under `tests/` are expected, anything else is not. A baseline `HEAD`
+that is no longer reachable is reported rather than skipped, since that means
+history was rewritten under the run.
+
 2026-08-07 (S033): `strip_guidance` pairs code-fence markers that open a line,
 in order, and leaves an unpaired trailing marker as text. It paired ``` globally
 and non-greedily before, so one stray marker shifted every later pairing and

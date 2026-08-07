@@ -206,14 +206,21 @@ wrong pass is what F02 was. And the fence permits new files under `tests/`,
 because a red-first regression test is evidence; editing a test that already
 exists is a patch and stays blocked.
 
-**`--audit check` sees what `git status` sees.** It compares porcelain output
-with `-uall` plus a content hash per changed file, against the baseline recorded
-by `--audit new`. Consequences worth knowing: a change to a `.gitignore`d path is
-invisible to it, because git does not report those; changes the reviewer commits
-itself stop being reported as changed and show up as "reverted or committed",
-which is flagged as unexpected rather than hidden; and pre-existing dirt in your
-tree is in the baseline, so it is never blamed on the audit. Without git, or
-before `--audit new` has run, the check refuses instead of passing quietly.
+**`--audit check` reads the working tree and the commits.** `--audit new` records
+two things: a `git status --porcelain -uall` snapshot with a content hash per
+changed file, and the `HEAD` sha. The check compares both, so a file the run
+patched shows up whether it was left dirty or committed. Before 0.4.0 only the
+snapshot was compared, and a clean tracked file that the run patched **and
+committed** appeared in neither side — the check printed "no change since
+`--audit new`" for a run that had rewritten source.
+
+Consequences worth knowing. A change to a `.gitignore`d path is invisible, because
+git does not report those. Pre-existing dirt in your tree, and commits made before
+the run, are in the baseline and are never blamed on the audit. A commit that
+touches only the report and new files under `tests/` is expected; anything else in
+it is not. If the baseline `HEAD` is no longer reachable, that is reported rather
+than skipped, because history was rewritten under the run. Without git, or before
+`--audit new` has run, the check refuses instead of passing quietly.
 
 **An unclosed code fence is a violation, not a formatting nit.** Every check that
 reads `plan.md`, `decisions.md`, `worklog.md`, or an audit report strips fenced

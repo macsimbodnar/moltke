@@ -1281,8 +1281,10 @@ def audit_new(root, config, audit_type):
               f"whatever the reviewer changes will go unnoticed.", file=sys.stderr)
         return EXIT_OK
     try:
+        head = _git_lines(root, "rev-parse", "HEAD")
         baseline_path.write_text(json.dumps(
-            {"report": str(report.relative_to(root)), "tree": baseline}), encoding="utf-8")
+            {"report": str(report.relative_to(root)), "tree": baseline,
+             "head": head[0] if head else None}), encoding="utf-8")
     except OSError as exc:
         print(f"moltke: could not record the audit baseline ({exc}); --audit check will "
               f"refuse until --audit new runs again.", file=sys.stderr)
@@ -1314,6 +1316,13 @@ def audit_check(root, config):
 
     before, report = saved["tree"], saved.get("report", "")
     expected, unexpected = [], []
+
+    def classify(entry, note, is_new):
+        if entry == report or (entry.startswith("tests/") and is_new):
+            expected.append(note)
+        else:
+            unexpected.append(note)
+
     for entry in sorted(set(before) | set(current)):
         was, now = before.get(entry), current.get(entry)
         if was == now:
@@ -1324,11 +1333,30 @@ def audit_check(root, config):
             note = f"{entry}: {now[0].strip() or 'changed'}"
         else:
             note = f"{entry}: changed again (was {was[0].strip()}, now {now[0].strip()})"
-        if entry == report or (entry.startswith("tests/") and was is None
-                               and _is_new_file(now[0])):
-            expected.append(note)
+        classify(entry, note, was is None and now is not None and _is_new_file(now[0]))
+
+    # And what the run committed (S032, F01). A clean tracked file that the run
+    # patched and committed is in neither snapshot, so it was not misclassified,
+    # it was absent — and DEC-022 traded the write fence away for this check, so
+    # `git commit` defeated the thing that replaced the fence.
+    head_before = saved.get("head")
+    if head_before:
+        committed = _git_lines(root, "diff", "--name-status", "--no-renames",
+                               f"{head_before}..HEAD")
+        if committed is None:
+            unexpected.append(f"the commit {head_before[:8]} recorded at --audit new is no "
+                              f"longer reachable, so what this run committed cannot be read; "
+                              f"history was rewritten")
         else:
-            unexpected.append(note)
+            for line in committed:
+                if "\t" not in line:
+                    continue
+                status, entry = line.split("\t")[0], line.split("\t")[-1]
+                classify(entry, f"{entry}: {status} in a commit made during this run",
+                         status.startswith("A"))
+    elif saved.get("head", "missing") is None:
+        expected.append("no commit existed when --audit new ran, so commits made during the "
+                        "run cannot be compared")
 
     if expected:
         print("expected, this run's report and new tests:")
@@ -1343,7 +1371,8 @@ def audit_check(root, config):
               f"git diff, then keep or revert deliberately.")
         return EXIT_VIOLATIONS
     if not expected:
-        print("no change since --audit new; the report itself has not been written yet.")
+        print("no change since --audit new: nothing in the working tree, and nothing "
+              "committed. The report has not been written yet.")
     return EXIT_OK
 
 

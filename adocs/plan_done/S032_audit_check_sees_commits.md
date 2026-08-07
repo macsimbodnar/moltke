@@ -7,4 +7,4 @@ decisions:
 closes:     2026-08-07_adversarial-F01
 blocks:
 paused_by:
-done:
+done:      2026-08-07: --audit new records the HEAD sha and --audit check reports git diff from it as part of the run's footprint, so a committed patch is no longer invisible; the same expected/unexpected rule applies to commits, and an unreachable baseline HEAD is reported. 4 tests, red observed as the finding's own 'no change since --audit new' message. Suite 204 OK, --validate green. README test count 200 to 204; MANUAL's --audit check entry rewritten, including removing the claim that a committed change 'shows up as reverted or committed', which was true only for a file already dirty at baseline.

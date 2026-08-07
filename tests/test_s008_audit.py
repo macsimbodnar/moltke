@@ -22,12 +22,16 @@ def run_moltke(cwd, *args, stdin=""):
     )
 
 
+def git(root, *args):
+    return subprocess.run(
+        ["git", "-C", str(root), "-c", "user.name=t", "-c", "user.email=t@t", *args],
+        capture_output=True, text=True, check=True,
+    )
+
+
 def git_baseline(root):
     for args in (("init", "-q"), ("add", "-A"), ("commit", "-qm", "base")):
-        subprocess.run(
-            ["git", "-C", str(root), "-c", "user.name=t", "-c", "user.email=t@t", *args],
-            capture_output=True, text=True, check=True,
-        )
+        git(root, *args)
 
 
 def write(root, rel, text):
@@ -343,6 +347,55 @@ class TestAuditReconciliation(unittest.TestCase):
             result = self.check(root)
             self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
             self.assertIn("src/main.py", result.stdout)
+
+    def test_a_committed_source_patch_is_unexpected(self):
+        # S032 (F01): a clean tracked file that the run patches AND commits was
+        # in neither snapshot, so the check printed "no change since --audit new"
+        # for a run that had rewritten source. DEC-022 traded the write fence
+        # away for this check, and git commit defeated it.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.committed_repo(tmp)
+            run_moltke(root, "--audit", "new", "adversarial")
+            write(root, "src/main.py", "print('patched by the reviewer')\n")
+            git(root, "add", "-A")
+            git(root, "commit", "-qm", "reviewer patches source")
+            result = self.check(root)
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn("src/main.py", result.stdout)
+
+    def test_a_committed_weakened_test_is_unexpected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.committed_repo(tmp)
+            run_moltke(root, "--audit", "new", "adversarial")
+            write(root, "tests/test_existing.py", "# weakened\n")
+            git(root, "add", "-A")
+            git(root, "commit", "-qm", "reviewer weakens a test")
+            result = self.check(root)
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn("tests/test_existing.py", result.stdout)
+
+    def test_committing_the_report_and_a_new_test_stays_expected(self):
+        # Non-vacuity: the fix must not call every commit contamination.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.committed_repo(tmp)
+            run_moltke(root, "--audit", "new", "adversarial")
+            write(root, "tests/test_regression.py", "# red first\n")
+            git(root, "add", "-A")
+            git(root, "commit", "-qm", "report plus a new regression test")
+            result = self.check(root)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertIn("tests/test_regression.py", result.stdout)
+
+    def test_a_commit_made_before_the_run_is_not_blamed_on_it(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.committed_repo(tmp)
+            write(root, "src/main.py", "print('someone else, earlier')\n")
+            git(root, "add", "-A")
+            git(root, "commit", "-qm", "unrelated work before the audit")
+            run_moltke(root, "--audit", "new", "adversarial")
+            result = self.check(root)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertNotIn("src/main.py", result.stdout)
 
     def test_check_without_a_baseline_refuses_and_says_what_to_run(self):
         with tempfile.TemporaryDirectory() as tmp:
