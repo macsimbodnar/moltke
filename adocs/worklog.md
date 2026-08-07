@@ -1047,3 +1047,44 @@ silently. That is audit finding F14, reproduced and planned as S014.
   (177 to 182 tests), `adocs/status.md`, `plan_current/S034` moved to `plan_done/`.
 - Tests added: 5. Suite 182 OK, `--validate` green.
 - Next: S046, then S035.
+
+## 2026-08-07T14:04+02:00 prompt
+
+> go
+
+## 2026-08-07 recap — S046 INV-8 catches a committed post-baseline rewrite
+
+- S046 done. Not an audit finding: this is the gap S034 created and measured
+  rather than hid, planned the same turn it was found.
+- INV-8's history check now keeps a high-water mark. Versions are walked oldest
+  first; one that still contains, in order, every line the mark requires becomes
+  the new mark, one that dropped something is a tampering and is skipped. The
+  file as it stands must contain the mark's lines, in order.
+- Two more candidates were implemented and measured before this one stuck, which
+  is the whole reason the rule looks the way it does. Comparing against every
+  past version by line subsequence catches the rewrite but still fails after a
+  repair, because a rewrite introduces a line the repair rightly discards, so the
+  tampered version is not a subsequence of the corrected file either — observed as
+  `VIOLATION: INV-8: ... no longer contains, in order, the lines it had at commit
+  10cbde36`. Comparing against the longest past version misses a rewrite that
+  lengthens the file, which is the common shape of an in-place edit. DEC-028
+  records both, and DEC-027 stays as the record of the fixed-baseline attempt.
+- Skipping tampered versions is what reconciles the two halves: a repair restores
+  the mark and clears the whole history at once, while a removal, an in-place
+  rewrite, and a line moved to the end are each caught, because in every one a
+  required line is no longer in order.
+- The five states DEC-027 measured were re-measured, not assumed: the gap row
+  moved from exit 0 to exit 1 and the other four are unchanged.
+- Two behaviours stated rather than left to be discovered: mid-file insertion
+  passes, since only removal and reordering break a subsequence, and reordering
+  entries is a violation until reversed — which is what DEC-013's authorised
+  reorder would be today.
+- The commit for this step was delayed by a transient tool outage between
+  completing the step and writing this recap; nothing about the work changed.
+- Files: `bin/moltke.py` (new `lines_survive`, rewritten history half of
+  `inv_8_append_only`), `tests/test_s004_invariants.py`, `adocs/decisions.md`
+  (DEC-028), `adocs/specs.md`, `adocs/testing.md` (+4 rows), `MANUAL.md`,
+  `README.md` (182 to 184 tests), `adocs/status.md`, `plan_current/S046` moved to
+  `plan_done/`.
+- Tests added: 2. Suite 184 OK, `--validate` green.
+- Next: S035, the linked worktree and submodule case.

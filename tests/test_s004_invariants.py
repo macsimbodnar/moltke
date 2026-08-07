@@ -141,6 +141,48 @@ class TestAppendOnly(unittest.TestCase):
             git(root, "commit", "-qm", "append it at the end instead")
             self.assert_violation(root, "INV-8")
 
+    def test_a_committed_rewrite_of_post_baseline_text_is_caught(self):
+        # S046: the gap DEC-027 measured and left open. The rewritten text was
+        # appended after the first commit, so a first-commit baseline never saw it.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            git_baseline(root)
+            path = root / "adocs" / "decisions.md"
+            path.write_text(path.read_text(encoding="utf-8")
+                            + "\n## DEC-002  2026-08-07  appended later\n"
+                              "Tags: x\nContext: x\nDecision: x\nRejected: none\n"
+                              "Consequences: none\n", encoding="utf-8")
+            git(root, "add", "-A")
+            git(root, "commit", "-qm", "append DEC-002")
+            self.assertEqual(run_validate(root).returncode, 0,
+                             "precondition: a legitimate append is clean")
+            path.write_text(path.read_text(encoding="utf-8")
+                            .replace("appended later", "REWRITTEN"), encoding="utf-8")
+            git(root, "add", "-A")
+            git(root, "commit", "-qm", "rewrite the appended entry")
+            self.assert_violation(root, "INV-8")
+
+    def test_a_repair_of_post_baseline_text_clears_it(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            git_baseline(root)
+            path = root / "adocs" / "decisions.md"
+            path.write_text(path.read_text(encoding="utf-8")
+                            + "\n## DEC-002  2026-08-07  appended later\nRejected: none\n",
+                            encoding="utf-8")
+            git(root, "add", "-A")
+            git(root, "commit", "-qm", "append DEC-002")
+            good = path.read_text(encoding="utf-8")
+            path.write_text(good.replace("appended later", "REWRITTEN"), encoding="utf-8")
+            git(root, "add", "-A")
+            git(root, "commit", "-qm", "rewrite it")
+            self.assert_violation(root, "INV-8")
+            path.write_text(good, encoding="utf-8")
+            git(root, "add", "-A")
+            git(root, "commit", "-qm", "put the entry back as it was")
+            result = run_validate(root)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
     def test_committed_deletion_of_decisions_is_caught(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = workflow_repo(tmp)

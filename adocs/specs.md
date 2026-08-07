@@ -53,6 +53,17 @@ a `Status: <value>` line in its section; the S008 report template must conform.
 check abstains. INV-3 additionally treats a missing `plan.md` in an enabled
 repo as a violation.
 
+2026-08-07 (S046, DEC-028): INV-8's history check keeps a high-water mark instead
+of one fixed baseline, closing the gap DEC-027 accepted. Versions are walked
+oldest first: one that still contains, in order, every line the mark requires
+becomes the new mark; one that dropped something is a tampering and is skipped.
+The file as it stands must contain the mark's lines, in order. A committed
+rewrite of text appended after the first commit is now caught, and a repair still
+clears. Two consequences worth knowing: mid-file insertion passes, because only
+removal and reordering break a subsequence, and reordering entries is a violation
+until reversed. The gap row DEC-027 measured, "the same rewrite committed", moved
+from exit 0 to exit 1 with the other four states unchanged.
+
 2026-08-07 (S034, DEC-026 and DEC-027): both invariants judge current content
 against a fixed historical version instead of the existence of a bad commit, so
 restoring what was removed clears the violation. S018's rule had no terminal

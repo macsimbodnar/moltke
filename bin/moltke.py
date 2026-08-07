@@ -323,6 +323,12 @@ FINDING_STATUSES = ("open", "planned", "closed", "accepted")
 FINDING_RE = re.compile(r"^###\s+(\S*-F\d{2})\b", re.M)
 
 
+def lines_survive(past, current):
+    """True when every line of `past` still appears in `current`, in order."""
+    it = iter(current)
+    return all(any(line == candidate for candidate in it) for line in past)
+
+
 def inv_8_append_only(root, config):
     # Two baselines, same reasoning as INV-7: HEAD for the uncommitted window,
     # history for everything already committed. Untracked files have neither.
@@ -341,22 +347,36 @@ def inv_8_append_only(root, config):
                               f"it is append-only and never removed: restore it in a new commit, "
                               f"git show {shas[-1][:8]}:{rel} > {rel}")
             continue
-        # One fixed baseline, the first committed version, exactly as INV-7 uses
-        # the add-commit version. Requiring every past version to be a prefix
-        # cannot work: after a repair the tampered version is itself history, and
-        # no restoration can ever make the file start with it again. DEC-027
-        # states the cost — a rewrite of text appended after the first commit is
-        # caught by the HEAD comparison below while uncommitted, and not after.
-        first = blobs.get(f"{shas[0]}:{rel}")
-        current = path.read_bytes()
-        if first is not None and not current.startswith(first):
+        # The high-water mark of content that was ever legitimately in the file
+        # (S046). Walk the versions oldest first: one that still contains
+        # everything required becomes the new mark, one that dropped something
+        # is a tampering and is skipped rather than becoming the mark. The file
+        # as it stands must then contain the mark's lines, in order.
+        #
+        # Neither half works alone, and DEC-027 records why. Comparing against
+        # every past version can never pass after a repair, because the tampered
+        # version is itself history and holds text the repair rightly discarded.
+        # Comparing against one fixed baseline misses any rewrite of text
+        # appended after it. Skipping tampered versions is what reconciles them:
+        # a repair restores the mark and clears everything at once, while a
+        # removal, an in-place rewrite, and a line moved to the end are all
+        # caught, because in each case a required line is no longer in order.
+        required, required_sha = None, shas[0]
+        for sha in shas:
+            past = blobs.get(f"{sha}:{rel}")
+            if past is None:
+                continue
+            lines = past.splitlines()
+            if required is None or lines_survive(required, lines):
+                required, required_sha = lines, sha
+        if required is not None and not lines_survive(required, path.read_bytes().splitlines()):
             violations.append(
-                f"INV-8: {rel} no longer starts with the version it had at commit "
-                f"{shas[0][:8]}; it grows only at the end, because DEC ids are cited from code, "
-                f"commits, and specs and a rewritten entry changes what those citations mean. "
-                f"Put the removed content back where it was and this clears: "
-                f"git show {shas[0][:8]}:{rel}. A reversal is a new entry marking the old one "
-                f"VOID, never an edit")
+                f"INV-8: {rel} no longer contains, in order, the lines it had at commit "
+                f"{required_sha[:8]}; it grows only at the end, because DEC ids are cited from "
+                f"code, commits, and specs and a rewritten entry changes what those citations "
+                f"mean. Put the removed content back where it was and this clears: "
+                f"git show {required_sha[:8]}:{rel}. A reversal is a new entry marking the old "
+                f"one VOID, never an edit")
     for rel in APPEND_ONLY_FILES:
         shown = subprocess.run(["git", "-C", str(root), "show", f"HEAD:{rel}"],
                                capture_output=True)

@@ -7,4 +7,4 @@ decisions:  DEC-026, DEC-027
 closes:
 blocks:
 paused_by:
-done:
+done:      2026-08-07: INV-8 keeps a high-water mark of legitimate content instead of one fixed baseline, so a committed post-baseline rewrite is caught and a repair still clears. DEC-028 records the mechanism and the two further candidates measured and rejected. 2 tests, red observed under both rejected rules. Suite 184 OK, --validate green, and the five-state probe from DEC-027 re-measured with the gap row flipped. README test count 182 to 184; MANUAL's immutability entry now states the by-line comparison and its three limits, with the plan_done byte comparison called out.

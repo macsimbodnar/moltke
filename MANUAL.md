@@ -230,13 +230,17 @@ the way back to green is the one the message tells you: restore those bytes in a
 new commit, and the violation clears. Leave it rewritten and it keeps reporting.
 Nothing is ever reverted for you, and git history stays intact as the record.
 
+For `decisions.md` the comparison is by line, not by byte: every line the file
+legitimately had must still be there, in that order. So appending is free,
+inserting in the middle passes, and removing a line, rewriting one in place, or
+moving one to the end are all caught. Reordering entries is a violation until it
+is reversed.
+
 Three known limits. A file created and deleted inside the same commit leaves
 nothing to detect. `Bash` writes reach `plan_done/` without meeting the
-PreToolUse fence, so the history check is what notices afterwards. And for
-`decisions.md`, a rewrite of text that was appended *after* the first commit is
-reported while it is uncommitted and not once it is committed — the baseline is
-the first version, not every version, because requiring every version would mean
-no repair could ever clear anything.
+PreToolUse fence, so the history check is what notices afterwards. And a `plan_done/`
+file is compared byte for byte, so reformatting one — even a trailing newline —
+counts as tampering until it is put back.
 
 **Prompts are recorded verbatim, so a pasted secret is written to disk.** Every
 `UserPromptSubmit` appends your prompt to `adocs/worklog.md`, which is tracked and
