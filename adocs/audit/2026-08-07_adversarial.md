@@ -142,7 +142,7 @@ One line each, decided against the code at `1500b83`.
 
 ### 2026-08-07_adversarial-F01  high  `--audit check` cannot see a change the run commits
 
-Status: open
+Status: closed
 
 Evidence: `audit_check` (`bin/moltke.py:1149-1200`) diffs two `git status`
 snapshots. A file that was clean when `--audit new` ran and that the run modifies
@@ -201,7 +201,7 @@ touches nothing but the report and new tests. That also fixes the misleading
 
 ### 2026-08-07_adversarial-F02  high  an unbalanced code fence hides an open finding from INV-10 and the recap gate
 
-Status: open
+Status: planned
 
 Evidence: `strip_guidance` (`bin/moltke.py:94-103`) pairs triple-backtick markers
 globally and non-greedily, with no notion of line-start or of balance, so an odd
@@ -267,7 +267,7 @@ applied here.
 
 ### 2026-08-07_adversarial-F03  high  one committed tampering makes INV-7 and INV-8 permanently red, and the prescribed fix does not clear it
 
-Status: open
+Status: closed
 
 Evidence: the S018 history baselines (`bin/moltke.py:258-269`,
 `bin/moltke.py:290-303`) report any commit whose `--name-status` is not `A` under
@@ -318,7 +318,7 @@ not the agent. Not applied here.
 
 ### 2026-08-07_adversarial-F04  high  in a linked git worktree the audit baseline, the log breadcrumb, and the Stop deadlock cap all vanish
 
-Status: open
+Status: closed
 
 Evidence: three helpers decide "is there a git repository here" with
 `(root / ".git").is_dir()` — `_log_failure_path` (`bin/moltke.py:474-476`),
@@ -372,7 +372,7 @@ Not applied here.
 
 ### 2026-08-07_adversarial-F05  medium  `--audit check` blames the plugin's own worklog write on the reviewer
 
-Status: open
+Status: closed
 
 Evidence: `--audit new` records the baseline (`bin/moltke.py:1119-1142`), and the
 `UserPromptSubmit` hook appends to `adocs/worklog.md` on every subsequent prompt
@@ -415,7 +415,7 @@ would do, and the distinction is one `git diff --numstat`. Not applied here.
 
 ### 2026-08-07_adversarial-F06  medium  the Stop recap gate treats `.claude-plugin/` as not-source
 
-Status: open
+Status: closed
 
 Evidence: `bin/moltke.py:670-671`.
 
@@ -453,7 +453,7 @@ Not applied here.
 
 ### 2026-08-07_adversarial-F07  medium  a malformed `test_command` silently turns the suite gate off, and `--step done` says the key is absent
 
-Status: open
+Status: closed
 
 Evidence: `run_test_command` (`bin/moltke.py:943-952`) treats anything that is not
 a non-empty string as "not configured" and returns `None`, which
@@ -497,7 +497,7 @@ plan. Not applied here.
 
 ### 2026-08-07_adversarial-F08  medium  `status.md` staleness is detected only through its `Next:` line
 
-Status: open
+Status: closed
 
 Evidence: `status_next` (`bin/moltke.py:438-443`) extracts one id with
 `re.search(r"Next:.*?\b(S\d{3})\b", ...)`, and both detectors compare only that —
@@ -536,7 +536,7 @@ Then a stale file is detected whatever went stale. Not applied here.
 
 ### 2026-08-07_adversarial-F09  low  `--audit new <type>` writes outside `adocs/audit/` when the type contains a path separator
 
-Status: open
+Status: closed
 
 Evidence: `next_report_path` (`bin/moltke.py:1102-1116`) interpolates the type
 into a filename with no validation, and `audit_new` then calls
@@ -571,7 +571,7 @@ naming the rule. Not applied here.
 
 ### 2026-08-07_adversarial-F10  low  the reviewer's `tests/` allowance is escapable with a relative `..` path
 
-Status: open
+Status: closed
 
 Evidence: `reviewer_may_write` (`bin/moltke.py:551-559`) inspects `rel.parts`,
 which pathlib does not normalise, so a first component of `tests` is enough:
@@ -602,7 +602,7 @@ Suggested resolution: normalise before matching — resolve relative paths again
 
 ### 2026-08-07_adversarial-F11  low  the `test_command` refusal writes to both streams, against the documented mapping
 
-Status: open
+Status: closed
 
 Evidence: `run_test_command` prints the banner to stdout (`bin/moltke.py:953`)
 and refuses on stderr (`bin/moltke.py:971`):
@@ -714,3 +714,25 @@ The three offending lines were then reworded to describe the markers instead of
 quoting them, which is the only change made to this report after the hook ran. No
 finding text, severity, evidence, or status was altered. `--audit list` now sees
 all eleven.
+
+## Closure, 2026-08-07 (S044)
+
+Statuses above were set from the re-run recorded in
+`adocs/audit/2026-08-07_adversarial.2.md`, which decided each finding by running
+the tool in throwaway repositories at `b8b4345`, not by reading the step files.
+
+- Ten `closed`: F01, F03, F04, F05, F06, F07, F08, F09, F10, F11.
+- F02 stays `planned`. S033 fixed two of its three cases — the odd trailing
+  marker and the silently disabled recap gate — and left the primary one: two
+  unclosed fences are an *even* marker count, so INV-13 is silent and the J2
+  transcript reproduces verbatim. S033's own specs note recorded that ambiguity
+  and pointed at INV-13 as the answer; INV-13 turned out to answer only half of
+  it. The remainder is S049, and `MANUAL.md` describing the hole in the past
+  tense is 2026-08-07_adversarial.2-F04, which is S051.
+
+2026-08-06_adversarial-F02, the reviewer write fence, also stays `planned` for a
+second run. It is fixed in this checkout and still open in the installed plugin,
+which this run proved rather than inferred: the `PostToolUse` hook reported eight
+of the reviewer's ten findings, and running both copies of `bin/moltke.py` over
+the same input reproduces exactly that split, so the hook is executing
+`~/.claude/plugins/cache/moltke/moltke/0.2.0/bin/moltke.py`.

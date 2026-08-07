@@ -58,6 +58,17 @@ step instead.
 40. S040  an audit type cannot write outside adocs/audit/
 41. S042  the test_command refusal obeys the documented stream mapping
 42. S044  bump 0.4.0, re-run the audit, close the 2026-08-07 findings
-43. S028  init drives a guided planning phase after scaffolding
-44. S029  init handles a repo already initialized on another machine
-45. S031  target repositories inherit the worklog secret check, not just moltke's own suite
+43. S047  the Stop deadlock waiver cannot become an off switch
+44. S048  INV-3 and plan_order agree on what listed in plan.md means
+45. S049  two unclosed fences cannot hide a finding
+46. S050  a renamed file does not slip past either Stop gate
+47. S052  --step does not traceback in a marked repository without adocs/
+48. S053  the Stop deadlock cap exists in a marked repository without git
+49. S051  MANUAL stops claiming the two-unclosed-fence hole is fixed
+50. S054  INV-8's enforced rule and its stated rule agree
+51. S055  INV-13 counts the markers strip_guidance actually sees
+52. S056  the worklog exemption does not hand the reviewer a silent channel
+53. S057  the reviewer agent and audit skill state where the fence stops
+54. S028  init drives a guided planning phase after scaffolding
+55. S029  init handles a repo already initialized on another machine
+56. S031  target repositories inherit the worklog secret check, not just moltke's own suite

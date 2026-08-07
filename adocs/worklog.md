@@ -1449,3 +1449,52 @@ silently. That is audit finding F14, reproduced and planned as S014.
   `adocs/status.md`, `plan_current/S042` moved to `plan_done/`.
 - Tests added: 1. Suite 228 OK, `--validate` green.
 - Next: S044, bump 0.4.0 and re-run the audit to close the eleven.
+
+## 2026-08-07T18:18+02:00 prompt
+
+> next, keep for last my decision
+
+## 2026-08-07 recap — S044 bump 0.4.0, re-run the audit, close the findings
+
+- S044 done. `plugin.json` is 0.4.0, and the 2026-08-07 audit is closed out from a
+  re-run rather than from the eleven step files claiming success.
+- Ten of eleven no longer reproduce, each decided by running the tool in throwaway
+  repositories. F02 stays `planned`, and the reason is a real miss of mine: S033
+  fixed the odd-marker case and the recap-gate case and pointed at INV-13 for the
+  rest, but two unclosed fences are an *even* count, so INV-13 never fires and the
+  original transcript reproduces verbatim. The specs note I wrote for S033 said
+  the ambiguity was "reported rather than guessed"; it was reported only half the
+  time. S049 covers the remainder, S051 the MANUAL sentence that already claims it
+  is fixed.
+- The re-run exercised S020 for real: today already had a report, so this one
+  became `2026-08-07_adversarial.2.md` with its own finding-id stem.
+- `--audit check` reconciled clean, exit 0, on a run spanning several prompts.
+  That is S036 working on its first real audit — the same worklog append was
+  reported as unexpected on every previous run.
+- Ten new findings, two high, and both high ones are consequences of this batch
+  rather than old code. The Stop waiver keys on a `prompt_id` that nothing in the
+  repository establishes exists, and without it the counter is global and
+  persistent, so from the fourth blocked turn onward every Stop check is off and
+  stays off across sessions. And S045's narrowing of `plan_order` left INV-3
+  reading the whole file, so a step named only in prose passes validation while
+  being invisible to `derived_next` — a prime-directive violation I introduced
+  while fixing a prime-directive violation.
+- The reviewer also mutation-tested: 17 behaviours deleted in copies outside the
+  repository, 16 caught, one survivor. The README/MANUAL stamp gate can be deleted
+  outright with 228 tests still green. That is now part of S050.
+- 2026-08-06_adversarial-F02 stays `planned` for a second run, and this time the
+  installed-plugin claim was proved rather than inferred: the `PostToolUse` hook
+  reported 8 of the reviewer's 10 findings, and running both copies of
+  `bin/moltke.py` over the same input reproduces exactly that split.
+- One process slip worth recording: my status-update script matched the finding-id
+  in the report's own fenced format example before the real heading, and set that
+  to `closed`. Caught by reading `--audit list`, restored, and the real F01 set
+  instead. The same guidance-is-not-data rule that INV-10 respects does not apply
+  to a regex written in a hurry.
+- Files: `.claude-plugin/plugin.json`, `adocs/audit/2026-08-07_adversarial.2.md`,
+  `adocs/audit/2026-08-07_adversarial.md` statuses plus a closure section, eleven
+  new step files, `adocs/plan.md`, `adocs/testing.md` (+8 rows), `adocs/status.md`,
+  `plan_current/S044` moved to `plan_done/`.
+- Tests added: none; this step re-runs and triages. Suite 228 OK, `--validate`
+  green, `--audit list` exit 0.
+- Next: S047, the Stop deadlock waiver.
