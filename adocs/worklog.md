@@ -1412,3 +1412,7 @@ silently. That is audit finding F14, reproduced and planned as S014.
   `plan_current/S040` moved to `plan_done/`.
 - Tests added: 4, one with seven subtests. Suite 227 OK, `--validate` green.
 - Next: S042, the test_command refusal stream — last of the eleven.
+
+## 2026-08-07T18:10+02:00 prompt
+
+> where we are in the plan?

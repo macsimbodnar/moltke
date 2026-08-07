@@ -61,4 +61,3 @@ step instead.
 43. S028  init drives a guided planning phase after scaffolding
 44. S029  init handles a repo already initialized on another machine
 45. S031  target repositories inherit the worklog secret check, not just moltke's own suite
-46. S046  inv8 post baseline rewrites
