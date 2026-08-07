@@ -1619,3 +1619,15 @@ silently. That is audit finding F14, reproduced and planned as S014.
   `plan_current/S048` moved to `plan_done/`.
 - Tests added: 3. Suite 236 OK, `--validate` green.
 - Next: S049, two unclosed fences.
+
+## 2026-08-08T00:46+02:00 prompt
+
+> next in the plan
+
+## 2026-08-08T00:50+02:00 prompt
+
+> explain
+
+## 2026-08-08T00:55+02:00 prompt
+
+> let's go with the recommended one

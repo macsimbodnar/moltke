@@ -8,10 +8,13 @@ Written before any fix. A report edited while fixing stops being evidence of
 what was found.
 
 Finding format. Every finding carries a status of `open`, `planned`, `closed`,
-or `accepted`, and an id prefixed with this report's own name:
+or `accepted`, and an id prefixed with this report's own name, so the ids in
+this file read `YYYY-MM-DD_type-F<nn>`. The example below writes that prefix as
+`<report>`: a fenced example carrying this report's real stem cannot be told
+apart from a real finding that a fence has swallowed, which is INV-14 (S049).
 
 ```
-### YYYY-MM-DD_type-F01  high  short title
+### <report>-F01  high  short title
 
 Status: open
 

@@ -443,6 +443,38 @@ def finding_references(root):
     return "\n".join(references)
 
 
+def own_finding_headings(text, stem):
+    """Finding ids in `text` whose id carries `stem`, this report's own name.
+
+    Scoped to the stem on purpose (S049). A foreign id is quotable evidence — the
+    verdict section of every re-run is nothing but quoted headings — and the
+    shipped report template fences an example finding under the placeholder stem
+    `YYYY-MM-DD_type`. Both must stay guidance. Only a heading naming this file's
+    own report can be a finding of this file.
+    """
+    return [match.group(1) for match in FINDING_RE.finditer(text)
+            if re.fullmatch(rf"{re.escape(stem)}-F\d{{2}}", match.group(1))]
+
+
+def hidden_findings(report):
+    """Ids this report declares in its raw text but hides from every scanner.
+
+    S049 (2026-08-07_adversarial-F02): two unclosed evidence fences are two
+    markers, so they pair as one closed fence and everything between them —
+    including a whole finding — is stripped before any check sees it. The count
+    stays even, so INV-13 is silent. Comparing the headings the file states
+    against the ones that survive stripping needs no guess about which meaning
+    the markers had: either way, a finding the report names is unreadable.
+    """
+    raw = report.read_text(encoding="utf-8", errors="replace")
+    visible = {finding_id for finding_id, _status in report_findings(report)}
+    ids = []
+    for finding_id in own_finding_headings(raw, report.stem):
+        if finding_id not in visible and finding_id not in ids:
+            ids.append(finding_id)
+    return ids
+
+
 def report_findings(report):
     """[(finding_id, status)] for a report. Fenced examples and comments in the
     template are guidance, not findings."""
@@ -508,6 +540,24 @@ def inv_13_balanced_fences(root, config):
     return violations
 
 
+def inv_14_findings_not_hidden(root, config):
+    """S049: INV-13 catches one unclosed fence. Two are an even count and pair as
+    one closed fence, which is the shape a reviewer produces by pasting two
+    transcripts and closing neither, and it deletes the finding between them."""
+    audit_dir = root / DOCS / "audit"
+    if not audit_dir.is_dir():
+        return []
+    violations = []
+    for report in sorted(audit_dir.glob("*.md")):
+        for finding_id in hidden_findings(report):
+            violations.append(
+                f"INV-14: {report.name} states finding {finding_id} but a code fence swallows "
+                f"it, so INV-10 and --audit list never see it. Two unclosed fences pair as one "
+                f"closed fence and the marker count stays even, which is why INV-13 is quiet: "
+                f"close the evidence blocks around that heading")
+    return violations
+
+
 INVARIANT_CHECKS = [
     ("INV-1", inv_1_active_max),
     ("INV-2", inv_2_stack_max),
@@ -520,6 +570,7 @@ INVARIANT_CHECKS = [
     ("INV-9", inv_9_unique_dec_ids),
     ("INV-10", inv_10_audit_findings),
     ("INV-13", inv_13_balanced_fences),
+    ("INV-14", inv_14_findings_not_hidden),
 ]
 
 
@@ -782,7 +833,12 @@ def mode_pre_write(root, config, path_arg):
     return EXIT_OK
 
 
-CHEAP_CHECKS = ("INV-1", "INV-2", "INV-3", "INV-4", "INV-5", "INV-6", "INV-9", "INV-10")
+# INV-13 is absent on purpose: it reads the worklog, which grows without bound.
+# INV-14 reads the audit reports INV-10 already reads, so a reviewer learns a
+# fence swallowed a finding when the report is saved rather than at the next
+# --validate — the gap 2026-08-07_adversarial.2-F04 named (S049).
+CHEAP_CHECKS = ("INV-1", "INV-2", "INV-3", "INV-4", "INV-5", "INV-6", "INV-9", "INV-10",
+                "INV-14")
 
 
 def mode_post_write(root, config, marker_violations):
@@ -1509,12 +1565,22 @@ def audit_list(root, config):
     references = finding_references(root)
     steps = plan_steps(root)
     unreferenced = 0
+    hidden_total = 0
     total = 0
     for report in reports:
         findings = report_findings(report)
-        if not findings:
+        hidden = hidden_findings(report)
+        if not findings and not hidden:
             continue
         print(f"{report.name}")
+        for finding_id in hidden:
+            # S049: this listing omitted them entirely, which is worse than
+            # listing them unreferenced — the operator read a complete-looking
+            # report. Nothing else about the finding is readable, so the status
+            # and the reference are not guessed at.
+            total += 1
+            hidden_total += 1
+            print(f"  {finding_id}  hidden  (a code fence swallows it; INV-14)")
         for finding_id, status in findings:
             total += 1
             closers = [s for dirname in PLAN_DIRS for s, _p, fields in steps[dirname]
@@ -1531,10 +1597,15 @@ def audit_list(root, config):
     if not total:
         print("moltke: no findings recorded.")
         return EXIT_OK
+    if hidden_total:
+        print(f"moltke: {hidden_total} finding(s) have a heading no check can read, because a "
+              f"code fence swallows them. Close the evidence blocks around them; until then "
+              f"their status and their references are unknown, not absent.")
     if unreferenced:
         print(f"moltke: {unreferenced} open finding(s) have no plan step and no decision. "
               f"Every finding ends in a step whose closes: names it, or a decisions.md entry "
               f"stating why it is accepted.")
+    if hidden_total or unreferenced:
         return EXIT_VIOLATIONS
     return EXIT_OK
 

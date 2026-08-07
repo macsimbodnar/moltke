@@ -7,6 +7,7 @@ making guidance invisible into a way of making evidence invisible. The audit
 report that reported this reproduced it on itself.
 """
 
+import json
 import re
 import subprocess
 import sys
@@ -15,15 +16,38 @@ import unittest
 from pathlib import Path
 
 from fixtures import audit_report, workflow_repo
-from surface import moltke
+from surface import REPO, moltke
 
 strip = moltke.strip_guidance
 MOLTKE = Path(__file__).resolve().parent.parent / "bin" / "moltke.py"
 
 
+def run_moltke(cwd, *args, stdin=""):
+    return subprocess.run([sys.executable, str(MOLTKE), *args],
+                          cwd=cwd, input=stdin, capture_output=True, text=True)
+
+
 def run_validate(cwd):
-    return subprocess.run([sys.executable, str(MOLTKE), "--validate"],
-                          cwd=cwd, capture_output=True, text=True)
+    return run_moltke(cwd, "--validate")
+
+
+# The J2 case of 2026-08-07_adversarial-F02, verbatim: two evidence blocks, the
+# second finding between them. `CLOSED` is the control; removing the two closing
+# markers is the whole of the tampering.
+CLOSED_REPORT = ("# Audit\n\n"
+                 "### 2026-08-01_adversarial-F01  high  one\n\nStatus: accepted\n\n"
+                 "```\nevidence one\n```\n\n"
+                 "### 2026-08-01_adversarial-F02  high  two\n\nStatus: open\n\n"
+                 "```\nevidence two\n```\n")
+UNCLOSED_REPORT = CLOSED_REPORT.replace("evidence one\n```", "evidence one") \
+                               .replace("evidence two\n```", "evidence two")
+
+
+def report_repo(tmp, body):
+    root = workflow_repo(tmp)
+    report = audit_report(root, [("2026-08-01_adversarial-F01", "accepted")])
+    report.write_text(body, encoding="utf-8")
+    return root, report
 
 
 class TestBalancedFencesStillStrip(unittest.TestCase):
@@ -135,6 +159,127 @@ class TestAmbiguityIsReportedNotGuessed(unittest.TestCase):
             result = run_validate(root)
             self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
             self.assertIn("INV-13", result.stdout)
+
+
+class TestAReportCannotHideItsOwnFindings(unittest.TestCase):
+    """S049 (2026-08-07_adversarial-F02, .2-F04): parity catches one unclosed
+    fence, not two. Two unclosed fences are two markers, pair as one closed
+    fence, and the finding between them vanishes with INV-13 silent. INV-14
+    compares the finding headings in the raw text against the ones that survive
+    stripping, scoped to the report's own stem — which is what keeps the
+    template's fenced `YYYY-MM-DD_type-F01` example guidance rather than a
+    hidden finding."""
+
+    def test_the_control_is_the_same_report_with_both_fences_closed(self):
+        # Non-vacuity: without this, an exit 1 below could be the checker being
+        # broken rather than the finding being hidden. Closed, F02 is visible,
+        # open, and unreferenced, so INV-10 has something to say.
+        with tempfile.TemporaryDirectory() as tmp:
+            root, _report = report_repo(tmp, CLOSED_REPORT)
+            result = run_validate(root)
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn("INV-10", result.stdout)
+            self.assertIn("2026-08-01_adversarial-F02", result.stdout)
+            self.assertNotIn("INV-14", result.stdout)
+
+    def test_a_finding_between_two_unclosed_fences_is_reported(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root, report = report_repo(tmp, UNCLOSED_REPORT)
+            markers = len(re.findall(r"^ {0,3}```", report.read_text(encoding="utf-8"), re.M))
+            self.assertEqual(markers % 2, 0,
+                             "precondition: an even count, so INV-13 cannot be what fires")
+            result = run_validate(root)
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn("INV-14", result.stdout)
+            self.assertIn("2026-08-01_adversarial-F02", result.stdout)
+            # The message names INV-13 to say why it is quiet; no INV-13 fired.
+            self.assertNotIn("VIOLATION: INV-13", result.stdout)
+
+    def test_audit_list_names_the_hidden_finding_instead_of_omitting_it(self):
+        # The half of the finding that --validate does not cover: the report the
+        # operator reads listed F01 alone and exited 0.
+        with tempfile.TemporaryDirectory() as tmp:
+            root, _report = report_repo(tmp, UNCLOSED_REPORT)
+            result = run_moltke(root, "--audit", "list")
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn("2026-08-01_adversarial-F02", result.stdout)
+            self.assertIn("hidden", result.stdout)
+
+    def test_post_write_reports_it_too_so_a_reviewer_sees_it_on_save(self):
+        # INV-13 is deliberately not a cheap check: it reads the unbounded
+        # worklog. This one reads the audit reports INV-10 already reads, so the
+        # feedback arrives when the report is saved rather than at the next
+        # --validate.
+        with tempfile.TemporaryDirectory() as tmp:
+            root, _report = report_repo(tmp, UNCLOSED_REPORT)
+            result = run_moltke(root, "--post-write", stdin="{}")
+            self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+            self.assertIn("INV-14", result.stderr)
+
+    def test_a_report_whose_findings_are_all_visible_is_clean(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root, _report = report_repo(
+                tmp, "# Audit\n\n### 2026-08-01_adversarial-F01  high  one\n\n"
+                     "Status: accepted\n\n```\nevidence one\n```\n")
+            result = run_validate(root)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_a_freshly_created_report_is_clean(self):
+        # The case the rule deliberately cannot see, and the reason the template
+        # stopped substituting the real stem into its fenced example: guidance
+        # written under this report's own name is byte-identical to a swallowed
+        # finding. A scaffolded report must stay clean.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            created = run_moltke(root, "--audit", "new", "adversarial")
+            self.assertEqual(created.returncode, 0, created.stdout + created.stderr)
+            report = next((root / "adocs" / "audit").glob("*.md"))
+            self.assertRegex(report.read_text(encoding="utf-8"), r"(?m)^###\s+\S*-F\d{2}\b",
+                             "precondition: the report really does fence an example finding")
+            result = run_validate(root)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_the_shipped_template_does_not_write_a_finding_under_the_real_stem(self):
+        # Why the test above passes, stated as its own property: the substitution
+        # in audit_new must not reach inside the fenced example.
+        template = (REPO / "templates" / "audit_report_template.md").read_text(encoding="utf-8")
+        stem = "2026-08-01_adversarial"
+        substituted = template.replace("YYYY-MM-DD_type", stem).replace("YYYY-MM-DD", "2026-08-01")
+        self.assertEqual(moltke.own_finding_headings(substituted, stem), [])
+
+    def test_a_quoted_heading_from_another_report_is_not_a_hidden_finding(self):
+        # Reports quote each other constantly — the verdict sections of the
+        # 2026-08-07 runs are nothing but that. Only this report's own stem
+        # counts, so a quoted foreign heading inside a closed fence stays quiet.
+        with tempfile.TemporaryDirectory() as tmp:
+            root, _report = report_repo(
+                tmp, "# Audit\n\n### 2026-08-01_adversarial-F01  high  one\n\n"
+                     "Status: accepted\n\n```\n### 2026-07-01_security-F03  high  quoted\n```\n")
+            result = run_validate(root)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_a_same_day_rerun_report_is_scoped_to_its_own_stem(self):
+        # `<stem>.2` is a prefix relative of `<stem>`, which is the trap S020
+        # named for INV-10; the same trap applies to matching headings here.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            audit_report(root, [("2026-08-01_adversarial-F01", "accepted")])
+            rerun = audit_report(root, [("2026-08-01_adversarial.2-F01", "accepted")],
+                                 name="2026-08-01_adversarial.2.md")
+            rerun.write_text("# Audit\n\n### 2026-08-01_adversarial.2-F01  high  one\n\n"
+                             "Status: accepted\n\n```\nevidence\n"
+                             "### 2026-08-01_adversarial.2-F02  high  two\n\nStatus: open\n\n"
+                             "```\nmore evidence\n", encoding="utf-8")
+            result = run_validate(root)
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn("INV-14", result.stdout)
+            self.assertIn("2026-08-01_adversarial.2-F02", result.stdout)
+
+    def test_this_repository_is_clean(self):
+        # moltke's own reports are the largest real corpus of fenced evidence
+        # there is, and they were written before this check existed.
+        self.assertEqual(moltke.inv_14_findings_not_hidden(REPO, json.loads(
+            (REPO / ".moltke.json").read_text(encoding="utf-8"))), [])
 
 
 if __name__ == "__main__":

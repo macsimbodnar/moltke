@@ -36,6 +36,7 @@ Enforced by `bin/moltke.py` in marked repositories:
 - INV-9  every `decisions.md` entry has a unique `DEC-<nnn>` id.
 - INV-10 every audit finding is `open`, `planned`, `closed`, or `accepted`, and no report has `open` findings without a step or decision referencing them.
 - INV-13 `plan.md`, `decisions.md`, `worklog.md`, and every audit report have an even number of code-fence markers. 2026-08-07 (S033): added, because an unclosed fence makes content invisible to every scanner that reads the file.
+- INV-14 no audit report states a finding under its own name that `strip_guidance` then removes. 2026-08-08 (S049, DEC-033): added, because parity catches one unclosed fence and not two — two are an even count that pairs as one closed fence and deletes the finding between them.
 
 Properties of the checker itself:
 
@@ -53,6 +54,32 @@ a `Status: <value>` line in its section; the S008 report template must conform.
 (append by move only). Repos without git history have no baseline, so the
 check abstains. INV-3 additionally treats a missing `plan.md` in an enabled
 repo as a violation.
+
+2026-08-08 (S049, DEC-033): INV-14 compares the finding headings an audit report
+states in its raw text against the ones that survive `strip_guidance`. S033 fixed
+the pairing and reported an odd marker count as INV-13; two unclosed fences are an
+even count, pair as one closed fence, and delete the finding between them, which
+is what a reviewer produces by pasting two transcripts and closing neither. The
+J2 case of 2026-08-07_adversarial-F02 still gave `--validate` exit 0 with the open
+finding absent from `--audit list` entirely (re-measured as .2-F04). Comparing
+headings needs no ruling on what the markers meant: either way the report names a
+finding nothing can read. `--audit list` prints it as `hidden` rather than
+omitting it, and INV-14 is a cheap check, so `--post-write` reports it when the
+report is saved — INV-13 stays out of `--post-write` because it reads the
+unbounded worklog.
+
+Scoped to the report's own stem, which is the whole of what makes it decidable: a
+foreign id is quotable evidence, and every re-run's verdict section is nothing but
+quoted headings. For the same reason `--audit new` no longer substitutes the real
+stem into the template's fenced example, which now reads `<report>-F01`; guidance
+written under this report's own name is byte-identical to a swallowed finding.
+
+What INV-14 cannot see, stated rather than implied: hidden content that is not a
+finding heading — a `Status:` line, a whole Impact section, the text discharging a
+finding; a hidden heading carrying another report's stem; and hidden content in
+`plan.md`, `decisions.md`, `worklog.md`, or anywhere outside `adocs/audit/`, where
+INV-13's parity is still the only guard. The ambiguity S033 recorded is unchanged
+underneath: this detects the one consequence that matters instead of resolving it.
 
 2026-08-07 (S048): INV-3 and `plan_order` now share one definition of "listed in
 `plan.md`" — a list entry. S045 narrowed `plan_order` and left INV-3 matching any

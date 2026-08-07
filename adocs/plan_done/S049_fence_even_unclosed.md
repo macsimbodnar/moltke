@@ -1,0 +1,10 @@
+id:         S049
+goal:       two unclosed fences cannot hide a finding
+accepts:    the J2 case from 2026-08-07_adversarial-F02 no longer hides the finding between two unclosed fences, which is an even marker count and so invisible to INV-13; whatever rule is chosen states in specs the case it cannot see, since S033 measured that no content heuristic separates two unclosed fences from one closed fence and the templates deliberately put headings inside fences; red observed by re-running that case verbatim, where --validate exits 0 and --audit list omits the finding entirely
+touches:    bin/moltke.py strip_guidance and inv_13_balanced_fences; tests/test_s033_fences.py; adocs/specs.md; MANUAL.md
+excludes:   a full markdown parser; reverting S033, which fixed the odd-count and recap-gate halves
+decisions:
+closes:     2026-08-07_adversarial-F02
+blocks:
+paused_by:
+done:      2026-08-08: INV-14 compares the finding headings an audit report states in its raw text against the ones surviving strip_guidance, scoped to the report's own stem, so the J2 case of 2026-08-07_adversarial-F02 — two unclosed evidence fences, an even marker count, INV-13 silent — now exits 1 naming the swallowed finding and --audit list prints it as hidden instead of omitting it. Cheap check, so --post-write reports it on save, which .2-F04 named as the compounding gap. Detection, not un-hiding: DEC-033 records the two rejected options (fence grammar, advisory counts) and specs states the three cases INV-14 cannot see. Deviation from touches: strip_guidance is unchanged and templates/audit_report_template.md is new to the step — audit_new substituted the real stem into the fenced example, making shipped guidance byte-identical to a swallowed finding, found by two test_s008_audit tests turning red. 10 tests, red observed, plus the finding's transcript re-run verbatim. Suite 246 OK, --validate green. README test count 236 to 246; MANUAL's fence entry narrowed to what still reproduces and the --audit list row updated; specs gained INV-14 and a dated note.

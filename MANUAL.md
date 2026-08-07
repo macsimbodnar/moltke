@@ -125,7 +125,7 @@ Cursor) must, since hooks exist only in Claude Code.
 | `--step done <id>` | complete a step and move it to `plan_done/`, refusing if anything is missing. Runs the `test_command` suite gate when the marker sets one, and refuses on a non-zero exit |
 | `--step status` | regenerate `status.md` from the filesystem, keeping the Parked list |
 | `--audit new <type>` | open `adocs/audit/YYYY-MM-DD_<type>.md`; never overwrites a report — a same-day re-run becomes `YYYY-MM-DD_<type>.2.md`, and its findings are numbered from that name. The type must match `[A-Za-z0-9_-]+`, so it stays a filename and cannot collide with that `.2` suffix. Also records a working-tree baseline for `--audit check` |
-| `--audit list` | every finding, its status, and what references it; exits 1 while an open finding has neither a step nor a decision |
+| `--audit list` | every finding, its status, and what references it; exits 1 while an open finding has neither a step nor a decision, or while a report names a finding a code fence hides, which lists as `hidden` (INV-14) |
 | `--audit check` | reconcile what the run changed against that baseline: the report and new files under `tests/` are expected, anything else exits 1. Run it after the reviewer returns, before acting on a finding |
 | `--session-start` | SessionStart hook: emit the stack and derived next step as context |
 | `--log-prompt` | UserPromptSubmit hook: append the prompt to the worklog. Never blocks, because blocking here would erase your prompt |
@@ -243,16 +243,30 @@ than skipped, because history was rewritten under the run. Without git, or befor
 reads `plan.md`, `decisions.md`, `worklog.md`, or an audit report strips fenced
 blocks first, so that a template's worked example is not mistaken for a real
 decision or a real finding. That means an unclosed fence hides whatever follows
-it from those checks: before 0.4.0, a report with two unclosed evidence blocks
-lost the finding between them and `--audit list` did not mention it at all.
+it from those checks.
 
-Markers now have to open a line, so a fence pasted into a prompt — which the
-worklog stores as `> ``` ` — is text, and a trailing unpaired marker is text
-rather than swallowing the rest of the file. What is left is genuinely ambiguous:
-two unclosed fences look exactly like one closed fence, and templates do put
-headings inside fences on purpose. So an odd number of markers is reported as an
-INV-13 violation naming the file, rather than resolved by a guess. Close the
-fence and it clears.
+Markers have to open a line, so a fence pasted into a prompt — which the worklog
+stores as `> ``` ` — is text, and a trailing unpaired marker is text rather than
+swallowing the rest of the file. An odd number of markers is an INV-13 violation
+naming the file. Close the fence and it clears.
+
+Two unclosed fences are a different problem: they are an even count, they pair as
+one closed fence, and nothing distinguishes them from one — templates do put
+headings inside fences on purpose. That shape is what you produce by pasting two
+transcripts and closing neither, and up to and including 0.4.0 it deleted the
+finding between them silently. An audit report that states a finding under its own
+name which no check can then read is now an INV-14 violation naming that finding, and
+`--audit list` prints it as `hidden` instead of leaving it out. `--post-write`
+reports it too, so it surfaces when you save the report. Close the evidence blocks
+around the heading and it clears.
+
+INV-14 sees hidden finding headings, in `adocs/audit/` only. It does not see other
+hidden content — a `Status:` line, an Impact section, anything in `plan.md`,
+`decisions.md`, or `worklog.md` — where an even count of unclosed fences still
+hides text and INV-13's parity is the only guard. A heading quoting another
+report's finding is evidence, not a finding of yours, so quoting stays quiet. For
+the same reason a fresh report's example finding now reads `### <report>-F01`
+rather than carrying the report's real name.
 
 **Immutability checks need git, and read history as well as HEAD.** INV-7
 (`plan_done/` unchanged) and INV-8 (`adocs/decisions.md` append-only) compare the
