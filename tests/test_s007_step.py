@@ -5,6 +5,7 @@ refused with the specific missing condition named.
 """
 
 import json
+import re
 import subprocess
 import sys
 import tempfile
@@ -289,6 +290,50 @@ class TestDoneTestCommandGate(unittest.TestCase):
             sub = root / "adocs" / "plan_todo"
             result = run_moltke(sub, "--step", "done", "S003", "--stamp", STAMP)
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+
+class TestPlanOrderComesFromTheList(unittest.TestCase):
+    """S045: order lives in the numbered list (DEC-008). Reading the whole file
+    in document order let a description paragraph decide the next step, which is
+    how this repository briefly reported Next: S028 for a list starting at S034."""
+
+    def plan_with(self, root, text):
+        (root / "adocs" / "plan.md").write_text(text, encoding="utf-8")
+
+    def next_step(self, root):
+        run_moltke(root, "--step", "status")
+        status = (root / "adocs" / "status.md").read_text(encoding="utf-8")
+        return re.search(r"Next:\s*(\S+)", status).group(1)
+
+    def test_prose_above_the_list_does_not_become_the_next_step(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            self.plan_with(root, "# Plan\n\nOrdered ahead of the feature work S002.\n\n"
+                                 "1. S001  done already\n2. S003  the real next step\n")
+            self.assertEqual(self.next_step(root), "S003")
+
+    def test_an_id_inside_a_list_entrys_own_text_does_not_reorder_it(self):
+        # plan.md line 22 does exactly this: S010's entry mentions S012.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            self.plan_with(root, "# Plan\n\n1. S001  done already\n"
+                                 "2. S003  the real next step (S002 moved here)\n")
+            self.assertEqual(self.next_step(root), "S003")
+
+    def test_list_order_still_decides(self):
+        # Non-vacuity: the two above must not pass by always returning the last id.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            self.plan_with(root, "# Plan\n\n1. S001  done already\n"
+                                 "2. S002  first not done\n3. S003  after it\n")
+            self.assertEqual(self.next_step(root), "S002")
+
+    def test_a_commented_list_entry_is_still_not_the_plan(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            self.plan_with(root, "# Plan\n\n<!-- 1. S099  example -->\n\n"
+                                 "1. S001  done already\n2. S003  the real next step\n")
+            self.assertEqual(self.next_step(root), "S003")
 
 
 class TestStatus(unittest.TestCase):

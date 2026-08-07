@@ -241,6 +241,17 @@ updating the docs, with `python3 tests/test_s009_surface.py --refresh`. The
 same check runs against `MANUAL.md` and is skipped until that file exists in
 S011; closing that gap is part of S011.
 
+2026-08-07 (S045): `derived_next` reads plan order from `plan.md`'s list entries
+only — a line beginning `1.`, `-`, or `*` — through the new `plan_order`. Reading
+every id in document order meant a description paragraph decided the next step:
+listing the 2026-08-07 findings, a sentence reading "ahead of the feature work
+S028, S029, and S031" above a list starting at S034 made `--step status` write
+`Next: S028`, with `--validate` green throughout, because INV-3's reverse
+direction is satisfied by ids that do have files. Order lives in the list and
+nowhere else (DEC-008), so the list is what the code reads. INV-3 still scans the
+whole file in both directions: a prose id with no step file is a typo worth
+reporting even though it no longer reorders anything.
+
 2026-08-06 (S024): INV-3 gained its reverse direction. `derived_next` returns the
 first id in `plan.md` order regardless of whether a file exists, so a mistyped id
 became the next step forever — `--session-start` announced it every session and

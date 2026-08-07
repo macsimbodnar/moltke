@@ -8,4 +8,4 @@ decisions:
 closes:
 blocks:
 paused_by:
-done:
+done:      2026-08-07: derived_next reads plan order from list entries only, via a new plan_order; INV-3 still scans the whole file in both directions. 4 tests plus a live probe on the real plan.md, red observed as 'S002' != 'S003'. Suite 177 OK, --validate green. README test count 173 to 177; MANUAL checked, no change needed — it never describes how plan order is parsed. templates/adocs/plan.md gained two sentences stating the rule where a user writes their list, which is beyond the step's touches but is where the rule has to be visible.

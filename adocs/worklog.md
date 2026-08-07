@@ -976,3 +976,39 @@ silently. That is audit finding F14, reproduced and planned as S014.
 - Tests added: none; this step re-runs and triages. Suite 173 OK, `--validate`
   green, `--audit list` exit 0.
 - Next: S045, then S034 and the rest of the 2026-08-07 findings.
+
+## 2026-08-07T11:57+02:00 prompt
+
+> what is left to do?
+
+## 2026-08-07T12:26+02:00 prompt
+
+> Proceed one by one untill completion or when you think would be good to run another audit
+
+## 2026-08-07 recap — S045 plan order comes from the list
+
+- S045 done. Not an audit finding: this was found at the end of S027 by
+  regenerating `status.md` and reading the result, which no check would have
+  caught.
+- `derived_next` now reads plan order through a new `plan_order`, which matches
+  list entries only — a line starting `1.`, `-`, or `*`. Bullets are accepted as
+  well as numbers so a repository that writes its plan as a bullet list does not
+  silently lose its order.
+- INV-3 is untouched and still scans the whole file in both directions. A prose
+  id with no step file is still a typo worth reporting; it just no longer decides
+  what to work on next.
+- Red observed: `AssertionError: 'S002' != 'S003'`.
+- Verified on the real plan, not only on fixtures: inserted a sentence naming
+  S044 and S028 above the description, and `--session-start` still reported
+  `Derived next step: S045`. File restored byte-identical.
+- Deviation from the step's `touches`: added two sentences to
+  `templates/adocs/plan.md`. The code no longer misreads prose, but a user
+  writing their first plan should know where order is read from, and that is the
+  file they are looking at.
+- Files: `bin/moltke.py`, `tests/test_s007_step.py`, `adocs/specs.md`,
+  `templates/adocs/plan.md`, `adocs/testing.md` (+6 rows), `README.md`
+  (173 to 177 tests), `adocs/status.md`, `plan_current/S045` moved to
+  `plan_done/`.
+- MANUAL checked, no change needed: it never describes how plan order is parsed.
+- Tests added: 4. Suite 177 OK, `--validate` green.
+- Next: S034, which needs a recorded decision before it can start.

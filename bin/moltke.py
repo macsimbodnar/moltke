@@ -420,18 +420,34 @@ def plan_text(root):
     return strip_guidance(plan_path.read_text(encoding="utf-8"))
 
 
-def derived_next(root):
-    """First step in plan.md order not yet in plan_done/ (AGENTS.md §1)."""
+# A list entry, not prose: "1. S001", "- S001", "* S001". S045 — reading every
+# id in document order let a description paragraph decide the next step, since
+# order lives in the list and nowhere else (DEC-008).
+PLAN_ENTRY_RE = re.compile(r"^\s*(?:\d+\.|[-*])\s+(S\d{3})\b", re.M)
+
+
+def plan_order(root):
+    """Step ids in plan order, from plan.md's list entries, first mention wins."""
     plan = plan_text(root)
     if plan is None:
         return None
-    done = {s for s, _p, _f in plan_steps(root)["plan_done"]}
-    seen = set()
-    for step_id in re.findall(r"\bS\d{3}\b", plan):
+    order, seen = [], set()
+    for step_id in PLAN_ENTRY_RE.findall(plan):
         if step_id not in seen:
             seen.add(step_id)
-            if step_id not in done:
-                return step_id
+            order.append(step_id)
+    return order
+
+
+def derived_next(root):
+    """First step in plan.md order not yet in plan_done/ (AGENTS.md §1)."""
+    order = plan_order(root)
+    if order is None:
+        return None
+    done = {s for s, _p, _f in plan_steps(root)["plan_done"]}
+    for step_id in order:
+        if step_id not in done:
+            return step_id
     return None
 
 
