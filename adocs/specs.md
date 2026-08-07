@@ -571,5 +571,15 @@ before writing the file.
 
 ## Open items
 
-- Confirm DEC-002 (public repository) before the first push. Resolves when Max pushes (DEC-014).
-- Decide whether `status.md` earns its place after a few weeks of real use, or whether `plan_current/` plus the derived next step is sufficient on its own.
+None open. Both items that stood here are settled, 2026-08-07:
+
+- DEC-002, confirm the public repository before the first push: resolved. `master`
+  is pushed to `origin` and `https://github.com/macsimbodnar/moltke` loads
+  unauthenticated, verified during S026. DEC-002 stands as the record.
+- Whether `status.md` earns its place: it does, and it stays (Max, 2026-08-07). It
+  is the one file a human opens to see where things are without running anything,
+  and it holds the Parked list, which nothing else does. The cost is accepted: it
+  is a second copy of derivable facts, kept honest by regeneration at every step
+  transition and by the staleness check S039 widened to all four derived fields.
+  Dropping it was considered and rejected — `--session-start` prints the same
+  facts, but only to an agent, and the Parked list would need a new home.
