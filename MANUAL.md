@@ -306,6 +306,14 @@ across a question-only turn is asked about again — committing it satisfies the
 gate just as a recap does, and the message says so. And the gate abstains in a
 repository with no commit yet, so a fresh `--scaffold` never blocks.
 
+"Source" means everything except two directories: `adocs/`, which is the
+workflow's own state, and `.claude/`, which is your local tooling config. Both
+are matched with their trailing separator. Before 0.4.0 the second was a bare
+`.claude` prefix, which also exempted `.claude-plugin/plugin.json` — the manifest
+whose `version` decides what every installed copy of moltke runs, so a release
+could be cut with no recap of it — along with `.clauderc` or any other `.claude*`
+file at the repository root.
+
 **A prompt can still be lost, but never quietly.** `--log-prompt` creates
 `adocs/` before appending, so a missing docs tree no longer discards prompts
 (finding F14, fixed in step S014). If the append fails for any other reason —

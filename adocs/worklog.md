@@ -1278,3 +1278,30 @@ silently. That is audit finding F14, reproduced and planned as S014.
   `adocs/status.md`, `plan_current/S039` moved to `plan_done/`.
 - Tests added: 6. Suite 212 OK, `--validate` green.
 - Next: S037, the Stop gate's `.claude` prefix.
+
+## 2026-08-07T15:39+02:00 prompt
+
+> next
+
+## 2026-08-07 recap — S037 the Stop recap gate stops treating .claude-plugin/ as not-source
+
+- S037 done, closing 2026-08-07_adversarial-F06. Smallest fix of this batch: one
+  tuple, `RECAP_EXEMPT`, matching two directories with their separators instead
+  of sharing a seven-character stem.
+- `.claude` as a bare prefix exempted `.claude-plugin/plugin.json`, the manifest
+  whose `version` decides what every installed copy of moltke executes. A release
+  could be cut with no worklog recap of it — and the working tree was carrying
+  exactly that change, uncommitted, while the finding was being written. It also
+  exempted `.clauderc` and anything else beginning `.claude`.
+- Table-driven test over nine representative paths, one subtest each, so the
+  question "which paths count as source" has one answer in one place rather than
+  being inferred from a regex. Three rows were red.
+- The table includes `adocsfoo/notes.md` as well, since `adocs/` had the same
+  shape of risk and only avoided it by having a trailing slash already.
+- The finding's own six-row measurement was re-run: `.claude-plugin/plugin.json`
+  and `.claudefoo` moved from allow to block, the other four unchanged.
+- Files: `bin/moltke.py` (`RECAP_EXEMPT`, `mode_stop`), `tests/test_s005_hooks.py`,
+  `adocs/specs.md`, `adocs/testing.md` (+4 rows), `MANUAL.md`, `README.md`
+  (212 to 213 tests), `adocs/status.md`, `plan_current/S037` moved to `plan_done/`.
+- Tests added: 1, covering nine paths. Suite 213 OK, `--validate` green.
+- Next: S036, --audit check blaming the hook's own worklog write on the reviewer.

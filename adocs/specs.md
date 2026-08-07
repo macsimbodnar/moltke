@@ -54,6 +54,14 @@ a `Status: <value>` line in its section; the S008 report template must conform.
 check abstains. INV-3 additionally treats a missing `plan.md` in an enabled
 repo as a violation.
 
+2026-08-07 (S037): the `--stop` recap gate exempts `adocs/` and `.claude/` by
+directory, with their separators, listed in `RECAP_EXEMPT`. `.claude` as a bare
+prefix also matched `.claude-plugin/plugin.json` — the manifest whose `version`
+decides what every installed copy of moltke executes, so a release could be cut
+with no recap of it — and `.clauderc` or any future `.claude*` file at the root
+inherited the same hole (finding 2026-08-07_adversarial-F06). The exemption is
+for the two directories only; `adocsfoo/` is source like anything else.
+
 2026-08-07 (S039): `status.md` staleness is judged on all four derived fields —
 Last done, In progress, Next, Blocked — against exactly what `--step status`
 would regenerate, sharing one `status_lines` so the check compares against the

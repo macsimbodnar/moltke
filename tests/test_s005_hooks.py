@@ -353,6 +353,34 @@ class TestStop(unittest.TestCase):
             result = run_moltke(root, "--stop", stdin="{}")
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
+    def test_which_paths_count_as_source(self):
+        # S037 (F06): ".claude" was a bare prefix, so it also matched
+        # .claude-plugin/plugin.json — the manifest whose version decides what
+        # every installed copy of moltke executes, and the single
+        # highest-consequence tracked file here — plus any future .claude* file.
+        cases = [
+            ("src/main.py", True),
+            ("bin/moltke.py", True),
+            (".claude-plugin/plugin.json", True),
+            (".claude-plugin/marketplace.json", True),
+            (".clauderc", True),
+            (".claudefoo", True),
+            (".claude/settings.json", False),
+            ("adocs/specs.md", False),
+            ("adocsfoo/notes.md", True),
+        ]
+        for path, blocks in cases:
+            with self.subTest(path=path), tempfile.TemporaryDirectory() as tmp:
+                root = workflow_repo(tmp)
+                git_baseline(root)
+                target = root / path
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_text("changed\n", encoding="utf-8")
+                log_prompt(root)
+                result = run_moltke(root, "--stop", stdin="{}")
+                self.assertEqual(result.returncode, 2 if blocks else 0,
+                                 f"{path}: {result.stdout + result.stderr}")
+
     def test_recap_gate_abstains_before_the_first_commit(self):
         # A repo with no HEAD has no history a recap would sit alongside, so a
         # fresh scaffold must not block. Precondition first: the same tree with

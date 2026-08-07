@@ -7,4 +7,4 @@ decisions:
 closes:     2026-08-07_adversarial-F06
 blocks:
 paused_by:
-done:
+done:      2026-08-07: the recap gate exempts adocs/ and .claude/ by directory with their separators, listed in RECAP_EXEMPT, so the plugin manifest and any .claude* file at the root are source again. 1 table-driven test over nine paths, red observed on three rows. Suite 213 OK, --validate green, and the finding's own table re-measured with the two wrong rows flipped. README test count 212 to 213; MANUAL's recap-gate entry now states what source means and what the bare prefix used to exempt.

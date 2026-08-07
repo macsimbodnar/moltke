@@ -828,6 +828,13 @@ def recap_pending(root):
     return not recapped
 
 
+# Directories, with their separators, not a shared stem (S037). ".claude" as a
+# bare prefix also matched .claude-plugin/plugin.json — the manifest whose
+# version decides what every installed copy executes — and any future .claude*
+# file at the repository root.
+RECAP_EXEMPT = (f"{DOCS}/", ".claude/")
+
+
 def mode_stop(root, config, marker_violations):
     problems = list(marker_violations)
     for _name, fn in INVARIANT_CHECKS:
@@ -840,7 +847,7 @@ def mode_stop(root, config, marker_violations):
     porcelain = _git_lines(root, "status", "--porcelain")
     if porcelain is not None:
         changed_source = [line for line in porcelain
-                          if not line[3:].startswith((f"{DOCS}/", ".claude"))]
+                          if not line[3:].startswith(RECAP_EXEMPT)]
         # No commit yet means no history a recap would sit alongside, and the
         # scaffold's own files are not work: abstain, as INV-7 and INV-8 do.
         committed = _git_lines(root, "rev-parse", "HEAD") is not None
