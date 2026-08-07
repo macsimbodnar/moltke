@@ -916,3 +916,63 @@ silently. That is audit finding F14, reproduced and planned as S014.
 - Tests added: none; this step is documentation and repository hygiene, and the
   rows record observations. Suite 173 OK, `--validate` green.
 - Next: S027, bump 0.3.0, re-run the audit, close findings.
+
+## 2026-08-07T10:29+02:00 prompt
+
+> yes i know about that, i put it on sleep. Let's go with next task
+
+## 2026-08-07T11:08+02:00 prompt
+
+> next
+
+## 2026-08-07 recap — S027 bump 0.3.0, re-run the audit, close findings
+
+- S027 done. `plugin.json` is 0.3.0, `claude plugin validate .` passes, and the
+  2026-08-06 audit is closed out from a real re-run rather than from assertions.
+- Verdicts on all fourteen prior findings, each decided against the code and not
+  against the step files or commit messages: twelve `closed`, F03 `accepted`
+  under DEC-022 because it still reproduces exactly as written and that was the
+  decision, F02 held `planned` because the installed plugin here is still pinned
+  to 0.2.0 at `1064774` whose bare equality is the defect. F02 closes when 0.3.0
+  is installed and a live spawn re-probes the fence, which is Max's under DEC-014.
+- Three of the twelve closures carry a caveat the report records rather than
+  buries: the S015 recap gate can be silently disabled again by the new F02, the
+  suite gate still fails open on a malformed `test_command`, and one path still
+  contradicts the exit-code mapping S025 documented.
+- Eleven new findings, four of them high, each mapped one-to-one to a step,
+  S032..S042, ordered by severity ahead of the remaining feature work per §3.
+  S044 added as the next closure run. `--audit list` exits 0.
+- The two that matter most are both defects this session introduced. S018's
+  history baselines gave the immutability invariants no legal terminal state: one
+  committed accident makes `--validate` permanently red and the prescribed fix
+  does not clear it, with DEC-013's own authorised reorder as the worked example.
+  And S019's `strip_guidance` deletes to end-of-file on an unbalanced fence — the
+  re-run's own report reproduced it on itself, hiding nine of eleven findings from
+  `--audit list` while it exited 0.
+- `--audit check` reported exactly one unexpected change, `adocs/worklog.md`, and
+  it was right to be suspicious and wrong about the culprit: the plugin's own
+  `UserPromptSubmit` appended two prompts during the run. The reviewer had already
+  filed that as a finding, and it then reproduced live on this very run. `git diff`
+  confirmed two prompt headings and nothing else.
+- Negative result worth keeping: the reviewer mutated twelve of the new behaviours
+  in a copy of the repository and got twelve reds, no survivors. "The suite is
+  green" and "the suite would notice" are different claims.
+- Found while regenerating status at the very end, and not by any check: a
+  description paragraph naming `S028, S029, and S031` above the ordered list made
+  `--step status` write `Next: S028` while the list began at S034. `derived_next`
+  takes the first id in document order, and `--validate` stayed green because
+  INV-3's reverse direction is satisfied by ids that do have files. Prose ids
+  removed, `Next: S034` restored, weakness planned as S045 — which also inherits
+  the three pre-existing prose ids in this file as its fixtures.
+- Deviation from the step's accepts: the re-run took a new date rather than
+  S020's same-day suffix, because midnight passed mid-session. S020 is still what
+  made a same-day close possible; it simply was not needed today.
+- Files: `.claude-plugin/plugin.json`, `adocs/audit/2026-08-07_adversarial.md`,
+  `adocs/audit/2026-08-06_adversarial.md` statuses plus a closure section,
+  twelve new step files, `adocs/plan.md`, `adocs/testing.md` (+7 rows),
+  `adocs/status.md`, `plan_current/S027` moved to `plan_done/`.
+- README and MANUAL checked, no change needed: the version lives in plugin.json
+  and both already describe it as the thing that gates updates.
+- Tests added: none; this step re-runs and triages. Suite 173 OK, `--validate`
+  green, `--audit list` exit 0.
+- Next: S045, then S034 and the rest of the 2026-08-07 findings.

@@ -48,7 +48,7 @@ in this repository today.
 
 ### 2026-08-06_adversarial-F01  high  the Stop hook's recap gate cannot fire in a live session
 
-Status: planned
+Status: closed
 
 Evidence: `bin/moltke.py:467-479`. `mode_stop` decides that a recap was written
 by comparing worklog size against its committed baseline:
@@ -129,7 +129,7 @@ and record it in specs. Not applied here.
 
 ### 2026-08-06_adversarial-F03  high  the reviewer holds Bash, so the write fence is bypassable by design
 
-Status: planned
+Status: accepted
 
 Evidence: `agents/adversarial_reviewer.md:4` grants
 `tools: Read, Grep, Glob, Bash, Write`. `hooks/hooks.json:26` fences only
@@ -163,7 +163,7 @@ correcting. Not applied here.
 
 ### 2026-08-06_adversarial-F04  high  INV-7 and INV-8 immutability evaporates at the next commit
 
-Status: planned
+Status: closed
 
 Evidence: `bin/moltke.py:197-208` (`inv_7_done_immutable`) shells out to
 `git status --porcelain -- adocs/plan_done`, and `bin/moltke.py:216-231`
@@ -208,7 +208,7 @@ commit. Not applied here.
 
 ### 2026-08-06_adversarial-F05  medium  fenced guidance in decisions.md silently discharges an open finding
 
-Status: planned
+Status: closed
 
 Evidence: `bin/moltke.py:248-257`. `finding_references` appends
 `decisions.read_text(encoding="utf-8")` raw. Every other scanner routes through
@@ -243,7 +243,7 @@ so a bare mention does not count — only an entry that names the finding in a
 
 ### 2026-08-06_adversarial-F06  medium  documented exit-code semantics are wrong for every refusal path
 
-Status: planned
+Status: closed
 
 Evidence: `README.md:56-57` states "Exit codes: `0` clean, `1` invariant
 violations listed on stdout, `2` a blocked action with the reason on stderr."
@@ -274,7 +274,7 @@ already parses them. Not applied here.
 
 ### 2026-08-06_adversarial-F07  medium  the "full suite green" completion gate is not enforced anywhere
 
-Status: planned
+Status: closed
 
 Evidence: `AGENTS.md` §4 permits `plan_current/` → `plan_done/` "only when all
 of: code complete, full suite green, `testing.md` rows added, README and MANUAL
@@ -299,7 +299,7 @@ Not applied here.
 
 ### 2026-08-06_adversarial-F08  medium  the worklog is an unbounded verbatim secret sink in an append-only tracked file
 
-Status: planned
+Status: closed
 
 Evidence: `mode_log_prompt` (`bin/moltke.py:377-390`) writes the user's prompt
 verbatim into `adocs/worklog.md`, a tracked file, on every `UserPromptSubmit`.
@@ -330,7 +330,7 @@ for. Not applied here.
 
 ### 2026-08-06_adversarial-F09  medium  a finding cannot be closed on the day it is fixed
 
-Status: planned
+Status: closed
 
 Evidence: closure requires a re-run — `AGENTS.md` §10 and
 `templates/audit_report_template.md:25-26`: "A finding moves to `closed` only
@@ -351,7 +351,7 @@ refusal-to-overwrite property intact. Not applied here.
 
 ### 2026-08-06_adversarial-F10  medium  the surface guard covers argparse only, not the surface users touch
 
-Status: planned
+Status: closed
 
 Evidence: DEC-010 mandates "a golden test over whatever `surface_guard` names",
 and `.moltke.json` sets `cli`. `tests/golden/cli_surface.txt` holds argparse
@@ -375,7 +375,7 @@ applied here.
 
 ### 2026-08-06_adversarial-F11  low  a typo in plan.md creates a permanent phantom next step
 
-Status: planned
+Status: closed
 
 Evidence: INV-3 (`bin/moltke.py:134-145`) checks one direction only — every
 file in `plan_todo/` and `plan_current/` appears in `plan.md`. The reverse is
@@ -394,7 +394,7 @@ file in any of the three directories. Not applied here.
 
 ### 2026-08-06_adversarial-F12  low  INV-7's stated wording and its implementation disagree
 
-Status: planned
+Status: closed
 
 Evidence: `adocs/specs.md:34` — "INV-7 `plan_done/` is byte-identical to its
 state at session start." The implementation compares against git HEAD
@@ -413,7 +413,7 @@ the old wording superseded rather than deleting it. Not applied here.
 
 ### 2026-08-06_adversarial-F13  low  documentation drift found while checking claims against code
 
-Status: planned
+Status: closed
 
 Evidence: three items, each verified.
 
@@ -439,7 +439,7 @@ already identified as needing its own step. Not applied here.
 
 ### 2026-08-06_adversarial-F14  high  prompt logging fails silently, and is failing right now in this repository
 
-Status: planned
+Status: closed
 
 Evidence: `mode_log_prompt` (`bin/moltke.py:386-390`) opens
 `adocs/worklog.md` in append mode and catches `OSError`, printing to stderr and
@@ -533,3 +533,26 @@ Recorded so a later run knows this ground was covered.
 - `--scaffold` idempotence and its refusal to overwrite, including a foreign
   `AGENTS.md`.
 - README's "112 tests, no skips" is accurate at this commit.
+
+## Closure, 2026-08-07 (S027)
+
+Statuses above were set from the re-run recorded in
+`adocs/audit/2026-08-07_adversarial.md`, which decided each finding against the
+code at `1500b83` rather than against the step files or the commit messages.
+
+- Twelve `closed`: F01, F04, F05, F06, F07, F08, F09, F10, F11, F12, F13, F14.
+- F03 `accepted`, not fixed. It still reproduces exactly as written — the
+  reviewer holds `Bash` and the matcher is `Write|Edit` — and DEC-022 chose
+  reconciliation over prevention deliberately. Its replacement, `--audit check`,
+  has a hole of its own, recorded as 2026-08-07_adversarial-F01.
+- F02 stays `planned`. It no longer reproduces in this checkout, but whether the
+  fence holds in a live session cannot be settled by reading the checkout, and
+  the installed plugin on this machine is still pinned to 0.2.0 at `1064774`,
+  whose bare equality is the defect. It closes when 0.3.0 is installed and a live
+  spawn is re-probed, which is Max's under DEC-014.
+
+Three of the twelve closures came with a caveat the re-run recorded rather than
+buried: F01's gate can be silently disabled again by 2026-08-07_adversarial-F02,
+F07 still reproduces when `test_command` is present but malformed
+(2026-08-07_adversarial-F07), and F06's mapping is contradicted by one remaining
+path (2026-08-07_adversarial-F11).
