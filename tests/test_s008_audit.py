@@ -100,6 +100,45 @@ class TestAuditNew(unittest.TestCase):
             validate = run_moltke(root, "--validate")
             self.assertEqual(validate.returncode, 0, validate.stdout)
 
+    def test_a_type_with_a_path_separator_is_refused(self):
+        # S040 (F09): the type went straight into a filename and audit_new
+        # mkdir'd the parents, so a report could land outside the glob every
+        # check uses — filed, and counted by nothing.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            result = run_moltke(root, "--audit", "new", "../../outside/pwned")
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn("A-Za-z0-9", result.stderr)
+            self.assertEqual(list((root / "adocs" / "audit").glob("**/*")), [],
+                             "nothing may be created by a refused type")
+            self.assertFalse((Path(tmp) / "outside").exists())
+
+    def test_a_dotted_type_is_refused_because_the_suffix_namespace_is_reserved(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            result = run_moltke(root, "--audit", "new", "UPPER.2")
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertFalse((root / "adocs" / "audit" / f"{TODAY}_UPPER.2.md").exists(),
+                             "a dotted type would collide with the same-day re-run namespace")
+
+    def test_awkward_types_are_refused_before_they_reach_the_filesystem(self):
+        for audit_type in ("with space", "sub/dir", "..", ".", "", "tab\there", "sec;rm"):
+            with self.subTest(audit_type=audit_type), tempfile.TemporaryDirectory() as tmp:
+                root = workflow_repo(tmp)
+                result = run_moltke(root, "--audit", "new", audit_type)
+                self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+                audit_dir = root / "adocs" / "audit"
+                self.assertEqual(list(audit_dir.glob("**/*")) if audit_dir.is_dir() else [], [])
+
+    def test_ordinary_types_still_work(self):
+        # Non-vacuity: the rule must not refuse the types the skill documents.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            for audit_type in ("adversarial", "security", "bugs", "perf-2", "dep_scan"):
+                result = run_moltke(root, "--audit", "new", audit_type)
+                self.assertEqual(result.returncode, 0, (audit_type, result.stderr))
+                self.assertTrue((root / "adocs" / "audit" / f"{TODAY}_{audit_type}.md").is_file())
+
     def test_a_rerun_finding_id_does_not_satisfy_the_first_report(self):
         # The suffix makes the first report's stem a prefix of the re-run's, so
         # startswith would let a re-run id sit in the first report unnoticed.

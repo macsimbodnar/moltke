@@ -54,6 +54,16 @@ a `Status: <value>` line in its section; the S008 report template must conform.
 check abstains. INV-3 additionally treats a missing `plan.md` in an enabled
 repo as a violation.
 
+2026-08-07 (S040): `--audit new` refuses a type that is not `[A-Za-z0-9_-]+`,
+before anything touches the filesystem. The type went straight into a filename
+and `audit_new` creates the parent directories, so `../../outside/pwned` wrote a
+report outside the `audit_dir.glob("*.md")` that both `inv_10_audit_findings` and
+`audit_list` read — filed, and counted by nothing — left a stray directory
+behind, and degraded the finding-id stem to the last path component. The printed
+path was computed lexically with `relative_to`, so it still looked contained
+(finding 2026-08-07_adversarial-F09). A dot is refused too, because it would
+collide with the `.2` namespace S020 reserved for same-day re-runs.
+
 2026-08-07 (S041): `--pre-write` resolves the path before any rule reads it.
 pathlib does not normalise `..`, so a relative path only had to begin with an
 allowed component: `tests/../bin/moltke.py` was permitted for the reviewer while

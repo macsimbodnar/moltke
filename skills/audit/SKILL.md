@@ -13,7 +13,9 @@ Evidence first, fixes second, and never in the same breath.
 python3 ${CLAUDE_PLUGIN_ROOT}/bin/moltke.py --audit new <type>
 ```
 
-Types are free-form; `adversarial`, `security`, and `bugs` are the usual ones.
+Types are yours to pick but must match `[A-Za-z0-9_-]+`, since the type becomes
+part of a filename and of every finding id in the report. `adversarial`,
+`security`, and `bugs` are the usual ones.
 It creates `adocs/audit/YYYY-MM-DD_<type>.md` and never overwrites an existing
 report, because a report is evidence of one run. A second run on the same day
 becomes `YYYY-MM-DD_<type>.2.md`, and its findings are numbered from that name.

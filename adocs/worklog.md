@@ -1378,3 +1378,37 @@ silently. That is audit finding F14, reproduced and planned as S014.
   `adocs/status.md`, `plan_current/S041` moved to `plan_done/`.
 - Tests added: 6. Suite 223 OK, `--validate` green.
 - Next: S040, an audit type cannot write outside adocs/audit/.
+
+## 2026-08-07T16:06+02:00 prompt
+
+> next
+
+## 2026-08-07 recap — S040 an audit type cannot write outside adocs/audit/
+
+- S040 done, closing 2026-08-07_adversarial-F09.
+- The type went straight into a filename and `audit_new` creates the parent
+  directories, so `../../outside/pwned` wrote a report outside the
+  `audit_dir.glob("*.md")` that both `inv_10_audit_findings` and `audit_list`
+  read. The report looked filed and was counted by nothing, a stray directory was
+  left behind, and the finding-id stem degraded to the last path component.
+- The printed path made it worse rather than revealing it: `relative_to` is
+  lexical, so the message always claimed the report had landed under
+  `adocs/audit/`.
+- `--audit new` now refuses anything that is not `[A-Za-z0-9_-]+`, checked in
+  `mode_audit` before `audit_new` runs, so nothing is created by a refused type.
+  The tests assert that directly rather than only checking the exit code.
+- A dot is refused too, which the finding noted separately: `UPPER.2` would
+  collide with the `.2` namespace S020 reserved for same-day re-runs.
+- Red observed across nine cases, including
+  `AssertionError: 0 != 1 : moltke: created adocs/audit/2026-08-07_sec;rm.md`.
+- Non-vacuity matters here more than usual, since a too-strict rule would break
+  documented usage: `adversarial`, `security`, `bugs`, `perf-2`, and `dep_scan`
+  are all asserted to still work.
+- The audit skill described types as free-form, which was a doc claim the code now
+  contradicts, so it was corrected in the same commit.
+- Files: `bin/moltke.py` (`mode_audit`), `tests/test_s008_audit.py`,
+  `skills/audit/SKILL.md`, `adocs/specs.md`, `adocs/testing.md` (+5 rows),
+  `MANUAL.md`, `README.md` (223 to 227 tests), `adocs/status.md`,
+  `plan_current/S040` moved to `plan_done/`.
+- Tests added: 4, one with seven subtests. Suite 227 OK, `--validate` green.
+- Next: S042, the test_command refusal stream — last of the eleven.

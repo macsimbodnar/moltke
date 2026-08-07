@@ -1510,6 +1510,16 @@ def mode_audit(root, config, argv):
         return audit_check(root, config)
     if not rest:
         return refuse("usage: --audit new <type>   (for example: adversarial, security)")
+    # Checked before anything touches the filesystem (S040). The type went
+    # straight into a filename and audit_new creates the parents, so a separator
+    # put the report outside the glob every check reads — filed, and counted by
+    # nothing — while the printed path was computed lexically and still looked
+    # contained. A dot would also collide with the `.2` namespace S020 reserved
+    # for same-day re-runs.
+    if not re.fullmatch(r"[A-Za-z0-9_-]+", rest[0]):
+        return refuse(f"audit type {rest[0]!r} must match [A-Za-z0-9_-]+ so it stays a filename "
+                      f"inside {DOCS}/audit/ and cannot collide with the .2 suffix a same-day "
+                      f"re-run uses; try adversarial, security, or bugs")
     return audit_new(root, config, rest[0])
 
 

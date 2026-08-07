@@ -7,4 +7,4 @@ decisions:
 closes:     2026-08-07_adversarial-F09
 blocks:
 paused_by:
-done:
+done:      2026-08-07: --audit new refuses a type that is not [A-Za-z0-9_-]+, before anything touches the filesystem, so a separator cannot put a report outside the glob every check reads and a dot cannot collide with the same-day re-run suffix. 4 tests plus subtests, red observed. Suite 227 OK, --validate green, and the finding's reproduction re-run. README test count 223 to 227; MANUAL's --audit new row states the rule; the audit skill no longer calls types free-form.
