@@ -1135,7 +1135,10 @@ def run_test_command(root, config):
               f'The green-suite requirement is on you; set the key to have --step done '
               f'enforce it.')
         return None
-    print(f"moltke: running the suite gate: {command}")
+    # stderr, with the refusal it may turn into (S042). Progress, not a finding:
+    # a consumer following the documented mapping reads stderr on exit 1, and
+    # splitting one refusal across both streams gave it half the message.
+    print(f"moltke: running the suite gate: {command}", file=sys.stderr)
     try:
         # shell=True: the value is a free-form command line, and it is trusted at
         # the same level as the hooks that already run this script. cwd is the

@@ -1416,3 +1416,36 @@ silently. That is audit finding F14, reproduced and planned as S014.
 ## 2026-08-07T18:10+02:00 prompt
 
 > where we are in the plan?
+
+## 2026-08-07T18:11+02:00 prompt
+
+> next
+
+## 2026-08-07 recap — S042 the test_command refusal obeys the documented stream mapping
+
+- S042 done, closing 2026-08-07_adversarial-F11. Last of the eleven findings from
+  the 2026-08-07 re-run to be fixed in code.
+- The suite-gate banner printed to stdout while `refuse` wrote to stderr, so one
+  refusal arrived split across both streams. A consumer following the mapping
+  README and MANUAL document — read stderr on exit 1 — got the refusal but not
+  the banner; one switching streams on the exit code got half the message.
+- The sharper half of the finding was about the test, not the code: S025's
+  `TestRefusalsGoToStderr` states the rule as an assertion and covered a step
+  refusal, an unknown operation, and `--audit check` without a baseline — the
+  three paths that satisfied it — while the one path that would have failed it was
+  absent. A test that states a rule and omits the case that breaks it is not
+  covering the rule. That case is now in the class.
+- Banner moved to stderr. It is progress, not a finding, and on a passing gate it
+  is stderr output on an exit 0 path, which S025 already documents as a real case.
+- The "no `test_command` configured" notice stays on stdout: it accompanies a
+  successful completion rather than a refusal, and S021's test pins it there.
+- Red observed: `AssertionError: 'moltke: running the suite gate: ...' is not
+  false : a refusal must not go to stdout`.
+- Re-measured: exit 1, `stdout: ''`, banner first on stderr.
+- MANUAL needed no change, and that is the point of this one: its exit-code table
+  already documented the rule. The code was wrong, not the documentation.
+- Files: `bin/moltke.py` (`run_test_command`), `tests/test_s025_exit_codes.py`,
+  `adocs/specs.md`, `adocs/testing.md` (+3 rows), `README.md` (227 to 228 tests),
+  `adocs/status.md`, `plan_current/S042` moved to `plan_done/`.
+- Tests added: 1. Suite 228 OK, `--validate` green.
+- Next: S044, bump 0.4.0 and re-run the audit to close the eleven.

@@ -54,6 +54,15 @@ a `Status: <value>` line in its section; the S008 report template must conform.
 check abstains. INV-3 additionally treats a missing `plan.md` in an enabled
 repo as a violation.
 
+2026-08-07 (S042): the suite-gate banner prints to stderr with the refusal it may
+turn into. It went to stdout while `refuse` wrote to stderr, so the one refusal
+that S025's own `TestRefusalsGoToStderr` did not cover was the one that broke the
+rule it states, and a consumer switching streams on the exit code got half the
+message (finding 2026-08-07_adversarial-F11). The banner is progress, not a
+finding, and on a passing gate it is now stderr output on an exit 0 path — a case
+S025 already documents. The "no `test_command` configured" notice stays on stdout,
+because it accompanies a successful completion rather than a refusal.
+
 2026-08-07 (S040): `--audit new` refuses a type that is not `[A-Za-z0-9_-]+`,
 before anything touches the filesystem. The type went straight into a filename
 and `audit_new` creates the parent directories, so `../../outside/pwned` wrote a

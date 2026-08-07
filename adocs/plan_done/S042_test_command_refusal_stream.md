@@ -7,4 +7,4 @@ decisions:
 closes:     2026-08-07_adversarial-F11
 blocks:
 paused_by:
-done:
+done:      2026-08-07: the suite-gate banner prints to stderr with the refusal it may turn into, so a refusal writes nothing to stdout as README and MANUAL state; TestRefusalsGoToStderr gained the test_command case it was missing. 1 test, red observed, plus the finding's measurement re-run. Suite 228 OK, --validate green. README test count 227 to 228; MANUAL needed no change, since its exit-code table already documented the rule the code now obeys — the code was wrong, not the documentation.

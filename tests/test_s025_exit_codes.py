@@ -75,6 +75,24 @@ class TestRefusalsGoToStderr(unittest.TestCase):
             root = workflow_repo(tmp)
             self.assert_refusal(run_moltke(root, "--audit", "check"))
 
+    def test_a_failing_test_command_gate(self):
+        # S042 (F11): the one refusal path absent from this class, and the one
+        # that would have failed its assertion — the gate printed its banner to
+        # stdout while refusing on stderr. A test that states a rule and omits
+        # the case that breaks it is not covering the rule.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            marker = json.loads((root / ".moltke.json").read_text(encoding="utf-8"))
+            marker["test_command"] = f"{sys.executable} -c \"raise SystemExit(3)\""
+            (root / ".moltke.json").write_text(json.dumps(marker, indent=2) + "\n",
+                                               encoding="utf-8")
+            testing = root / "adocs" / "testing.md"
+            testing.write_text(testing.read_text(encoding="utf-8")
+                               + "| S003 | works | manual | pass |\n", encoding="utf-8")
+            self.assert_refusal(run_moltke(
+                root, "--step", "done", "S003",
+                "--stamp", "2026-08-07 suite green; README and MANUAL checked"))
+
 
 class TestBlocksGoToStderr(unittest.TestCase):
     """Hook refusals: exit 2, reason on stderr."""
