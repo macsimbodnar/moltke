@@ -7,4 +7,4 @@ decisions:
 closes:     2026-08-07_adversarial.2-F01
 blocks:
 paused_by:
-done:
+done:      2026-08-07: the Stop waiver counts retries within one turn, keyed on payload fields when present plus the worklog's prompt-heading count, which advances once per turn regardless of the payload; the count resets when the problem set changes and the waived turn prints the problems. DEC-029 records the choice and the three rejected alternatives. 5 tests, red observed as the finding's own sequence. Suite 233 OK, --validate green, transcript re-measured. README test count 228 to 233; MANUAL gained an entry on the cap; specs amended in place with the superseded 'same prompt' wording marked.

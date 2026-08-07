@@ -797,6 +797,32 @@ def mode_post_write(root, config, marker_violations):
 STOP_CAP = 3
 
 
+def stop_turn_key(root, payload):
+    """What counts as "the same turn" for the deadlock waiver.
+
+    S047 (.2-F01): this keyed on `prompt_id` alone, a field no observation in
+    this repository establishes the Stop payload carries. When it was absent the
+    key was the empty string for every turn, so the counter was global, it lived
+    on disk, and from the fourth blocked turn onward every Stop check was off and
+    stayed off across sessions — a deadlock-breaker turned into an off switch.
+
+    The payload fields are used when present, and the worklog supplies the
+    fallback: UserPromptSubmit appends exactly one prompt heading per turn, so
+    counting them advances once per turn without depending on the payload at all.
+    """
+    parts = [str(payload.get("prompt_id") or ""), str(payload.get("session_id") or "")]
+    worklog = root / DOCS / "worklog.md"
+    prompts = 0
+    if worklog.is_file():
+        text = strip_guidance(worklog.read_text(encoding="utf-8", errors="replace"))
+        for heading in WORKLOG_HEADING.finditer(text):
+            line = heading.group(0)
+            if not RECAP_HEADING.search(line) and PROMPT_HEADING.search(line):
+                prompts += 1
+    parts.append(str(prompts))
+    return "|".join(parts)
+
+
 def _stop_state_path(root):
     resolved = git_dir(root)
     return resolved / "moltke_stop_state.json" if resolved else None
@@ -842,6 +868,7 @@ RECAP_EXEMPT = (f"{DOCS}/", ".claude/")
 
 
 def mode_stop(root, config, marker_violations):
+    payload = hook_input()  # stdin is read once; every use below shares it
     problems = list(marker_violations)
     for _name, fn in INVARIANT_CHECKS:
         problems.extend(fn(root, config))
@@ -874,26 +901,33 @@ def mode_stop(root, config, marker_violations):
 
     state_path = _stop_state_path(root)
     if problems:
-        prompt_id = hook_input().get("prompt_id", "")
+        turn = stop_turn_key(root, payload)
+        fingerprint = hashlib.sha256("\n".join(sorted(problems)).encode()).hexdigest()[:16]
         count = 1
         if state_path:
             try:
                 state = json.loads(state_path.read_text(encoding="utf-8"))
-                if state.get("prompt_id") == prompt_id:
+                # Same turn and the same problems: this is a retry. A new turn,
+                # or a different set of problems, starts over — progress must not
+                # count against you, and a stale count must not carry forward.
+                if state.get("turn") == turn and state.get("fingerprint") == fingerprint:
                     count = state.get("count", 0) + 1
             except (OSError, json.JSONDecodeError):
                 pass
-            state_path.write_text(json.dumps({"prompt_id": prompt_id, "count": count}),
-                                  encoding="utf-8")
+            state_path.write_text(
+                json.dumps({"turn": turn, "fingerprint": fingerprint, "count": count}),
+                encoding="utf-8")
+        for problem in problems:
+            print(f"moltke: {problem}", file=sys.stderr)
         if count > STOP_CAP:
             # Live docs (2026-08-01) document no built-in cap; this one keeps
-            # the no-deadlock property of DEC-006 / INV-12.
+            # the no-deadlock property of DEC-006 / INV-12. The problems are
+            # printed above first: being waved through must not mean being told
+            # nothing (S047).
             print(f"moltke: still blocked after {STOP_CAP} attempts; allowing stop so the "
                   f"session is not deadlocked. Run bin/moltke.py --validate and fix by hand.",
                   file=sys.stderr)
             return EXIT_OK
-        for problem in problems:
-            print(f"moltke: {problem}", file=sys.stderr)
         return EXIT_BLOCK
     if state_path and state_path.is_file():
         try:

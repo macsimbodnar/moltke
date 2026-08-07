@@ -1498,3 +1498,48 @@ silently. That is audit finding F14, reproduced and planned as S014.
 - Tests added: none; this step re-runs and triages. Suite 228 OK, `--validate`
   green, `--audit list` exit 0.
 - Next: S047, the Stop deadlock waiver.
+
+## 2026-08-08T00:04+02:00 prompt
+
+> next
+
+## 2026-08-07 recap — S047 the Stop deadlock waiver cannot become an off switch
+
+- S047 done, closing 2026-08-07_adversarial.2-F01, the worse of the two high
+  findings from the second re-run.
+- The waiver counted consecutive blocks per `prompt_id`, a Stop payload field
+  nothing in this repository establishes exists. Absent, the key was the empty
+  string for every turn, so the counter was global, persisted on disk, and from
+  the fourth blocked turn onward every Stop check was waved through — invariants,
+  stale `status.md`, the recap gate, the README and MANUAL stamp — and stayed
+  waved through across sessions. Two fail-open routes reach the empty key
+  regardless of what Claude Code sends: an unparseable payload and a tty.
+- Redesigned rather than confirmed. The alternative was to instrument the
+  installed plugin again and observe a live Stop payload, the way S016 did for
+  `agent_type`. That would settle one field and still fail open on both
+  `hook_input` fallbacks, so the dependency was removed instead. "The same turn"
+  is `prompt_id` and `session_id` when present, plus the count of prompt headings
+  in the worklog, which `UserPromptSubmit` advances exactly once per turn.
+- Two things the accepts asked for and that stand on their own: the count resets
+  when the problem set changes, so fixing one thing and hitting another does not
+  spend an attempt, and the waived turn prints the problems first. Being waved
+  through should not mean being told nothing.
+- DEC-029 records the choice and three rejected alternatives, including keying on
+  the problem fingerprint alone, which resets correctly on progress but would
+  waive a persistently broken repository from its fourth turn onward.
+- A coupling worth naming: the worklog is now load-bearing for a hook decision.
+  DEC-011 says it is forensic and never a context source; this reads its shape,
+  not its content, but the coupling is real and is in the decision entry.
+- `mode_stop` now reads stdin once and shares the payload, because a second
+  `hook_input()` in the same process gets an empty dict.
+- Red observed as the finding's own sequence:
+  `AssertionError: Lists differ: [2, 2, 2, 0, 0, 0, 0, 0] != [2, 2, 2, 2, 2, 2, 2, 2]`.
+- Re-measured: eight turns now `2 2 2 2 2 2 2 2`; eight retries inside one turn
+  still `2 2 2 0 0 0 0 0`, which is the no-deadlock property working; five turns
+  with an unparseable payload `2 2 2 2 2`; the waived turn prints `INV-3`.
+- Files: `bin/moltke.py` (`stop_turn_key`, `mode_stop`), `tests/test_s005_hooks.py`,
+  `adocs/decisions.md` (DEC-029), `adocs/specs.md` (amended in place, superseded
+  wording marked), `adocs/testing.md` (+6 rows), `MANUAL.md`, `README.md`
+  (228 to 233 tests), `adocs/status.md`, `plan_current/S047` moved to `plan_done/`.
+- Tests added: 5. Suite 233 OK, `--validate` green.
+- Next: S048, INV-3 and plan_order disagreeing about what "listed" means.

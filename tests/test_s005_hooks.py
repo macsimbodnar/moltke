@@ -437,6 +437,69 @@ class TestStop(unittest.TestCase):
             self.assertEqual(codes, [2, 2, 2, 0, 0],
                              "the cap must fire in a worktree exactly as it does in a clone")
 
+    def broken_repo(self, tmp):
+        root = workflow_repo(tmp)
+        git_baseline(root)
+        step_file(root / "adocs" / "plan_todo", "S009", "orphan")  # one INV-3 violation
+        return root
+
+    def test_the_waiver_does_not_survive_into_later_turns(self):
+        # S047 (.2-F01): with no prompt_id the counter was global and lived on
+        # disk, so from the fourth blocked turn every Stop check was off — and
+        # stayed off across sessions. A new turn must start over.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.broken_repo(tmp)
+            codes = []
+            for turn in range(8):
+                log_prompt(root, f"turn {turn}")
+                codes.append(run_moltke(root, "--stop", stdin="{}").returncode)
+            self.assertEqual(codes, [2] * 8,
+                             "each turn is one attempt; none of them is the fourth")
+
+    def test_the_cap_still_fires_within_one_turn(self):
+        # Non-vacuity: the no-deadlock property of INV-12 and DEC-006 is the
+        # reason the waiver exists, and it must still work.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.broken_repo(tmp)
+            log_prompt(root)
+            codes = [run_moltke(root, "--stop", stdin="{}").returncode for _ in range(5)]
+            self.assertEqual(codes, [2, 2, 2, 0, 0])
+
+    def test_the_counter_resets_when_the_problem_set_changes(self):
+        # Making progress should not count against you: two blocks on one
+        # problem, then a different problem, and the cap is three away again.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.broken_repo(tmp)
+            log_prompt(root)
+            for _ in range(3):
+                run_moltke(root, "--stop", stdin="{}")
+            (root / "adocs" / "plan_todo" / "S009_orphan.md").unlink()
+            (root / "adocs" / "status.md").write_text(
+                "# Status\n\n- Last done: S999\n- In progress: none\n"
+                "- Next: S002\n- Blocked: none\n", encoding="utf-8")
+            codes = [run_moltke(root, "--stop", stdin="{}").returncode for _ in range(3)]
+            self.assertEqual(codes, [2, 2, 2], "a new problem starts its own count")
+
+    def test_the_waived_turn_still_says_what_was_wrong(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.broken_repo(tmp)
+            log_prompt(root)
+            for _ in range(3):
+                run_moltke(root, "--stop", stdin="{}")
+            waived = run_moltke(root, "--stop", stdin="{}")
+            self.assertEqual(waived.returncode, 0, waived.stderr)
+            self.assertIn("INV-3", waived.stderr,
+                          "being waved through must not mean being told nothing")
+
+    def test_a_payload_that_cannot_be_parsed_behaves_like_an_empty_one(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.broken_repo(tmp)
+            codes = []
+            for turn in range(5):
+                log_prompt(root, f"turn {turn}")
+                codes.append(run_moltke(root, "--stop", stdin="not json").returncode)
+            self.assertEqual(codes, [2] * 5)
+
     def test_block_cap_prevents_deadlock(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = workflow_repo(tmp)

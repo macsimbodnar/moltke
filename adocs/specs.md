@@ -54,6 +54,19 @@ a `Status: <value>` line in its section; the S008 report template must conform.
 check abstains. INV-3 additionally treats a missing `plan.md` in an enabled
 repo as a violation.
 
+2026-08-07 (S047, DEC-029): the `--stop` waiver counts retries within one turn.
+"The same turn" is `prompt_id` and `session_id` when the payload carries them,
+plus the count of prompt headings in `adocs/worklog.md`, which `UserPromptSubmit`
+advances exactly once per turn — so the key no longer depends on a payload field
+no observation in this repository establishes (finding 2026-08-07_adversarial.2-F01).
+The count also resets when the set of problems changes, so partial progress does
+not spend attempts, and the problems are printed before the waiver allows the
+stop. Measured: eight turns read `2 2 2 2 2 2 2 2` where they read
+`2 2 2 0 0 0 0 0`, while eight retries inside one turn still read
+`2 2 2 0 0 0 0 0`, which is the no-deadlock property working. `mode_stop` reads
+stdin once and shares the payload, since a second `hook_input()` in the same
+process would see an empty dict.
+
 2026-08-07 (S042): the suite-gate banner prints to stderr with the refusal it may
 turn into. It went to stdout while `refuse` wrote to stderr, so the one refusal
 that S025's own `TestRefusalsGoToStderr` did not cover was the one that broke the
@@ -298,6 +311,10 @@ JSON, the only channel that reaches the model. Stop has no documented block
 cap anymore, so `--stop` imposes its own: after 3 consecutive blocks for the
 same prompt it allows the stop with a warning (state in
 `.git/moltke_stop_state.json`), preserving the DEC-006 no-deadlock property.
+— Amended 2026-08-07 (S047, DEC-029): "the same prompt" was `prompt_id` alone,
+which nothing establishes the Stop payload carries, and an absent key made the
+counter global and persistent so the waiver became an off switch from the fourth
+blocked turn onward.
 `--stop`'s README/MANUAL gate is mechanical: a step file newly moved into
 `plan_done/` must mention README and MANUAL in its `done:` stamp.
 

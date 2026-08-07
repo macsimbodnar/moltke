@@ -319,6 +319,16 @@ across a question-only turn is asked about again — committing it satisfies the
 gate just as a recap does, and the message says so. And the gate abstains in a
 repository with no commit yet, so a fresh `--scaffold` never blocks.
 
+**The Stop hook can never wedge a session, and never goes quiet either.** If it
+blocks three times on the same problems inside one turn, the fourth attempt is
+allowed with a warning — otherwise an unfixable refusal would trap you. That
+count is per turn and per problem set: a new turn starts over, and fixing one
+thing and hitting a different one starts over too, so partial progress does not
+spend attempts. The waived turn still prints everything that was wrong. Before
+0.4.0 the count keyed on a payload field that may not exist, and when it was
+missing the counter was global and stored on disk, so from the fourth blocked
+turn onward every Stop check was skipped — and stayed skipped across sessions.
+
 "Source" means everything except two directories: `adocs/`, which is the
 workflow's own state, and `.claude/`, which is your local tooling config. Both
 are matched with their trailing separator. Before 0.4.0 the second was a bare
