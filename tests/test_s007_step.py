@@ -266,6 +266,34 @@ class TestDoneTestCommandGate(unittest.TestCase):
             self.assertTrue((root / "adocs" / "plan_done" / "S003_active.md").is_file())
             self.assertIn("test_command", result.stdout)
 
+    def test_a_malformed_test_command_refuses_completion(self):
+        # S038 (F07): check_marker flagged these, but mode_step never received
+        # marker violations, so --step done completed green while reporting that
+        # the key was absent — the exact failure DEC-023 added the key to remove,
+        # reached by a typo.
+        for command in ("", "   ", ["python3", "-m", "unittest"], 0):
+            with self.subTest(command=command), tempfile.TemporaryDirectory() as tmp:
+                root = self.repo_with(tmp, command)
+                result = run_moltke(root, "--step", "done", "S003", "--stamp", STAMP)
+                self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+                self.assertIn("test_command", result.stderr)
+                self.assertTrue((root / "adocs" / "plan_current" / "S003_active.md").is_file(),
+                                "a refusal must not half-complete the step")
+                self.assertFalse((root / "adocs" / "plan_done" / "S003_active.md").exists())
+                self.assertNotIn("no \"test_command\"", result.stdout,
+                                 "the key is present, so saying it is absent is wrong")
+
+    def test_a_malformed_marker_refuses_every_step_transition(self):
+        # The gate is not special: no marker violation should be invisible to the
+        # commands that move the plan around.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.repo_with(tmp, "")
+            for argv in (("--step", "start", "S002"), ("--step", "new", "widget"),
+                         ("--step", "status")):
+                result = run_moltke(root, *argv)
+                self.assertEqual(result.returncode, 1, (argv, result.stdout + result.stderr))
+                self.assertIn("test_command", result.stderr, argv)
+
     def test_a_non_string_test_command_is_a_marker_violation(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = self.repo_with(tmp, 5)

@@ -7,4 +7,4 @@ decisions:
 closes:     2026-08-07_adversarial-F07
 blocks:
 paused_by:
-done:
+done:      2026-08-07: mode_step receives marker violations like --validate, --post-write, and --stop already did, and refuses every operation while the marker is malformed, so a bad test_command stops the plan instead of silently ungating completion. 2 tests with four subtests, red observed. Suite 206 OK, --validate green, and the finding's four values re-measured. README test count 204 to 206; MANUAL's test_command paragraph now says a list or a number is also a violation and that any marker violation refuses every --step operation.

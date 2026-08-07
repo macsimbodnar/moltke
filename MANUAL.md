@@ -85,10 +85,12 @@ completion" rule real: `--step done` runs it from the repository root with a
 shell, under a 600 second timeout, and refuses on a non-zero exit with the last
 20 lines of output. Leave it out and nothing runs your suite — `--step done` says
 so each time rather than letting the silence read as a pass. It must be a
-non-empty string if present; a blank one is a marker violation, because a gate
-that silently checks nothing is worse than no gate. The command runs with your
-shell and your privileges, so treat the marker as executable content: do not set
-it to something you would not run by hand.
+non-empty string if present; a blank one, or a list, or a number, is a marker
+violation, because a gate that silently checks nothing is worse than no gate. Any
+marker violation now refuses every `--step` operation outright, so a typo in this
+key stops the plan moving rather than quietly ungating it. The command runs with
+your shell and your privileges, so treat the marker as executable content: do not
+set it to something you would not run by hand.
 
 ## Daily use
 

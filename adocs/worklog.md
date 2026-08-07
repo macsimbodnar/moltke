@@ -1209,3 +1209,34 @@ silently. That is audit finding F14, reproduced and planned as S014.
   `plan_current/S032` moved to `plan_done/`.
 - Tests added: 4. Suite 204 OK, `--validate` green.
 - Next: S038, the malformed test_command.
+
+## 2026-08-07T15:17+02:00 prompt
+
+> next
+
+## 2026-08-07 recap — S038 a malformed test_command refuses completion
+
+- S038 done, closing 2026-08-07_adversarial-F07.
+- `check_marker` had always flagged a malformed `test_command`. The defect was
+  wiring: `--validate`, `--post-write`, and `--stop` were handed the marker
+  violations and `--step` was not, so the one command that gates completion was
+  the one that could not see the marker it depends on. `--step done` completed
+  green and reported that the key was absent while it was present and wrong.
+- Fixed at the dispatch rather than inside the gate: `mode_step` now takes the
+  marker violations and refuses any operation while they exist. That covers
+  `start`, `new`, and `status` too, which is right — a repository with a broken
+  marker should not be moving its plan around at all.
+- Red observed on all four of the finding's values, each completing the step:
+  `AssertionError: 0 != 1 : moltke: no "test_command" in .moltke.json ...
+  moltke: S003 completed and moved to plan_done/`.
+- Re-measured after the fix: `''`, `'   '`, a list, and `0` all give exit 1 with
+  the step still in `plan_current/`, where the finding measured exit 0 and a
+  completed step in every case.
+- The wrong message was half the finding and is asserted against directly, not
+  just fixed in passing.
+- Files: `bin/moltke.py` (`mode_step` signature and guard, the `main` dispatch),
+  `tests/test_s007_step.py`, `adocs/specs.md`, `adocs/testing.md` (+5 rows),
+  `MANUAL.md`, `README.md` (204 to 206 tests), `adocs/status.md`,
+  `plan_current/S038` moved to `plan_done/`.
+- Tests added: 2, with four subtests. Suite 206 OK, `--validate` green.
+- Next: S039, status.md staleness judged on the whole file.

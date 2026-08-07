@@ -54,6 +54,15 @@ a `Status: <value>` line in its section; the S008 report template must conform.
 check abstains. INV-3 additionally treats a missing `plan.md` in an enabled
 repo as a violation.
 
+2026-08-07 (S038): `--step` receives the marker violations, as `--validate`,
+`--post-write`, and `--stop` already did, and refuses every operation while the
+marker is malformed. `check_marker` flagged a bad `test_command` and `mode_step`
+never saw it, so `--step done` completed green while reporting that the key was
+absent — the failure DEC-023 added the key to remove, reached by a typo, and
+reported by a different command than the one being run (finding
+2026-08-07_adversarial-F07). Blank, whitespace, a list, and a number all refuse
+now, and the step stays in `plan_current/`.
+
 2026-08-07 (S032): `--audit new` records the `HEAD` sha alongside the worktree
 snapshot, and `--audit check` reports `git diff --name-status --no-renames` from
 that sha to `HEAD` as part of the run's footprint. Comparing two `git status`

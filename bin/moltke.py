@@ -1431,10 +1431,17 @@ def mode_audit(root, config, argv):
 STEP_OPS = ("new", "start", "block", "done", "status")
 
 
-def mode_step(root, config, argv, goal, stamp):
+def mode_step(root, config, argv, goal, stamp, marker_violations=()):
     op, rest = argv[0], argv[1:]
     if op not in STEP_OPS:
         return refuse(f"unknown --step operation {op!r}; use one of {', '.join(STEP_OPS)}")
+    # S038 (F07): --validate, --post-write, and --stop were given these and
+    # --step was not, so a malformed test_command was reported by one command
+    # while a different one completed steps green and said the key was absent.
+    # The gate that decides completion cannot be the one that cannot see the
+    # marker it depends on.
+    if marker_violations:
+        return refuse("; ".join(marker_violations) + f". Fix {MARKER} before moving the plan")
     try:
         if op == "new":
             return step_new(root, config, rest[0], goal)
@@ -1516,7 +1523,7 @@ def main(argv=None):
     if args.stop:
         return mode_stop(root, config, marker_violations)
     if args.step:
-        return mode_step(root, config, args.step, args.goal, args.stamp)
+        return mode_step(root, config, args.step, args.goal, args.stamp, marker_violations)
     if args.audit:
         return mode_audit(root, config, args.audit)
     return EXIT_OK
