@@ -33,7 +33,8 @@ project to use moltke. Read `adocs/specs.md` before changing anything.
 
 There is nothing to build. `bin/moltke.py` is Python 3 standard library only,
 with no dependencies, because it runs on every prompt and startup cost matters.
-Developed and tested on Python 3.12.
+The suite is run on the macOS system Python 3.9 and on 3.14, and passes on both;
+nothing in between is exercised, and no lower bound has been tested.
 
 ## Test
 

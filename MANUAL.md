@@ -19,16 +19,23 @@ without `.moltke.json` feels nothing at all.
 
 ## Install
 
-Once per machine. From a checkout of this repository:
+Once per machine. From the hosted repository:
+
+```
+claude plugin marketplace add https://github.com/macsimbodnar/moltke
+claude plugin install moltke@moltke
+```
+
+Or from a local checkout, which is what you want while developing moltke itself:
 
 ```
 claude plugin marketplace add /path/to/moltke
 claude plugin install moltke@moltke
 ```
 
-Or from Claude Code, with `/plugin marketplace add`, `/plugin install`, then
-`/reload-plugins` to activate it in the current session. Once the repository is
-hosted, the same commands accept its git URL in place of the path.
+Either form also works from inside Claude Code, with `/plugin marketplace add`
+and `/plugin install`, followed by `/reload-plugins` to activate it in the
+current session.
 
 `moltke@moltke` is `plugin@marketplace`: this repository is a single-plugin
 marketplace, and both are named moltke.

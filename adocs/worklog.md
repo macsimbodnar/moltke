@@ -869,3 +869,50 @@ silently. That is audit finding F14, reproduced and planned as S014.
 - specs needed no edit: no behaviour changed and it never made a stream claim.
 - Tests added: 10. Suite 173 OK, `--validate` green.
 - Next: S026, documentation drift pass.
+
+## 2026-08-06T20:29+02:00 prompt
+
+> next
+
+## 2026-08-07 recap — S026 documentation drift pass
+
+- S026 done, closing audit finding F13 (stays `planned` until S027 re-runs the
+  audit). Last of the fourteen fixes; S027 is the re-run that closes them.
+- Item 1, MANUAL's install section: the stale "once the repository is hosted"
+  conditional is gone. It now leads with
+  `claude plugin marketplace add https://github.com/macsimbodnar/moltke` and keeps
+  the local-checkout form for developing moltke itself. The URL was fetched
+  unauthenticated first and returned the repository page, so it is checked rather
+  than assumed.
+- Item 2, `plugin.json` gains `"repository"`. Verified against the live plugin
+  reference before adding it, as the acceptance required: the manifest field table
+  lists `repository`, type string, "Source code URL". `claude plugin validate .`
+  passes with it present.
+- Item 3 had partly resolved itself: `adocs/plan_todo/` exists now because
+  S014..S031 live there. But it was empty when the audit ran and will be empty
+  again, so `.gitkeep` went into `plan_todo/`, `plan_current/`, and `plan_done/`.
+  `adocs/audit/.gitkeep` was already tracked. `SCAFFOLD_DIRS` names all four, so
+  moltke finally matches the layout it scaffolds.
+- The sweep for "no live doc statement the code contradicts" found two more that
+  the finding did not list:
+  - README claimed "Developed and tested on Python 3.12" while every run this
+    session was on the system 3.9.6. Ran the suite on both `python3` (3.9.6) and
+    `/opt/homebrew/bin/python3.14` (3.14.6): 173 OK on each. README now says
+    exactly that, and claims no lower bound because none was tested.
+  - Twelve Python 3.12 `.pyc` files were tracked, committed in `1064774` during
+    S013. Under DEC-020 the repository root is the plugin root, so they were
+    copied into every install. Removed, and `__pycache__/` added to `.gitignore`.
+    That is also where the stale 3.12 claim came from.
+- Re-verified three other README claims against code rather than leaving them:
+  no environment variables (`grep` for `os.environ|getenv|environ` finds nothing),
+  five hook events, three skills — the last two now pinned by the S023 golden.
+- Infrastructure note, not a code problem: the host suspended repeatedly during
+  this step. `time` reported 18 and 32 minutes wall clock at 0-1% CPU while
+  unittest's own timer said 28.7s and 29.1s, 173 OK both times. Long commands
+  were moved to the background rather than fought.
+- Files: `.claude-plugin/plugin.json`, `MANUAL.md`, `README.md`, `.gitignore`,
+  three new `.gitkeep` files, twelve `.pyc` files removed, `adocs/testing.md`
+  (+7 rows), `adocs/status.md`, `plan_current/S026` moved to `plan_done/`.
+- Tests added: none; this step is documentation and repository hygiene, and the
+  rows record observations. Suite 173 OK, `--validate` green.
+- Next: S027, bump 0.3.0, re-run the audit, close findings.

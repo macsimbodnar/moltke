@@ -6,6 +6,7 @@
   "author": {
     "name": "Maksym Bodnar"
   },
+  "repository": "https://github.com/macsimbodnar/moltke",
   "license": "MIT",
   "keywords": [
     "workflow",
