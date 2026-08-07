@@ -40,7 +40,7 @@ Enforced by `bin/moltke.py` in marked repositories:
 Properties of the checker itself:
 
 - INV-11 every mode exits 0 immediately when `.moltke.json` is absent or `enabled` is false. 2026-08-01 (S006, DEC-017): except the setup modes `--scaffold` and `--decline`, which run before the gate because they exist to create the marker; both still leave a declined repository untouched.
-- INV-12 every blocking exit carries a message stating exactly what to do to unblock (DEC-006: a `Stop` hook has a cap on consecutive blocks; an unactionable message deadlocks the session).
+- INV-12 every blocking exit carries a message stating exactly what to do to unblock (DEC-006: a `Stop` hook has a cap on consecutive blocks; an unactionable message deadlocks the session). 2026-08-07 (DEC-031): the cap needs somewhere to keep its count, so it exists wherever git does — a plain clone, a linked worktree, a submodule — and not in a repository with no git at all, where every `Stop` blocks until the problem is fixed. Accepted, not planned.
 
 2026-08-01 (S004): INV-8 uses the same git HEAD baseline as INV-7: the
 committed content must be a byte-prefix of the current file; untracked files

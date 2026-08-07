@@ -323,7 +323,17 @@ across a question-only turn is asked about again — committing it satisfies the
 gate just as a recap does, and the message says so. And the gate abstains in a
 repository with no commit yet, so a fresh `--scaffold` never blocks.
 
-**The Stop hook can never wedge a session, and never goes quiet either.** If it
+**A repository with no git has no Stop cap.** The counter lives beside the git
+directory, so in a marked repository that was never `git init`ed there is nowhere
+to keep it and the waiver below never fires: every `Stop` refuses until you fix
+what it names. The refusals are correct and actionable, there is simply no escape
+hatch behind them. `git init` fixes it permanently, and deleting `.moltke.json`
+turns everything off. This is accepted rather than planned (DEC-031): a
+repository without git already gets no immutability checks, no `--audit check`,
+and no prompt-failure breadcrumb, and the alternative was keeping moltke state
+outside your project.
+
+**Otherwise the Stop hook can never wedge a session, and never goes quiet either.** If it
 blocks three times on the same problems inside one turn, the fourth attempt is
 allowed with a warning — otherwise an unfixable refusal would trap you. That
 count is per turn and per problem set: a new turn starts over, and fixing one

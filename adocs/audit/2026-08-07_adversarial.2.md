@@ -509,7 +509,7 @@ with no `adocs/`. Not applied here.
 
 ### 2026-08-07_adversarial.2-F06  medium  the Stop deadlock cap still does not exist in a marked repository without git
 
-Status: open
+Status: accepted
 
 Evidence: `_stop_state_path` (`bin/moltke.py:800-802`) returns `None` when
 `git_dir` finds no git, and `mode_stop` then never increments or reads a count,
