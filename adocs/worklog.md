@@ -1347,3 +1347,34 @@ silently. That is audit finding F14, reproduced and planned as S014.
   `adocs/status.md`, `plan_current/S036` moved to `plan_done/`.
 - Tests added: 4. Suite 217 OK, `--validate` green.
 - Next: S041, the reviewer fence and relative paths.
+
+## 2026-08-07T16:00+02:00 prompt
+
+> nexy
+
+## 2026-08-07 recap — S041 the reviewer fence normalises paths before matching
+
+- S041 done, closing 2026-08-07_adversarial-F10.
+- `pathlib` does not normalise `..`, so `rel.parts` only had to begin with an
+  allowed component: `tests/../bin/moltke.py` was permitted for the reviewer while
+  the absolute form of the same path was blocked, because absolute paths were
+  already resolved. The inconsistency is what made it a hole rather than a design.
+- Fixed by resolving once, before any rule reads the path. That matters more than
+  the fence alone: the same `rel` feeds the `plan_done` rule and the step-file
+  rule, so all three were affected. Red was observed on two of the three.
+- Acceptance narrowed, and recorded rather than quietly dropped. The step file I
+  wrote said "any path escaping the root is refused"; the finding only claimed the
+  in-repository case. A path resolving outside the repository stays unpoliced,
+  which is the existing documented boundary — moltke governs the repository it is
+  marked in — and widening it would newly block writes in unrelated repositories.
+  My own two tests contradicted each other on this until the suite said so.
+- Red observed: `AssertionError: 0 != 2 : ('tests/../bin/moltke.py', '')` and
+  `AssertionError: 0 != 2 : ('adocs/plan_todo/../plan_done/S001_base.md', '')`.
+- The finding's table was re-measured: both allowed rows now block, the absolute
+  equivalent still blocks, and `tests/test_new.py` still passes.
+- Files: `bin/moltke.py` (`mode_pre_write` path resolution),
+  `tests/test_s008_audit.py`, `tests/test_s005_hooks.py`, `adocs/specs.md`,
+  `adocs/testing.md` (+6 rows), `MANUAL.md`, `README.md` (217 to 223 tests),
+  `adocs/status.md`, `plan_current/S041` moved to `plan_done/`.
+- Tests added: 6. Suite 223 OK, `--validate` green.
+- Next: S040, an audit type cannot write outside adocs/audit/.

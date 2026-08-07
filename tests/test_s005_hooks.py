@@ -135,6 +135,23 @@ class TestPreWrite(unittest.TestCase):
                 result = run_moltke(root, "--pre-write", path)
                 self.assertEqual(result.returncode, 0, (path, result.stderr))
 
+    def test_a_relative_escape_into_plan_done_is_blocked(self):
+        # S041: the plan_done and step-file rules read the same rel, so
+        # normalising it has to cover them, not only the reviewer fence.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            for path in ("adocs/plan_todo/../plan_done/S001_base.md",
+                         "src/../adocs/plan_done/S001_base.md"):
+                result = run_moltke(root, "--pre-write", path)
+                self.assertEqual(result.returncode, 2, (path, result.stdout + result.stderr))
+                self.assertIn("plan_done", result.stderr)
+
+    def test_a_path_outside_the_repository_is_still_not_ours_to_police(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            result = run_moltke(root, "--pre-write", "../elsewhere/notes.md")
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
     def test_reads_path_from_hook_stdin_json(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = workflow_repo(tmp)

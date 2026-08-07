@@ -737,9 +737,15 @@ def mode_pre_write(root, config, path_arg):
     path = path_arg or payload.get("tool_input", {}).get("file_path", "")
     if not path:
         return EXIT_OK
+    # Resolve first, always (S041). pathlib does not normalise `..`, so a
+    # relative path only had to start with an allowed component: tests/../bin/x
+    # was permitted while its absolute form was blocked. Every rule below reads
+    # this one `rel`, so normalising here covers the fence, plan_done, and the
+    # step-file rule together.
     try:
-        rel = Path(path).resolve().relative_to(root) if Path(path).is_absolute() else Path(path)
-    except ValueError:
+        rel = (Path(path) if Path(path).is_absolute() else root / path).resolve()
+        rel = rel.relative_to(root)
+    except (ValueError, OSError):
         return EXIT_OK  # outside this repo, not ours to police
     parts = rel.parts
     # The reviewer produces evidence, not patches: a reviewer that can fix what

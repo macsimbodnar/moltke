@@ -7,4 +7,4 @@ decisions:
 closes:     2026-08-07_adversarial-F10
 blocks:
 paused_by:
-done:
+done:      2026-08-07: --pre-write resolves the path before any rule reads it, so a relative escape through an allowed directory is judged by where it lands; the reviewer fence, the plan_done rule, and the step-file rule share that one rel and are all fixed together. 6 tests, red observed on two of the three rules. Suite 223 OK, --validate green, and the finding's table re-measured. README test count 217 to 223; MANUAL's fence entry now states that paths are resolved first and that anything outside the repository is unpoliced. Acceptance narrowed and recorded: escapes that leave the repository stay unpoliced, which is the existing deliberate boundary.

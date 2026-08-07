@@ -513,6 +513,43 @@ class TestReviewerMayWriteNewTests(unittest.TestCase):
             self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
             self.assertIn("tests/", result.stderr)
 
+    def test_a_relative_escape_through_tests_is_blocked(self):
+        # S041 (F10): rel.parts is not normalised, so a first component of
+        # "tests" was enough — the absolute form of the same path was already
+        # blocked, which is what made this a hole rather than a design.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            for path in ("tests/../bin/moltke.py", "tests/../bin/newfile.py",
+                         "adocs/audit/../../bin/moltke.py"):
+                result = self.pre_write(root, path)
+                self.assertEqual(result.returncode, 2, (path, result.stdout + result.stderr))
+
+    def test_a_path_that_leaves_the_repository_stays_unpoliced(self):
+        # Deliberate boundary, unchanged: moltke governs the repository it is
+        # marked in. `tests/../../outside.py` resolves outside the root, so it is
+        # allowed here for the same reason an absolute path elsewhere always was.
+        # The fence is not the guarantee anyway (DEC-022) — Bash is unfenced.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            result = self.pre_write(root, "tests/../../outside.py")
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_the_absolute_form_of_the_same_path_is_blocked_too(self):
+        # Non-vacuity anchor: absolute paths were already resolved, so this is
+        # what the relative branch is being brought into line with.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            result = self.pre_write(root, str(root / "tests" / ".." / "bin" / "newfile.py"))
+            self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+
+    def test_a_genuine_new_test_is_still_allowed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            for path in ("tests/test_regression.py", "tests/unit/test_deep.py",
+                         "./tests/test_dotted.py"):
+                result = self.pre_write(root, path)
+                self.assertEqual(result.returncode, 0, (path, result.stdout + result.stderr))
+
     def test_everything_else_is_still_blocked(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = workflow_repo(tmp)

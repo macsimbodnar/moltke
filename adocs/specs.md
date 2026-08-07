@@ -54,6 +54,18 @@ a `Status: <value>` line in its section; the S008 report template must conform.
 check abstains. INV-3 additionally treats a missing `plan.md` in an enabled
 repo as a violation.
 
+2026-08-07 (S041): `--pre-write` resolves the path before any rule reads it.
+pathlib does not normalise `..`, so a relative path only had to begin with an
+allowed component: `tests/../bin/moltke.py` was permitted for the reviewer while
+its absolute form was blocked, since absolute paths were already resolved
+(finding 2026-08-07_adversarial-F10). One `rel` feeds the reviewer fence, the
+`plan_done` rule, and the step-file rule, so all three were affected and all
+three are fixed together. A path that resolves outside the repository root stays
+unpoliced, which is the existing boundary and is deliberate: moltke governs the
+repository it is marked in. That narrows S041's own acceptance wording, which
+asked for any escape to be refused; the finding claimed only the in-repository
+case.
+
 2026-08-07 (S036): `--audit new` records the worklog's length and content hash,
 and `--audit check` treats a worklog change as expected when the file still
 starts with exactly those bytes. `UserPromptSubmit` appends on every prompt, so

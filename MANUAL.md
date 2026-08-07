@@ -210,6 +210,12 @@ wrong pass is what F02 was. And the fence permits new files under `tests/`,
 because a red-first regression test is evidence; editing a test that already
 exists is a patch and stays blocked.
 
+Paths are resolved before any of that is decided, so `tests/../bin/moltke.py` is
+judged as `bin/moltke.py`. Before 0.4.0 only absolute paths were resolved, and a
+relative one merely had to start with an allowed directory. A path that resolves
+outside the repository is not policed at all: moltke governs the repository it is
+marked in, and the fence was never the guarantee.
+
 **`--audit check` reads the working tree and the commits.** `--audit new` records
 two things: a `git status --porcelain -uall` snapshot with a content hash per
 changed file, and the `HEAD` sha. The check compares both, so a file the run
