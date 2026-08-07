@@ -35,6 +35,7 @@ Enforced by `bin/moltke.py` in marked repositories:
 - INV-8  `decisions.md` grows only by appending; earlier bytes are unchanged. 2026-08-06 (S030, DEC-025): narrowed from "`worklog.md` and `decisions.md`", which is superseded. The worklog is append-only by convention and no longer checked.
 - INV-9  every `decisions.md` entry has a unique `DEC-<nnn>` id.
 - INV-10 every audit finding is `open`, `planned`, `closed`, or `accepted`, and no report has `open` findings without a step or decision referencing them.
+- INV-13 `plan.md`, `decisions.md`, `worklog.md`, and every audit report have an even number of code-fence markers. 2026-08-07 (S033): added, because an unclosed fence makes content invisible to every scanner that reads the file.
 
 Properties of the checker itself:
 
@@ -52,6 +53,23 @@ a `Status: <value>` line in its section; the S008 report template must conform.
 (append by move only). Repos without git history have no baseline, so the
 check abstains. INV-3 additionally treats a missing `plan.md` in an enabled
 repo as a violation.
+
+2026-08-07 (S033): `strip_guidance` pairs code-fence markers that open a line,
+in order, and leaves an unpaired trailing marker as text. It paired ``` globally
+and non-greedily before, so one stray marker shifted every later pairing and
+deleted the real content between two unrelated fences — a rule for making
+guidance invisible was making evidence invisible instead (finding
+2026-08-07_adversarial-F02, which the report reproduced on itself: `--audit list`
+saw two findings of eleven and exited 0). Line-anchoring also means a marker
+quoted in a worklog prompt, which arrives as `> ```` because every prompt line is
+quoted, is not a fence at all.
+
+Two unclosed fences remain indistinguishable from one closed fence, and no
+content heuristic can separate them: the templates deliberately put headings
+inside fences, which is what `strip_guidance` exists for — the audit report
+template's example finding is one. So that case is reported rather than guessed,
+which is INV-13. `--post-write` does not run it; the worklog grows without bound
+and this reads it whole.
 
 2026-08-07 (S035): moltke's own state files are located by asking git, through a
 single `git_dir` running `git rev-parse --absolute-git-dir`, not by testing

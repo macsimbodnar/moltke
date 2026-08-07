@@ -1124,3 +1124,48 @@ silently. That is audit finding F14, reproduced and planned as S014.
   warning phrase), `adocs/status.md`, `plan_current/S035` moved to `plan_done/`.
 - Tests added: 3. Suite 187 OK, `--validate` green.
 - Next: S033, the unbalanced code fence.
+
+## 2026-08-07T14:51+02:00 prompt
+
+> next
+
+## 2026-08-07 recap — S033 an unbalanced code fence cannot hide content
+
+- S033 done, closing 2026-08-07_adversarial-F02, the finding the reviewer
+  reproduced on its own report while writing it.
+- `strip_guidance` paired ``` markers globally and non-greedily, so one stray
+  marker shifted every later pairing and deleted the real content between two
+  unrelated fences. A rule written to make guidance invisible was making evidence
+  invisible.
+- Now markers must open a line and are paired in order, and an unpaired trailing
+  marker is text rather than swallowing to end of file. Line-anchoring matters on
+  its own: every worklog prompt is quoted, so a pasted fence arrives as a quoted
+  marker and was being counted as a fence.
+- What could not be fixed, and why, measured rather than argued: two unclosed
+  fences are byte-identical to one closed fence. I tried to resolve it by
+  refusing to swallow heading lines, then checked whether that was safe — it is
+  not. `templates/audit_report_template.md`, `templates/adocs/decisions.md`, and
+  `AGENTS.md` each put a markdown heading inside a fence deliberately, and hiding
+  exactly those is what `strip_guidance` was built for. Parity does not help
+  either: two unclosed fences are an even count.
+- So the ambiguity is reported instead of guessed. New INV-13: an odd number of
+  fence markers in `plan.md`, `decisions.md`, `worklog.md`, or any audit report is
+  a violation naming the file.
+- Deviation from the step's `touches`, which asked for a suite check: this is an
+  invariant instead. A suite check would protect moltke's own repository and
+  nobody else's, and F02 is high severity in every repository that installs the
+  plugin. Not in `CHEAP_CHECKS`, because the worklog grows without bound and this
+  reads it whole.
+- Two strip-level tests were re-targeted once the templates settled the question,
+  rather than deleted. They now assert the ambiguity explicitly and point at the
+  INV-13 tests as the safety net.
+- Both live reproductions from the finding were re-run. The recap gate now blocks
+  where the finding measured an allow, and `--validate` names the unclosed fence.
+- Checked before adding the invariant that this repository has no odd counts, so
+  INV-13 was not layered on top of an existing violation.
+- Files: `bin/moltke.py` (`strip_guidance`, new `inv_13_balanced_fences`, the
+  registry), new `tests/test_s033_fences.py`, `adocs/specs.md` (INV-13 and a
+  dated note), `adocs/testing.md` (+7 rows), `MANUAL.md`, `README.md` (187 to 200
+  tests), `adocs/status.md`, `plan_current/S033` moved to `plan_done/`.
+- Tests added: 13. Suite 200 OK, `--validate` green.
+- Next: S032, `--audit check` sees a change the run commits.

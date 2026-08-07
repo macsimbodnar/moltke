@@ -7,4 +7,4 @@ decisions:
 closes:     2026-08-07_adversarial-F02
 blocks:
 paused_by:
-done:
+done:      2026-08-07: strip_guidance pairs line-anchored fence markers in order and leaves a trailing unpaired marker as text; new INV-13 reports an odd marker count in plan.md, decisions.md, worklog.md, and every audit report, because two unclosed fences are indistinguishable from one closed fence and the templates put headings inside fences on purpose. 13 tests, red observed, plus both of the finding's live reproductions re-run. Suite 200 OK, --validate green. README test count 187 to 200; MANUAL gained a known-issues entry on unclosed fences; specs gained INV-13 and a dated note. Deviation from touches: an invariant rather than a suite-only check, so the guarantee travels to installed repositories instead of protecting moltke alone.

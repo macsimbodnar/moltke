@@ -99,8 +99,22 @@ def strip_guidance(text):
     step is not planned, an example finding is not open, an example decision id
     is not taken.
     """
-    text = re.sub(r"```.*?```", "", text, flags=re.S)
-    return re.sub(r"<!--.*?-->", "", text, flags=re.S)
+    text = re.sub(r"<!--.*?-->", "", text, flags=re.S)
+    # Markers must open a line, and are paired in order. Both matter (S033).
+    # Pairing `.*?` globally meant one stray marker shifted every later pairing
+    # and deleted the real content between two unrelated fences, so a rule for
+    # making guidance invisible was making evidence invisible instead. An
+    # unpaired trailing marker is text: swallowing to end of file is exactly the
+    # failure. Line-anchored, so a marker quoted in a worklog prompt ("> ```")
+    # or written inline in a sentence is not a fence at all.
+    marks = list(re.finditer(r"^ {0,3}```", text, re.M))
+    kept, pos = [], 0
+    for opener, closer in zip(marks[::2], marks[1::2]):
+        line_end = text.find("\n", closer.end())
+        kept.append(text[pos:opener.start()])
+        pos = len(text) if line_end < 0 else line_end + 1
+    kept.append(text[pos:])
+    return "".join(kept)
 
 
 def field_value(fields, key):
@@ -462,6 +476,33 @@ def inv_10_audit_findings(root, config):
     return violations
 
 
+FENCE_MARKER = re.compile(r"^ {0,3}```", re.M)
+
+
+def inv_13_balanced_fences(root, config):
+    """S033: two unclosed fences are indistinguishable from one closed fence, and
+    the templates deliberately put headings inside fences, so no rule can tell
+    them apart by content. Report the imbalance instead of guessing, because a
+    guess loses a finding or a recap heading and says all checks pass."""
+    scanned = [f"{DOCS}/plan.md", f"{DOCS}/decisions.md", f"{DOCS}/worklog.md"]
+    audit_dir = root / DOCS / "audit"
+    if audit_dir.is_dir():
+        scanned += [str(p.relative_to(root)) for p in sorted(audit_dir.glob("*.md"))]
+    violations = []
+    for rel in scanned:
+        path = root / rel
+        if not path.is_file():
+            continue
+        count = len(FENCE_MARKER.findall(path.read_text(encoding="utf-8", errors="replace")))
+        if count % 2:
+            violations.append(
+                f"INV-13: {rel} has {count} code-fence markers, an odd number, so one fence is "
+                f"unclosed. Every scanner reads this file through strip_guidance, which pairs "
+                f"markers in order: close the fence, or the content it swallows is invisible to "
+                f"the checks that read this file")
+    return violations
+
+
 INVARIANT_CHECKS = [
     ("INV-1", inv_1_active_max),
     ("INV-2", inv_2_stack_max),
@@ -473,6 +514,7 @@ INVARIANT_CHECKS = [
     ("INV-8", inv_8_append_only),
     ("INV-9", inv_9_unique_dec_ids),
     ("INV-10", inv_10_audit_findings),
+    ("INV-13", inv_13_balanced_fences),
 ]
 
 

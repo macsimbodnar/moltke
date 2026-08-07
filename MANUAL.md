@@ -215,6 +215,21 @@ which is flagged as unexpected rather than hidden; and pre-existing dirt in your
 tree is in the baseline, so it is never blamed on the audit. Without git, or
 before `--audit new` has run, the check refuses instead of passing quietly.
 
+**An unclosed code fence is a violation, not a formatting nit.** Every check that
+reads `plan.md`, `decisions.md`, `worklog.md`, or an audit report strips fenced
+blocks first, so that a template's worked example is not mistaken for a real
+decision or a real finding. That means an unclosed fence hides whatever follows
+it from those checks: before 0.4.0, a report with two unclosed evidence blocks
+lost the finding between them and `--audit list` did not mention it at all.
+
+Markers now have to open a line, so a fence pasted into a prompt — which the
+worklog stores as `> ``` ` — is text, and a trailing unpaired marker is text
+rather than swallowing the rest of the file. What is left is genuinely ambiguous:
+two unclosed fences look exactly like one closed fence, and templates do put
+headings inside fences on purpose. So an odd number of markers is reported as an
+INV-13 violation naming the file, rather than resolved by a guess. Close the
+fence and it clears.
+
 **Immutability checks need git, and read history as well as HEAD.** INV-7
 (`plan_done/` unchanged) and INV-8 (`adocs/decisions.md` append-only) compare the
 working tree against `git HEAD`, which covers changes you have not committed, and
