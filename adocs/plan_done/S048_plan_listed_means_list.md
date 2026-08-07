@@ -7,4 +7,4 @@ decisions:
 closes:     2026-08-07_adversarial.2-F02
 blocks:
 paused_by:
-done:
+done:      2026-08-07: INV-3 reads plan_order, so it and derived_next share one definition of listed in plan.md — a list entry — and a step named only in the description is reported rather than silently unreachable. Prose ids are checked in neither direction, and the reverse message drops the phantom-is-next claim S045 falsified. 3 tests, red observed. Suite 236 OK, --validate green, finding fixture re-measured. README test count 233 to 236; MANUAL needed no change, it never described INV-3 by direction; templates/adocs/plan.md restated so a user writing their first plan sees the one rule.

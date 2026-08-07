@@ -1585,3 +1585,37 @@ silently. That is audit finding F14, reproduced and planned as S014.
   `MANUAL.md`, `adocs/status.md`, `plan_current/S054` moved to `plan_done/`.
 - Tests added: none; this is a documentation correction by design.
 - Next: the remaining open decisions, then S048.
+
+## 2026-08-08T00:40+02:00 prompt
+
+> next
+
+## 2026-08-07 recap — S048 INV-3 and plan_order agree on what listed means
+
+- S048 done, closing 2026-08-07_adversarial.2-F02, and it is my regression: S045
+  narrowed `plan_order` to list entries and left INV-3 matching any mention, so
+  the two disagreed about what "listed in plan.md" means. A step file named only
+  in the description satisfied the invariant while being invisible to
+  `derived_next` — `--validate` said all checks pass, `status.md` said no steps
+  were left, and `--session-start` printed no derived-next line at all. A fix for
+  one prime-directive defect introduced another, which is worth saying plainly
+  and is now in specs in those words.
+- One definition now, used in both directions: a list entry. Prose ids are prose,
+  checked in neither direction. That is what makes the two agree, and it is
+  simpler than the alternative of teaching INV-3 a second notion of "mentioned".
+- The reverse message also dropped its claim that a phantom "is the derived next
+  step". S045 made that false and I did not notice at the time; the audit did.
+- Red observed on all three: `AssertionError: 0 != 1 : moltke: all checks pass`
+  for the invisible step, and `'is the derived next step' unexpectedly found` for
+  the stale message.
+- The finding's own fixture was re-measured: `--validate` exits 1 naming
+  `adocs/plan_todo/S002_next.md`.
+- `templates/adocs/plan.md` restated too. The rule a user needs is one sentence —
+  every step file is a list entry, every list entry has a step file — and the
+  previous wording said prose ids were still checked, which is no longer true.
+- Files: `bin/moltke.py` (`inv_3_steps_in_plan`), `tests/test_s003_invariants.py`,
+  `adocs/specs.md` (INV-3 line plus a dated note), `templates/adocs/plan.md`,
+  `adocs/testing.md` (+5 rows), `README.md` (233 to 236 tests), `adocs/status.md`,
+  `plan_current/S048` moved to `plan_done/`.
+- Tests added: 3. Suite 236 OK, `--validate` green.
+- Next: S049, two unclosed fences.

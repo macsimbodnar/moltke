@@ -27,7 +27,7 @@ Enforced by `bin/moltke.py` in marked repositories:
 
 - INV-1  `plan_current/` holds at most `plan_active_max` non-paused steps.
 - INV-2  stack depth in `plan_current/` never exceeds `plan_stack_max`.
-- INV-3  every step file in `plan_todo/` and `plan_current/` appears in `plan.md`, and every id `plan.md` lists has a step file in one of the three directories. 2026-08-06 (S024): the second half is new; the invariant was one-directional before.
+- INV-3  every step file in `plan_todo/` and `plan_current/` is a list entry in `plan.md`, and every id `plan.md` lists has a step file in one of the three directories. An id named only in the description is prose: neither listed nor a phantom. 2026-08-06 (S024): the second half is new; the invariant was one-directional before. 2026-08-07 (S048): "appears in" became "is a list entry in", so this and `derived_next` share one definition.
 - INV-4  no step moves to `plan_done/` while another step names it in `blocks:`.
 - INV-5  no step reaches `plan_done/` without a `done:` stamp and at least one `testing.md` row referencing its id.
 - INV-6  step ids are unique across all three plan directories.
@@ -53,6 +53,18 @@ a `Status: <value>` line in its section; the S008 report template must conform.
 (append by move only). Repos without git history have no baseline, so the
 check abstains. INV-3 additionally treats a missing `plan.md` in an enabled
 repo as a violation.
+
+2026-08-07 (S048): INV-3 and `plan_order` now share one definition of "listed in
+`plan.md`" — a list entry. S045 narrowed `plan_order` and left INV-3 matching any
+mention, so the two disagreed and a step file named only in the description
+satisfied the invariant while being invisible to `derived_next`: `--validate` said
+all checks pass, `status.md` said there were no steps left, and `--session-start`
+printed no derived-next line at all (finding 2026-08-07_adversarial.2-F02). That
+is the prime directive failing, so it is worth naming: a fix for one
+prime-directive defect introduced another. Prose ids are now neither listed nor
+phantoms, in either direction, which is what makes the two agree. INV-3's reverse
+message also drops the claim that a phantom "is the derived next step", which
+S045 had made false.
 
 2026-08-07 (S054, DEC-030): INV-8's wording now describes the check rather than
 an aspiration. What runs is a line rule — nothing the file has ever held is

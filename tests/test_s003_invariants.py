@@ -73,6 +73,42 @@ class TestInvariants(unittest.TestCase):
             step_file(root / "adocs" / "plan_todo", "S009", "orphan")
             self.assert_violation(root, "INV-3")
 
+    def test_inv3_a_step_named_only_in_prose_is_not_listed(self):
+        # S048 (.2-F02): S045 narrowed plan_order to list entries and left INV-3
+        # reading the whole file, so the two disagreed about what "listed" means.
+        # A step could satisfy the invariant and still never become next.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            (root / "adocs" / "plan.md").write_text(
+                "# Plan\n\nS001 laid the base. Next we will do S002, then think about it.\n\n"
+                "1. S001  base\n3. S003  active\n", encoding="utf-8")
+            result = run_validate(root)
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn("INV-3", result.stdout)
+            self.assertIn("S002", result.stdout)
+
+    def test_inv3_a_prose_id_is_neither_listed_nor_a_phantom(self):
+        # One definition, both directions: prose is prose. A mention that has no
+        # step file does not reorder anything and is not reported either.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            (root / "adocs" / "plan.md").write_text(
+                "# Plan\n\nEarlier we considered S404 and dropped it.\n\n"
+                "1. S001  base\n2. S002  pending\n3. S003  active\n", encoding="utf-8")
+            result = run_validate(root)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_inv3_the_message_no_longer_claims_a_phantom_is_next(self):
+        # S045 made that sentence false: derived_next reads list entries only.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            (root / "adocs" / "plan.md").write_text(
+                "# Plan\n\n1. S001\n2. S002\n3. S003\n4. S099  typo\n", encoding="utf-8")
+            result = run_validate(root)
+            self.assertEqual(result.returncode, 1, result.stdout)
+            self.assertIn("S099", result.stdout)
+            self.assertNotIn("is the derived next step", result.stdout)
+
     def test_inv3_plan_id_with_no_step_file(self):
         # S024 (F11): a mistyped id becomes the derived next step forever, and
         # status.md agrees with it, so nothing looks wrong.

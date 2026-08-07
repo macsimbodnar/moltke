@@ -168,21 +168,26 @@ def inv_3_steps_in_plan(root, config):
         return [f"INV-3: {DOCS}/plan.md is missing; create it and list every step"]
     violations = []
     steps = plan_steps(root)
+    # One definition of "listed", used in both directions (S048, .2-F02): a list
+    # entry, exactly what plan_order and so derived_next read. Matching any
+    # mention let a step named only in the description satisfy this check while
+    # being invisible to the derived next step — passing validation and never
+    # coming up for work. An id in prose is prose: not listed, and not a phantom.
+    listed = plan_order(root) or []
     for dirname in ("plan_todo", "plan_current"):
         for step_id, path, _fields in steps[dirname]:
-            if not re.search(rf"\b{step_id}\b", plan):
+            if step_id not in listed:
                 violations.append(f"INV-3: {path.relative_to(root)} is not listed in plan.md; "
-                                  f"add {step_id} to the plan order or remove the file")
-    # And the reverse (S024, F11): derived_next returns the first id in plan.md
-    # order regardless of whether a file exists, so a mistyped id becomes the
-    # next step forever, and status.md agrees with it so nothing looks wrong.
+                                  f"add {step_id} to the ordered list, since a mention in the "
+                                  f"description is not the plan and never becomes the next step")
+    # And the reverse (S024, F11): a mistyped entry would otherwise sit in the
+    # order forever with nothing to work on.
     filed = {step_id for dirname in PLAN_DIRS for step_id, _p, _f in steps[dirname]}
-    for step_id in dict.fromkeys(re.findall(r"\bS\d{3}\b", plan)):
+    for step_id in listed:
         if step_id not in filed:
             violations.append(f"INV-3: plan.md lists {step_id} but no step file exists in "
                               f"plan_todo/, plan_current/, or plan_done/; create it with "
-                              f"--step new, or fix the id in plan.md — until then {step_id} "
-                              f"is the derived next step and cannot be worked on")
+                              f"--step new, or fix the id in plan.md")
     return violations
 
 
