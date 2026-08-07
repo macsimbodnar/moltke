@@ -352,6 +352,44 @@ class TestAuditReconciliation(unittest.TestCase):
             self.assertIn("--audit new", result.stderr)
 
 
+class TestAuditReconciliationInAWorktree(unittest.TestCase):
+    """S035 (F04): a linked worktree's .git is a file, so `--audit new` recorded
+    no baseline and told the user there was no git worktree, inside a worktree
+    where git works."""
+
+    def linked_worktree(self, tmp):
+        root = workflow_repo(tmp)
+        write(root, "src/main.py", "print('source')\n")
+        git_baseline(root)
+        worktree = Path(tmp) / "linked"
+        subprocess.run(["git", "-C", str(root), "worktree", "add", "-q", "-b", "wt",
+                        str(worktree)], capture_output=True, text=True, check=True)
+        assert (worktree / ".git").is_file(), "precondition: .git is a file here"
+        return worktree
+
+    def test_a_baseline_is_recorded_and_check_reconciles(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            worktree = self.linked_worktree(tmp)
+            opened = run_moltke(worktree, "--audit", "new", "adversarial")
+            self.assertEqual(opened.returncode, 0, opened.stdout + opened.stderr)
+            self.assertNotIn("no git", opened.stderr)
+            clean = run_moltke(worktree, "--audit", "check")
+            self.assertEqual(clean.returncode, 0, clean.stdout + clean.stderr)
+            write(worktree, "src/main.py", "print('patched')\n")
+            dirty = run_moltke(worktree, "--audit", "check")
+            self.assertEqual(dirty.returncode, 1, dirty.stdout + dirty.stderr)
+            self.assertIn("src/main.py", dirty.stdout)
+
+    def test_without_git_the_warning_is_accurate_and_check_still_refuses(self):
+        # Non-vacuity: the fix must not make every directory look like a repo.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            opened = run_moltke(root, "--audit", "new", "adversarial")
+            self.assertEqual(opened.returncode, 0, opened.stdout + opened.stderr)
+            self.assertIn("--audit check", opened.stderr)
+            self.assertEqual(run_moltke(root, "--audit", "check").returncode, 1)
+
+
 class TestReviewerMayWriteNewTests(unittest.TestCase):
     """DEC-022 widens the fence: a new regression test is evidence, editing an
     existing one is a patch."""

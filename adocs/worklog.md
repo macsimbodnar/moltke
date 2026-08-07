@@ -1088,3 +1088,39 @@ silently. That is audit finding F14, reproduced and planned as S014.
   `plan_done/`.
 - Tests added: 2. Suite 184 OK, `--validate` green.
 - Next: S035, the linked worktree and submodule case.
+
+## 2026-08-07T14:43+02:00 prompt
+
+> next
+
+## 2026-08-07 recap — S035 moltke works in a linked worktree and a submodule
+
+- S035 done, closing 2026-08-07_adversarial-F04.
+- Three separate helpers each decided "is there git here" by testing whether
+  `.git` is a directory. In a linked worktree and in a submodule it is a file, so
+  all three failed at once and silently: no audit baseline, no prompt-failure
+  breadcrumb, and no `Stop` deadlock cap — while `--validate` reported all checks
+  pass and `--audit new` claimed there was no git worktree inside a worktree
+  where git works.
+- The cap is the one that matters. INV-12 and DEC-006 make no-deadlock an
+  invariant, and combined with the S034 defect a session in a worktree could have
+  been wedged with no way out.
+- One `git_dir` helper now asks `git rev-parse --absolute-git-dir`. It returns the
+  per-worktree git directory, which is what these files want to be anyway, and
+  its failure is the real "no git here" signal rather than a guess about a
+  filename.
+- Red observed live before the fix, in a real `git worktree add`: `[2,2,2,2,2]`
+  against a clone's `[2,2,2,0,0]`, plus
+  `AssertionError: 'no git' unexpectedly found in 'moltke: no git worktree here...'`.
+- Verified after the fix across three real repositories rather than one: clone,
+  linked worktree, and submodule all `[2,2,2,0,0]`, with `.git` confirmed a file
+  in the latter two. The submodule case was in the finding and had no test of its
+  own, so it was checked by hand.
+- The `--audit new` warning now says "no git repository", which is what it means.
+  README's copy of that phrase was corrected in the same commit.
+- Files: `bin/moltke.py` (new `git_dir`, three call sites, the warning text),
+  `tests/test_s005_hooks.py`, `tests/test_s008_audit.py`, `adocs/specs.md`,
+  `adocs/testing.md` (+4 rows), `MANUAL.md`, `README.md` (184 to 187 tests and the
+  warning phrase), `adocs/status.md`, `plan_current/S035` moved to `plan_done/`.
+- Tests added: 3. Suite 187 OK, `--validate` green.
+- Next: S033, the unbalanced code fence.

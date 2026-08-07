@@ -7,4 +7,4 @@ decisions:
 closes:     2026-08-07_adversarial-F04
 blocks:
 paused_by:
-done:
+done:      2026-08-07: one git_dir helper using git rev-parse --absolute-git-dir replaces three .git-is-a-directory guesses, so a linked worktree and a submodule get the audit baseline, the prompt-failure breadcrumb, and the Stop deadlock cap. 3 tests, red observed as [2,2,2,2,2] and as the misleading no-git-worktree warning. Verified live across a clone, a worktree, and a submodule. Suite 187 OK, --validate green. README test count 184 to 187; MANUAL gained a known-issues entry saying worktrees and submodules work and what used to happen instead.

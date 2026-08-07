@@ -53,6 +53,20 @@ a `Status: <value>` line in its section; the S008 report template must conform.
 check abstains. INV-3 additionally treats a missing `plan.md` in an enabled
 repo as a violation.
 
+2026-08-07 (S035): moltke's own state files are located by asking git, through a
+single `git_dir` running `git rev-parse --absolute-git-dir`, not by testing
+whether `.git` is a directory. In a linked worktree and in a submodule it is a
+file, so all three call sites failed together and silently: no audit baseline,
+with `--audit new` reporting "no git worktree here" inside a worktree where git
+works; `--audit check` refusing forever and naming a remedy that could not work;
+no prompt-failure breadcrumb, degrading S014's fix back to losing prompts; and no
+`Stop` deadlock cap, which is INV-12 and DEC-006, measured as `[2,2,2,2,2]`
+against a clone's `[2,2,2,0,0]` (finding 2026-08-07_adversarial-F04). All three
+now resolve per worktree, which is what these files want to be. Verified across a
+clone, a linked worktree, and a submodule, all `[2,2,2,0,0]`. A directory with no
+git still abstains, and the `--audit new` warning now says "no git repository",
+which is what it actually means.
+
 2026-08-07 (S046, DEC-028): INV-8's history check keeps a high-water mark instead
 of one fixed baseline, closing the gap DEC-027 accepted. Versions are walked
 oldest first: one that still contains, in order, every line the mark requires

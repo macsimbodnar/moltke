@@ -306,6 +306,26 @@ class TestStop(unittest.TestCase):
                              "with a commit behind it the same change must block")
             self.assertIn("recap", blocked.stderr)
 
+    def test_block_cap_prevents_deadlock_in_a_linked_worktree(self):
+        # S035 (F04): in a linked worktree .git is a file, so the state file had
+        # nowhere to live and the cap never fired. INV-12 and DEC-006 make the
+        # no-deadlock property an invariant, not a convenience.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            git_baseline(root)
+            worktree = Path(tmp) / "linked"
+            subprocess.run(["git", "-C", str(root), "worktree", "add", "-q", "-b", "wt",
+                            str(worktree)], capture_output=True, text=True, check=True)
+            self.assertTrue((worktree / ".git").is_file(),
+                            "precondition: a linked worktree's .git is a file, not a directory")
+            (worktree / "src").mkdir()
+            (worktree / "src" / "main.py").write_text("print('x')\n", encoding="utf-8")
+            log_prompt(worktree)
+            payload = json.dumps({"prompt_id": "p1"})
+            codes = [run_moltke(worktree, "--stop", stdin=payload).returncode for _ in range(5)]
+            self.assertEqual(codes, [2, 2, 2, 0, 0],
+                             "the cap must fire in a worktree exactly as it does in a clone")
+
     def test_block_cap_prevents_deadlock(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = workflow_repo(tmp)

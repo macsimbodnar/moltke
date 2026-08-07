@@ -563,9 +563,22 @@ def mode_session_start(root, config):
     return EXIT_OK
 
 
+def git_dir(root):
+    """Where moltke's own state files live, or None when there is no git here.
+
+    Asking git rather than testing whether `.git` is a directory (S035, F04): in
+    a linked worktree and in a submodule it is a file, and guessing lost the
+    audit baseline, the prompt-failure breadcrumb, and the Stop deadlock cap all
+    at once, silently, while `--validate` reported all checks pass. The path is
+    per-worktree, which is what these files want to be.
+    """
+    lines = _git_lines(root, "rev-parse", "--absolute-git-dir")
+    return Path(lines[0]) if lines else None
+
+
 def _log_failure_path(root):
-    git_dir = root / ".git"
-    return git_dir / "moltke_log_failure.json" if git_dir.is_dir() else None
+    resolved = git_dir(root)
+    return resolved / "moltke_log_failure.json" if resolved else None
 
 
 def record_log_failure(root, stamp, exc):
@@ -711,8 +724,8 @@ STOP_CAP = 3
 
 
 def _stop_state_path(root):
-    git_dir = root / ".git"
-    return git_dir / "moltke_stop_state.json" if git_dir.is_dir() else None
+    resolved = git_dir(root)
+    return resolved / "moltke_stop_state.json" if resolved else None
 
 
 def _git_lines(root, *args):
@@ -1161,8 +1174,8 @@ def step_status(root, config):
 
 
 def _audit_baseline_path(root):
-    git_dir = root / ".git"
-    return git_dir / "moltke_audit_baseline.json" if git_dir.is_dir() else None
+    resolved = git_dir(root)
+    return resolved / "moltke_audit_baseline.json" if resolved else None
 
 
 def _content_hash(path):
@@ -1222,7 +1235,7 @@ def audit_new(root, config, audit_type):
           f"anything; finding ids are {report.stem}-F01, -F02, ...")
     baseline_path = _audit_baseline_path(root)
     if baseline is None or baseline_path is None:
-        print(f"moltke: no git worktree here, so --audit check cannot reconcile this run; "
+        print(f"moltke: no git repository here, so --audit check cannot reconcile this run; "
               f"whatever the reviewer changes will go unnoticed.", file=sys.stderr)
         return EXIT_OK
     try:

@@ -44,7 +44,7 @@ Full suite:
 python3 -m unittest discover -s tests
 ```
 
-184 tests, no skips. A test whose precondition is genuinely absent skips with a
+187 tests, no skips. A test whose precondition is genuinely absent skips with a
 message saying what would activate it, rather than passing silently.
 
 Check this repository against its own rules, which is also what other tools
@@ -79,7 +79,7 @@ Exit `1` therefore does not tell you which stream to read: findings go to stdout
 refusals to stderr. If you script this, capture both. Two further details worth
 knowing when parsing: `--post-write` returns `2` but is non-blocking by contract,
 since the tool it follows has already run, and stderr can carry a warning on an
-exit `0` path — `--audit new` outside a git worktree says so there while still
+exit `0` path — `--audit new` outside a git repository says so there while still
 succeeding.
 
 After deliberately changing the CLI surface, and only after describing the

@@ -289,3 +289,12 @@ you hear about it: the next `SessionStart` reports how many prompts were dropped
 since when, and the error, then stops repeating it. Outside a git repository
 there is no breadcrumb to leave, so the failure only reaches stderr, which a
 zero-exit `UserPromptSubmit` hook does not surface.
+
+**Linked worktrees and submodules work.** moltke keeps three small state files
+next to your git data — the prompt-failure breadcrumb, the `Stop` block counter
+that guarantees a session can never be wedged, and the `--audit new` baseline.
+It finds that location by asking git, so a linked worktree created with
+`git worktree add` and a repository used as a submodule get all three, each
+scoped to that worktree. Before 0.4.0 they were located by assuming `.git` is a
+directory, which it is not in either case: all three vanished at once, with no
+diagnostic and with `--validate` still reporting all checks pass.
