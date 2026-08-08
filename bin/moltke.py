@@ -367,10 +367,21 @@ def inv_7_done_immutable(root, config):
     violations = []
     if result is not None and result.returncode == 0:
         for line in result.stdout.splitlines():
-            status, _, entry = line[:2], line[2], line[3:]
-            if any(code in status for code in ("M", "D", "R", "C", "U")):
-                violations.append(f"INV-7: {entry.strip()} changed under plan_done/; history is "
-                                  f"immutable: restore it with git checkout -- {entry.strip()}")
+            status = line[:2]
+            if not any(code in status for code in ("M", "D", "R", "C", "U")):
+                continue
+            # Through porcelain_paths, which S050 added for exactly this and
+            # which this line never learned to use (S071, .2-F05). A rename is
+            # one line, `R  old -> new`, and slicing it produced a remedy that a
+            # shell reads as a redirection: `git checkout -- old > new`
+            # truncates the renamed file — the only remaining content of that
+            # step, printed by the one invariant whose subject is immutable
+            # history, and repeated to --stop as an actionable instruction.
+            paths = porcelain_paths(line)
+            entry = paths[-1]
+            moved = f" (renamed from {paths[0]})" if len(paths) > 1 else ""
+            violations.append(f"INV-7: {entry} changed under plan_done/{moved}; history is "
+                              f"immutable: restore it with git checkout -- {entry}")
 
     # DEC-026: judge the content, not the existence of a bad commit. A file is
     # clean when its bytes still match the version at the commit that added it,

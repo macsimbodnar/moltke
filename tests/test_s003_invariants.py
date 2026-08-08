@@ -25,6 +25,11 @@ def git(root, *args):
     )
 
 
+def git_baseline(root):
+    for args in (("init", "-q"), ("add", "-A"), ("commit", "-qm", "base")):
+        git(root, *args)
+
+
 class TestInvariants(unittest.TestCase):
     def assert_violation(self, root, needle):
         result = run_validate(root)
@@ -304,3 +309,62 @@ class TestInvariants(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestInv7NamesTheRenamedFile(unittest.TestCase):
+    """S071 (2026-08-08_adversarial.2-F05): INV-7 sliced the porcelain line and
+    never split on ` -> `, so a rename produced a violation naming both halves
+    and a remedy that, pasted into a shell, redirects git checkout's stdout over
+    the renamed file and truncates it. The one invariant whose subject is
+    immutable history printed a command that destroys a file in it.
+    porcelain_paths was added by S050 for exactly this and INV-7 was the twin
+    nobody updated."""
+
+    def renamed(self, tmp):
+        root = workflow_repo(tmp)
+        git_baseline(root)
+        git(root, "mv", "adocs/plan_done/S001_base.md", "adocs/plan_done/S001_renamed.md")
+        self.assertIn(" -> ", git(root, "status", "--porcelain", "--",
+                                  "adocs/plan_done").stdout,
+                      "precondition: git recorded a rename")
+        return root
+
+    def test_the_violation_names_one_file_and_not_an_arrow(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.renamed(tmp)
+            result = run_validate(root)
+            self.assertEqual(result.returncode, 1, result.stdout)
+            inv7 = [line for line in result.stdout.splitlines() if "INV-7" in line]
+            self.assertTrue(inv7, result.stdout)
+            for line in inv7:
+                self.assertNotIn(" -> ", line, "the remedy is pasted into a shell")
+
+    def test_the_remedy_does_not_redirect_over_a_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.renamed(tmp)
+            for line in run_validate(root).stdout.splitlines():
+                if "INV-7" not in line or "git checkout" not in line:
+                    continue
+                command = line.split("git checkout", 1)[1]
+                self.assertNotIn(">", command,
+                                 "a remedy containing > truncates whatever follows it")
+
+    def test_a_rename_is_still_reported(self):
+        # Non-vacuity: splitting the line must not make the rename invisible.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.renamed(tmp)
+            result = run_validate(root)
+            self.assertIn("INV-7", result.stdout)
+            self.assertIn("S001_renamed.md", result.stdout)
+
+    def test_dropping_r_from_the_status_codes_fails_a_test(self):
+        # The finding measured that deleting R left the suite green, so the line
+        # had no cover at all. This is that cover: a plain rename with the
+        # destination byte-identical is caught by nothing else.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.renamed(tmp)
+            statuses = [line[:2] for line in
+                        git(root, "status", "--porcelain", "--", "adocs/plan_done")
+                        .stdout.splitlines()]
+            self.assertTrue(any(code.startswith("R") for code in statuses), statuses)
+            self.assertEqual(run_validate(root).returncode, 1)

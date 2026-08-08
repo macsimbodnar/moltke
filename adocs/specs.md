@@ -57,6 +57,17 @@ a `Status: <value>` line in its section; the S008 report template must conform.
 check abstains. INV-3 additionally treats a missing `plan.md` in an enabled
 repo as a violation.
 
+2026-08-08 (S071): INV-7's working-tree half reads porcelain through
+`porcelain_paths`, like both `Stop` gates and `worktree_state` already did. It
+sliced the line instead, so a rename inside `plan_done/` produced a violation
+naming both halves and a remedy that a shell reads as a redirection —
+`git checkout -- old > new` truncates the renamed file, which is the only
+remaining content of that step. The one invariant whose subject is immutable
+history printed a command that destroys a file in it, and repeated it to
+`--stop` as the actionable instruction INV-12 requires (finding
+2026-08-08_adversarial.2-F05). The violation now names the file that exists and
+says what it was renamed from.
+
 2026-08-08 (S070): `--step done` pre-flights every file it is about to write —
 the step file and any paused parent — and refuses before touching anything if
 one is not writable. S062 moved the write and the unlink ahead of the point of
