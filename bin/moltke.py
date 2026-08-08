@@ -675,8 +675,8 @@ def mode_session_start(root, config):
     if stale:
         disagreements = "; ".join(f"{field} says {said!r}, filesystem says {real!r}"
                                   for field, said, real in stale)
-        lines.append(f"status.md is stale ({disagreements}); regenerate it with "
-                     f"--step status before working.")
+        lines.append(f"status.md is stale ({disagreements}); {_stale_remedy(root)} "
+                     f"before working.")
     lost = take_log_failure(root)
     if lost:
         lines.append(lost)
@@ -952,15 +952,29 @@ def _arrives_here(status):
     return status == "??" or status[0] in ("A", "R", "C")
 
 
+def _stale_remedy(root):
+    """What to actually run when status.md disagrees with the filesystem.
+
+    S052: with no `adocs/` every derived field disagrees, so both hooks named
+    `--step status` — a command that cannot write into a directory that is not
+    there. Steering has to name the command that works from the state observed.
+    """
+    if (root / DOCS).is_dir():
+        return "run bin/moltke.py --step status"
+    return (f"run bin/moltke.py --scaffold, because {DOCS}/ does not exist yet, then "
+            f"bin/moltke.py --step status")
+
+
 def mode_stop(root, config, marker_violations):
     payload = hook_input()  # stdin is read once; every use below shares it
     problems = list(marker_violations)
     for _name, fn in INVARIANT_CHECKS:
         problems.extend(fn(root, config))
 
+    remedy = _stale_remedy(root)
     for field, said, real in status_disagreements(root):
         problems.append(f"status.md is stale or missing: {field} says {said!r}, the filesystem "
-                        f"says {real!r}. Run --step status before ending the turn.")
+                        f"says {real!r}. {remedy[0].upper()}{remedy[1:]} before ending the turn.")
 
     porcelain = _git_lines(root, "status", "--porcelain")
     if porcelain is not None:
@@ -1677,6 +1691,17 @@ def mode_step(root, config, argv, goal, stamp, marker_violations=()):
     # marker it depends on.
     if marker_violations:
         return refuse("; ".join(marker_violations) + f". Fix {MARKER} before moving the plan")
+    # S052 (.2-F05): a marked repository with no `adocs/` is reachable — it is
+    # the first state a new user has — and S039 made a missing `status.md`
+    # maximally stale, so `--session-start` and `--stop` both steer into
+    # `--step status`. That wrote into a directory that is not there and raised
+    # FileNotFoundError, which is neither of the two things exit 1 means. The
+    # directory is not created here on purpose: a repository that was never
+    # scaffolded should say so rather than be half-built by a status write.
+    if not (root / DOCS).is_dir():
+        return refuse(f"{DOCS}/ does not exist, so there is no plan to move. Run "
+                      f"bin/moltke.py --scaffold to create it, or set \"enabled\": false in "
+                      f"{MARKER} if this repository should not use the workflow")
     try:
         if op == "new":
             return step_new(root, config, rest[0], goal)
@@ -1692,6 +1717,14 @@ def mode_step(root, config, argv, goal, stamp, marker_violations=()):
                  "block": "block <parent_id> <short_name>",
                  "done": "done <id> --stamp TEXT"}[op]
         return refuse(f"usage: --step {usage}")
+    except OSError as exc:
+        # A partially scaffolded tree: `adocs/` exists but a plan directory
+        # inside it does not, so a rename or a write has no destination. Same
+        # rule as above — name the missing path, do not create it (S052).
+        return refuse(f"--step {op} could not touch the plan tree ({exc}). The workflow "
+                      f"directories under {DOCS}/ are what --step moves files between; "
+                      f"restore the missing one, or run bin/moltke.py --scaffold, which "
+                      f"creates what is absent and overwrites nothing")
 
 
 def run_validate(root, config, marker_violations):

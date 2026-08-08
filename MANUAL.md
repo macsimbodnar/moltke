@@ -138,6 +138,11 @@ requires it. Every mode exits 0 immediately in a repository with no marker, or
 one whose marker says `enabled: false` — except `--scaffold` and `--decline`,
 which exist to create that marker.
 
+Every `--step` operation refuses, naming `--scaffold`, in a marked repository
+that has no `adocs/` yet, and the hooks name `--scaffold` there too rather than
+`--step status`. It will not create the directory for you: a repository that was
+never scaffolded should say so rather than end up half-built by a status write.
+
 Exit codes and streams:
 
 | Exit | Meaning | Stream |

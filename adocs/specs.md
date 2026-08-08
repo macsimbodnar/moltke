@@ -55,6 +55,21 @@ a `Status: <value>` line in its section; the S008 report template must conform.
 check abstains. INV-3 additionally treats a missing `plan.md` in an enabled
 repo as a violation.
 
+2026-08-08 (S052): `--step` refuses, naming `--scaffold`, in a marked repository
+whose `adocs/` does not exist, instead of raising `FileNotFoundError` out of
+`step_status`, `step_start`, and `step_done`. `mode_step` caught `IndexError`
+alone, so a missing directory surfaced as a traceback and exit 1 — neither of the
+two things `README.md` says exit 1 means. The directory is not created
+implicitly: a repository that was never scaffolded says so rather than being
+half-built by a status write, which is also why `--scaffold` is the remedy named.
+An `OSError` from any operation becomes a refusal too, for the partially
+scaffolded tree where `adocs/` exists and a plan directory inside it does not.
+The steering was the other half: with no `adocs/` all four derived fields
+disagree, so `--session-start` and `--stop` both told the agent to run
+`--step status`, the one command that could not work there (finding
+2026-08-07_adversarial.2-F05). Both now name `--scaffold` first when the
+directory is missing, through one `_stale_remedy`, and are unchanged otherwise.
+
 2026-08-08 (S050): both `--stop` gates read `git status --porcelain` through one
 `porcelain_paths`, which splits a rename line on ` -> ` — the same rule
 `worktree_state` already used. A staged rename is one line, `R  old -> new`:

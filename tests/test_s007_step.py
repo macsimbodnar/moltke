@@ -12,7 +12,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from fixtures import step_file, workflow_repo
+from fixtures import marked_repo, step_file, workflow_repo
 
 MOLTKE = Path(__file__).resolve().parent.parent / "bin" / "moltke.py"
 REPO = MOLTKE.parent.parent
@@ -398,6 +398,87 @@ class TestStatus(unittest.TestCase):
             status = (root / "adocs" / "status.md").read_text(encoding="utf-8")
             self.assertIn("S004", status)
             self.assertRegex(status, r"S003.*paused")
+
+
+class TestAMarkedRepositoryWithNoDocsDirectory(unittest.TestCase):
+    """S052 (2026-08-07_adversarial.2-F05): S039 made a missing `status.md`
+    maximally stale, so `--session-start` and `--stop` both instruct
+    `--step status` — which wrote into a directory that is not there and died
+    with a FileNotFoundError. A traceback is neither of the two things exit 1
+    means. Refusing rather than creating `adocs/` is deliberate: a repository
+    that was never scaffolded must say so, not be silently half-built."""
+
+    def marked_only(self, tmp):
+        """A valid marker and nothing else — the first state a new user has."""
+        root = marked_repo(tmp)
+        self.assertFalse((root / "adocs").exists(), "precondition: no adocs/ here")
+        return root
+
+    def test_every_step_operation_refuses_and_names_scaffold(self):
+        for argv in (["--step", "status"], ["--step", "start", "S001"],
+                     ["--step", "done", "S001", "--stamp", STAMP],
+                     ["--step", "new", "thing"], ["--step", "block", "S001", "dep"]):
+            with self.subTest(argv=" ".join(argv)), tempfile.TemporaryDirectory() as tmp:
+                root = self.marked_only(tmp)
+                result = run_moltke(root, *argv)
+                self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+                self.assertNotIn("Traceback", result.stderr)
+                self.assertIn("--scaffold", result.stderr)
+                self.assertFalse((root / "adocs").exists(),
+                                 "refusing must not leave a half-built adocs/ behind")
+
+    def test_the_hooks_that_steer_here_still_work(self):
+        # The instruction that leads into it must keep working, or this trades a
+        # traceback for a silent repository.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.marked_only(tmp)
+            for argv in (["--session-start"], ["--validate"]):
+                with self.subTest(argv=" ".join(argv)):
+                    result = run_moltke(root, *argv)
+                    self.assertNotIn("Traceback", result.stdout + result.stderr)
+
+    def test_the_hooks_name_scaffold_rather_than_a_command_that_cannot_work(self):
+        # The finding's real damage: the staleness lines steer into --step
+        # status, and with no adocs/ every derived field disagrees, so they
+        # always fire here. Steering must name the command that works.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.marked_only(tmp)
+            start = run_moltke(root, "--session-start")
+            self.assertIn("--scaffold", start.stdout)
+            stop = run_moltke(root, "--stop")
+            self.assertIn("--scaffold", stop.stderr)
+
+    def test_a_scaffolded_repository_is_still_told_to_run_step_status(self):
+        # Non-vacuity for the pair above: the remedy must not become --scaffold
+        # everywhere, which would be advice that does nothing.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            (root / "adocs" / "status.md").write_text("# Status\n\n- Next: nonsense\n",
+                                                      encoding="utf-8")
+            start = run_moltke(root, "--session-start")
+            self.assertIn("--step status", start.stdout)
+            self.assertNotIn("--scaffold", start.stdout)
+
+    def test_a_scaffolded_repository_is_unaffected(self):
+        # Non-vacuity: the refusal must be about the missing directory, not
+        # about --step having stopped working.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            result = run_moltke(root, "--step", "status")
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_a_missing_plan_directory_refuses_instead_of_raising(self):
+        # The sibling shape the finding names: adocs/ exists, a plan directory
+        # inside it does not, so the rename target is missing.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            for entry in (root / "adocs" / "plan_current").iterdir():
+                entry.unlink()
+            (root / "adocs" / "plan_current").rmdir()
+            result = run_moltke(root, "--step", "start", "S002")
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertNotIn("Traceback", result.stderr)
+            self.assertIn("plan_current", result.stderr)
 
 
 class TestStepSkill(unittest.TestCase):
