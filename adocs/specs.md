@@ -36,7 +36,7 @@ Enforced by `bin/moltke.py` in marked repositories:
 - INV-9  every `decisions.md` entry has a unique `DEC-<nnn>` id.
 - INV-10 every audit finding is `open`, `planned`, `closed`, or `accepted`, and no report has `open` findings without a step or decision referencing them.
 - INV-13 `plan.md`, `decisions.md`, `worklog.md`, and every audit report have an even number of code-fence markers. 2026-08-07 (S033): added, because an unclosed fence makes content invisible to every scanner that reads the file.
-- INV-14 no audit report states a finding under its own name that `strip_guidance` then removes. 2026-08-08 (S049, DEC-033): added, because parity catches one unclosed fence and not two — two are an even count that pairs as one closed fence and deletes the finding between them.
+- INV-14 no audit report states a finding under its own name that `strip_guidance` then removes. 2026-08-08 (S049, DEC-033): added, because parity catches one unclosed fence and not two — two are an even count that pairs as one closed fence and deletes the finding between them. 2026-08-08 (S075): comments come out before the comparison, so a heading inside one is guidance like any other commented content rather than a finding a fence swallowed — the message named a cause that was not present and a remedy that could not be followed.
 - INV-15 `worklog.md` holds nothing shaped like a credential: prefixed key shapes and PEM private-key headers. 2026-08-08 (S031, DEC-032, DEC-024): added, because prompt logging writes verbatim into a tracked file in every repository moltke is installed into, and the tool doing the writing is the one that should say so. Detected, never redacted, and never printed beyond the first 8 characters.
 - INV-16 `specs.md` never states a prime directive that `strip_guidance` then removes. 2026-08-08 (S063): added, because INV-13's parity cannot see an even marker count and a written-but-unreadable directive reads as unwritten to every check, including the planning nudge.
 
@@ -56,6 +56,14 @@ a `Status: <value>` line in its section; the S008 report template must conform.
 (append by move only). Repos without git history have no baseline, so the
 check abstains. INV-3 additionally treats a missing `plan.md` in an enabled
 repo as a violation.
+
+2026-08-08 (S075): INV-14 strips comments before comparing, so what it reports
+is always something a fence can hide. `strip_guidance` removes HTML comments as
+well as fences, so a draft finding commented out — which the shipped template
+invites, its own append marker being a comment — was reported as swallowed by a
+code fence in a report with no fence markers at all, with a remedy that could not
+be applied, repeated to `--stop` and `--post-write` as a blocking problem
+(finding 2026-08-08_adversarial.2-F09).
 
 2026-08-08 (S071): INV-7's working-tree half reads porcelain through
 `porcelain_paths`, like both `Stop` gates and `worktree_state` already did. It

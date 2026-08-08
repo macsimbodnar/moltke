@@ -545,7 +545,14 @@ def hidden_findings(report):
     against the ones that survive stripping needs no guess about which meaning
     the markers had: either way, a finding the report names is unreadable.
     """
-    raw = read_file(report)
+    # Comments come out first (S075, .2-F09): strip_guidance removes them too,
+    # so a heading inside one read as hidden and the message blamed a code fence
+    # that was not there, with a remedy — close the evidence blocks — that could
+    # not be followed. Commented content is guidance everywhere else, the
+    # shipped template's own append marker is a comment, and commenting out a
+    # draft finding is a reasonable thing to do. What is left is what a fence
+    # can hide, so the message is now always true of what it names.
+    raw = strip_comments(read_file(report))
     visible = {finding_id for finding_id, _status in report_findings(report)}
     ids = []
     for finding_id in own_finding_headings(raw, report.stem):

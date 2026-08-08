@@ -495,5 +495,39 @@ class TestOneDecodePolicy(unittest.TestCase):
         self.assertEqual(strict, [], "read repository files through read_file")
 
 
+class TestInv14NamesTheCauseItCanProve(unittest.TestCase):
+    """S075 (2026-08-08_adversarial.2-F09): hidden_findings compared raw text
+    against stripped text, and strip_guidance removes HTML comments as well as
+    fences — so a heading inside a comment was reported as swallowed by a code
+    fence, in a report with no fence markers at all, with a remedy that could
+    not be followed. Commented content is guidance everywhere else, and the
+    shipped template's own append marker is a comment, so commenting out a draft
+    finding is a reasonable thing for a reviewer to do."""
+
+    COMMENTED = ("# Audit\n\n"
+                 "### 2026-08-01_adversarial-F01  high  a real finding\n\nStatus: accepted\n\n"
+                 "<!-- draft, not ready to file yet:\n"
+                 "### 2026-08-01_adversarial-F02  low  a draft finding\n\nStatus: open\n-->\n")
+
+    def test_a_commented_draft_finding_is_guidance_not_a_hidden_one(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root, report = report_repo(tmp, self.COMMENTED)
+            self.assertEqual(len(moltke.fence_markers(self.COMMENTED)[1]), 0,
+                             "precondition: no fence markers at all in this report")
+            result = run_validate(root)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            listing = run_moltke(root, "--audit", "list")
+            self.assertNotIn("hidden", listing.stdout)
+
+    def test_a_fence_still_hides_a_finding(self):
+        # Non-vacuity: the invariant's own case must survive the comment rule.
+        with tempfile.TemporaryDirectory() as tmp:
+            root, _report = report_repo(tmp, UNCLOSED_REPORT)
+            result = run_validate(root)
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn("INV-14", result.stdout)
+            self.assertIn("2026-08-01_adversarial-F02", result.stdout)
+
+
 if __name__ == "__main__":
     unittest.main()
