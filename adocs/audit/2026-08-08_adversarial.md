@@ -165,7 +165,7 @@ repository and outside this run's scope.
 
 ### 2026-08-08_adversarial-F01  high  `--stop` exits 1 with a traceback and enforces nothing when a step file staged into `plan_done/` is not on disk, and the stamp gate's own remedy is what puts you there
 
-Status: open
+Status: closed
 
 Evidence: the stamp gate (`bin/moltke.py:1135-1143`) decides on the porcelain
 status alone and then reads the file:
@@ -261,7 +261,7 @@ asserting exit 2 or 0 and never 1. Not applied here.
 
 ### 2026-08-08_adversarial-F02  medium  the Stop deadlock waiver's clock is the worklog, so a prompt-append failure — the one moltke already detects — restores the `.2-F01` off switch
 
-Status: open
+Status: closed
 
 Evidence: `stop_turn_key` (`bin/moltke.py:1014-1024`) builds the key from
 `prompt_id`, `session_id`, and the count of prompt headings in
@@ -334,7 +334,7 @@ turns read `2 2 2 2 2 2 2 2` with the worklog unwritable. Not applied here.
 
 ### 2026-08-08_adversarial-F03  medium  `--step done` writes the stamp and unpauses the parent before it refuses, so the S052 refusal path leaves `plan_current/` violating INV-1
 
-Status: open
+Status: closed
 
 Evidence: `step_done` runs every gate first, then performs three mutations in
 order — stamp, unpause, move (`bin/moltke.py:1509-1514`):
@@ -403,7 +403,7 @@ here.
 
 ### 2026-08-08_adversarial-F04  medium  INV-13 does not scan `adocs/specs.md`, the `strip_guidance` input S028 added, so a fence there hides the prime directive with every check green
 
-Status: open
+Status: closed
 
 Evidence: `inv_13_balanced_fences` scans a fixed list (`bin/moltke.py:539-542`):
 
@@ -470,7 +470,7 @@ states — worth an explicit line naming `specs.md` alongside them. Not applied 
 
 ### 2026-08-08_adversarial-F05  low  half of moltke's file readers decode strictly and half replace, so one non-UTF-8 byte turns every mode into a traceback — including INV-14's two halves, which disagree about the same file
 
-Status: open
+Status: closed
 
 Evidence: `hidden_findings` reads a report with `errors="replace"`
 (`bin/moltke.py:487`) and `report_findings`, the function it compares against,
@@ -525,7 +525,7 @@ mode exits 1 with a traceback. Not applied here.
 
 ### 2026-08-08_adversarial-F06  low  MANUAL says an INV-7 or INV-8 violation names the commit that did the tampering; it names the baseline commit
 
-Status: open
+Status: closed
 
 Evidence: `MANUAL.md:307-308` reads "Committing tampering therefore does not hide
 it: the violation names the commit that did it." `bin/moltke.py:342-350` names the

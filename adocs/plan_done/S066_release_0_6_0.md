@@ -7,4 +7,4 @@ decisions:  DEC-034
 closes:
 blocks:
 paused_by:
-done:
+done:      2026-08-08: bumped 0.6.0 in its own commit, ran the fourth adversarial audit against it through the reviewer subagent, and reconciled with --audit check exit 0. All six findings of the previous run no longer reproduce, each re-run from its own reproduction rather than trusted from a stamp, and are closed. Twelve new findings, one step each: S067 to S078, ordered ahead of S059. The highest is a regression this batch introduced — S060's backstop catches an OSError before the deadlock counter is written, so --stop blocks forever and drops the problems it had already collected, which S067 closes. MANUAL's version-attributed sentences now name 0.6.0. Suite 308 OK, --validate green. README needed no change: no test count moved.

@@ -79,4 +79,16 @@ step instead.
 61. S064  one decode policy for every file moltke reads
 62. S065  MANUAL says which commit an immutability violation names
 63. S066  bump 0.6.0, re-run the audit, close the findings it no longer reports
-64. S059  verify the installed release in a live session, after reinstall
+64. S067  the Stop backstop still counts a turn and still prints what it found
+65. S068  --session-start always emits its JSON channel
+66. S069  the stamp gate judges step files, not every path under plan_done/
+67. S070  --step done leaves no state the CLI cannot clear
+68. S071  INV-7's remedy for a rename is a command that works
+69. S072  the structural guard against an unguarded scanner can fire again
+70. S073  the -uall porcelain read has a test that fails without it
+71. S074  tests/test_s033_fences.py runs every class when invoked directly
+72. S075  INV-14 names the cause it can prove and a remedy that works
+73. S076  --audit's exit codes match the documented table, and a write failure says write
+74. S077  --audit check shares one definition of newly here
+75. S078  INV-16 compares the two sides instead of testing both for emptiness
+76. S059  verify the installed release in a live session, after reinstall

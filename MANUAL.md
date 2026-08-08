@@ -174,7 +174,7 @@ unknown operation, a failing `test_command` — goes to stderr. **If you script
 this, capture both**, or you will get an exit code with no message. That matters
 most outside Claude Code, where `--validate` is the only lever you have.
 
-No mode ends in a Python traceback. A file moltke cannot read — a directory
+Since 0.6.0 no mode ends in a Python traceback. A file moltke cannot read — a directory
 where a step file belongs, a path the index has and the worktree does not — is
 reported as a violation naming the check that hit it, and anything else a broken
 tree reaches is caught at the top and exits `2` with the path. `--log-prompt` and
@@ -416,7 +416,7 @@ turn onward every Stop check was skipped — and stayed skipped across sessions.
 What tells one turn from the next is the worklog's prompt count, plus the
 prompt-failure breadcrumb below when the worklog cannot be written — up to and
 including 0.5.0 a failing append froze that count and brought the old off switch
-back. A turn in which no prompt was logged and nothing failed still reads as a
+back; 0.6.0 carries the fix. A turn in which no prompt was logged and nothing failed still reads as a
 retry: there is no event to count.
 
 "Source" means everything except two directories: `adocs/`, which is the
