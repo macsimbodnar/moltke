@@ -135,8 +135,14 @@ file is cosmetic where a checker that cannot start is not.
 readers instead of written beside them, so `adocs/specs.md` — which S028 made a
 `strip_guidance` consumer through `prime_directive` — is guarded like the rest.
 Every whole-file read goes through `read_stripped`, which is what keeps the list
-and the scanners from disagreeing again; a call site pairing `strip_guidance`
-with `read_text` is a test failure now, not an audit finding in two months.
+and the scanners from disagreeing again. — Amended 2026-08-08 (S072): the guard
+described here looked for `strip_guidance` beside `read_text`, and S064 then
+banned `read_text` everywhere, so the mandated way to write a new scanner —
+`strip_guidance(read_file(path))` — passed it. The guard was vacuous by
+construction, which is the shape it existed to catch, applied to itself. It now
+names the three lines allowed to call `strip_guidance` at all, and a second test
+runs the modes with `read_stripped` recorded and asserts every file it was
+pointed at is one INV-13 guards (finding 2026-08-08_adversarial.2-F06).
 
 INV-16 covers the half parity cannot reach. Two example fences with their closers
 removed are an even count, and one closed fence around the directive is the same

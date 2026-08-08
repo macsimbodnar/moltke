@@ -392,16 +392,44 @@ class TestEveryStrippedFileIsGuarded(unittest.TestCase):
                              "## Invariants\n\n```\nINV-1 example\n```\n", encoding="utf-8")
             self.assertEqual(run_validate(root).returncode, 0)
 
-    def test_no_scanner_reads_a_file_outside_the_guarded_set(self):
-        # The structural half: every whole-file read through strip_guidance goes
-        # via read_stripped, and INV-13 scans exactly what read_stripped is
-        # pointed at. A future scanner that pairs strip_guidance with read_text
-        # again fails here rather than in an audit two months later.
+    def test_strip_guidance_is_only_called_through_the_one_door(self):
+        # S072 (.2-F06): this used to look for strip_guidance beside read_text,
+        # and S064 then banned read_text everywhere — so the mandated way to
+        # write a new scanner, strip_guidance(read_file(path)), passed it. The
+        # guard was vacuous by construction. Naming the callers instead cannot
+        # be defeated by changing how the file is read.
+        allowed = {'def strip_guidance(text):', 'return strip_guidance(text)',
+                   'return strip_guidance(fields.get(key, "")).strip()'}
         source = (REPO / "bin" / "moltke.py").read_text(encoding="utf-8")
         offenders = [line.strip() for line in source.splitlines()
-                     if "strip_guidance(" in line and "read_text(" in line]
+                     if "strip_guidance(" in line and line.strip() not in allowed]
         self.assertEqual(offenders, [],
-                         "read a repository file through read_stripped, which INV-13 covers")
+                         "read repository files through read_stripped, which INV-13 covers")
+
+    def test_the_modes_only_strip_files_the_invariants_guard(self):
+        # The functional half, which no rewrite of the source can dodge: run the
+        # modes and record what read_stripped was actually pointed at.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            audit_report(root, [("2026-08-01_adversarial-F01", "accepted")])
+            seen, original = [], moltke.read_stripped
+
+            def recording(path):
+                seen.append(str(Path(path).resolve().relative_to(Path(root).resolve())))
+                return original(path)
+
+            moltke.read_stripped = recording
+            try:
+                config = json.loads((root / ".moltke.json").read_text(encoding="utf-8"))
+                moltke.run_validate(root, config, [])
+                moltke.session_context_lines(root, config)
+            finally:
+                moltke.read_stripped = original
+            guarded = set(moltke.stripped_files(root))
+            self.assertTrue(seen, "precondition: the modes read something at all")
+            self.assertEqual(sorted(set(seen) - guarded), [],
+                             "a scanner read a file no invariant guards")
+
 
     def test_this_repository_has_every_stripped_file_in_the_scanned_list(self):
         scanned = set(moltke.stripped_files(REPO))
