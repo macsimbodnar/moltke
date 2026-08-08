@@ -1,7 +1,7 @@
 {
   "name": "moltke",
   "displayName": "moltke",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Document-driven development workflow with blocking enforcement: durable plan, decision, testing, and audit state in the repository, checked by hooks in repositories that opt in.",
   "author": {
     "name": "Maksym Bodnar"
