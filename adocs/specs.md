@@ -57,6 +57,16 @@ a `Status: <value>` line in its section; the S008 report template must conform.
 check abstains. INV-3 additionally treats a missing `plan.md` in an enabled
 repo as a violation.
 
+2026-08-08 (S083): `--step new` and `--step block` write the plan entry first
+and the step file second, so a failure leaves nothing behind. Written the other
+way round, a failing append to `plan.md` left a step file no list entry names,
+which is INV-3, and for `block` an unpaused parent as well — the half-apply class
+S062 and S070 fixed for `--step done` and left in its two siblings (finding
+2026-08-08_adversarial.3-F04). The order is chosen rather than arbitrary: of the
+two failure directions, a listed id with no file is the recoverable one, since
+INV-3 names it and `--step new` writes the file, while a file no plan lists is a
+violation with no command to clear it.
+
 2026-08-08 (S082): `--step block` refuses when the parent is already paused. It
 asked only that the parent was in `plan_current/` and then overwrote its
 `paused_by`, so a second blocking child reported success while taking the

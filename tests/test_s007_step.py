@@ -679,5 +679,55 @@ class TestBlockOnAnAlreadyPausedParent(unittest.TestCase):
             self.assertEqual(validate(root).returncode, 0)
 
 
+class TestNewAndBlockWriteLast(unittest.TestCase):
+    """S083 (2026-08-08_adversarial.3-F04): step_new and step_block wrote the
+    step file before the plan entry, so a failure appending to plan.md left an
+    id no list entry names, which is INV-3 — and for block, an unpaused parent
+    too. The half-apply class S062 and S070 fixed for done, unfixed for its two
+    siblings."""
+
+    def unwritable_plan(self, root):
+        plan = root / "adocs" / "plan.md"
+        plan.chmod(0o444)
+        return plan
+
+    def test_step_new_leaves_nothing_behind_when_the_plan_cannot_be_written(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            plan = self.unwritable_plan(root)
+            try:
+                result = run_moltke(root, "--step", "new", "widget")
+                self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+                self.assertFalse((root / "adocs" / "plan_todo" / "S004_widget.md").exists(),
+                                 "a step file with no plan entry is INV-3")
+            finally:
+                plan.chmod(0o644)
+            self.assertEqual(validate(root).returncode, 0, validate(root).stdout)
+
+    def test_step_block_leaves_nothing_behind_when_the_plan_cannot_be_written(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            plan = self.unwritable_plan(root)
+            try:
+                result = run_moltke(root, "--step", "block", "S003", "dep")
+                self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+                self.assertFalse((root / "adocs" / "plan_current" / "S004_dep.md").exists())
+                parent = (root / "adocs" / "plan_current" / "S003_active.md").read_text(
+                    encoding="utf-8")
+                self.assertNotRegex(parent, r"paused_by:\s*S004")
+            finally:
+                plan.chmod(0o644)
+            self.assertEqual(validate(root).returncode, 0, validate(root).stdout)
+
+    def test_both_still_work_normally(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            self.assertEqual(run_moltke(root, "--step", "new", "widget").returncode, 0)
+            self.assertEqual(run_moltke(root, "--step", "block", "S003", "dep").returncode, 0)
+            self.assertEqual(validate(root).returncode, 0, validate(root).stdout)
+            self.assertTrue((root / "adocs" / "plan_todo" / "S004_widget.md").is_file())
+            self.assertTrue((root / "adocs" / "plan_current" / "S005_dep.md").is_file())
+
+
 if __name__ == "__main__":
     unittest.main()

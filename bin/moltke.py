@@ -1664,10 +1664,14 @@ def append_to_plan(root, step_id, goal):
     plan_path = root / DOCS / "plan.md"
     numbers = [int(n) for n in re.findall(r"^\s*(\d+)\.\s", plan_text(root) or "", re.M)]
     entry = f"{max(numbers) + 1 if numbers else 1}. {step_id}  {goal}".rstrip()
-    text = read_file(plan_path)
-    if not text.endswith("\n"):
-        text += "\n"
-    plan_path.write_text(text + entry + "\n", encoding="utf-8")
+    try:
+        text = read_file(plan_path)
+        if not text.endswith("\n"):
+            text += "\n"
+        plan_path.write_text(text + entry + "\n", encoding="utf-8")
+    except OSError:
+        return False
+    return True
 
 
 def with_field(text, key, value):
@@ -1697,8 +1701,15 @@ def step_new(root, config, name, goal):
     step_id = next_step_id(root)
     goal = goal or name.replace("_", " ")
     path = root / DOCS / "plan_todo" / f"{step_id}_{name}.md"
+    # The plan entry first, the step file second (S083, .3-F04). Written the
+    # other way round, a failing append left an id no list entry names, which is
+    # INV-3 — the half-apply S062 and S070 fixed for --step done and left in its
+    # two siblings. The listed-but-absent direction is the recoverable one:
+    # INV-3 names it and --step new writes the file.
+    if not append_to_plan(root, step_id, goal):
+        return refuse(f"{DOCS}/plan.md could not be written, so {step_id} was not created; "
+                      f"the plan is the order and a step file it does not list is a violation")
     write_step(path, step_id, goal)
-    append_to_plan(root, step_id, goal)
     print(f"moltke: created {path.relative_to(root)} and listed {step_id} in plan.md. "
           f"Reorder plan.md if it does not belong last.")
     return EXIT_OK
@@ -1752,8 +1763,12 @@ def step_block(root, config, parent_id, name):
     child_id = next_step_id(root)
     goal = name.replace("_", " ")
     child_path = root / DOCS / "plan_current" / f"{child_id}_{name}.md"
+    # Same ordering as step_new (S083): the plan entry is the write that can
+    # fail on its own, so it goes first and the rest follows only if it lands.
+    if not append_to_plan(root, child_id, goal):
+        return refuse(f"{DOCS}/plan.md could not be written, so {child_id} was not created and "
+                      f"{parent_id} is not paused; nothing was changed")
     write_step(child_path, child_id, goal, blocks=parent_id)
-    append_to_plan(root, child_id, goal)
     set_field(parent_path, "paused_by",
               f"{child_id}  # {datetime.date.today().isoformat()}")
     print(f"moltke: {child_id} created in plan_current/ blocking {parent_id}, "
