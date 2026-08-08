@@ -9,6 +9,7 @@ from pathlib import Path
 from fixtures import audit_report, step_file, workflow_repo
 
 MOLTKE = Path(__file__).resolve().parent.parent / "bin" / "moltke.py"
+REPO = MOLTKE.parent.parent
 
 
 def run_validate(cwd):
@@ -251,6 +252,46 @@ class TestAuditFindings(unittest.TestCase):
                 "# Plan\n\n1. S001\n2. S002\n3. S003\n4. S004\n", encoding="utf-8")
             result = run_validate(root)
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+
+class TestWhichCommitTheViolationNames(unittest.TestCase):
+    """S065 (2026-08-08_adversarial-F06): MANUAL said the violation "names the
+    commit that did it". It names the commit it compares against — the one that
+    added the plan_done/ file, or the high-water mark for decisions.md — and the
+    tampering commit appears nowhere. A reader told otherwise runs `git show` on
+    the legitimate commit that first added the file. The sentence had survived
+    being named in two consecutive audits, so the claim gets a test."""
+
+    def test_the_message_names_the_baseline_and_not_the_tampering_commit(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            git_baseline(root)
+            baseline = git(root, "rev-parse", "--short=8", "HEAD").stdout.strip()
+            (root / "README.md").write_text("unrelated\n", encoding="utf-8")
+            git(root, "add", "-A")
+            git(root, "commit", "-qm", "unrelated work in between")
+            done = root / "adocs" / "plan_done" / "S001_base.md"
+            done.write_text(done.read_text(encoding="utf-8") + "tampered\n", encoding="utf-8")
+            decisions = root / "adocs" / "decisions.md"
+            decisions.write_text(decisions.read_text(encoding="utf-8")
+                                 .replace("base decision", "rewritten"), encoding="utf-8")
+            git(root, "add", "-A")
+            git(root, "commit", "-qm", "tamper")
+            tampering = git(root, "rev-parse", "--short=8", "HEAD").stdout.strip()
+            self.assertNotEqual(baseline, tampering)
+            result = run_validate(root)
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn("INV-7", result.stdout)
+            self.assertIn("INV-8", result.stdout)
+            self.assertIn(baseline, result.stdout)
+            self.assertNotIn(tampering, result.stdout,
+                             "the tampering commit is not something moltke identifies")
+
+    def test_the_manual_does_not_claim_otherwise(self):
+        manual = (REPO / "MANUAL.md").read_text(encoding="utf-8")
+        self.assertNotIn("names the commit that did it", manual)
+        self.assertIn("not the commit that", manual,
+                      "MANUAL must say which commit is named, since the two differ")
 
 
 if __name__ == "__main__":

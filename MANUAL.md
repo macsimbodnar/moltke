@@ -320,9 +320,12 @@ rather than carrying the report's real name.
 (`plan_done/` unchanged) and INV-8 (`adocs/decisions.md` append-only) compare the
 working tree against `git HEAD`, which covers changes you have not committed, and
 also walk `git log`, which covers changes you have. Committing tampering
-therefore does not hide it: the violation names the commit that did it. In a
-repository with no history, or for a file not yet committed, there is no baseline
-and the check abstains rather than guessing.
+therefore does not hide it. The commit the violation names is the one it compares
+against — for a `plan_done/` file the commit that added it, for `decisions.md`
+the most recent version that had not already lost something — not the commit that
+did the damage, which moltke never identifies. Restoring those bytes in a new
+commit is what clears it. In a repository with no history, or for a file not yet
+committed, there is no baseline and the check abstains rather than guessing.
 
 What this cannot do is unwrite history, and it does not try. Both checks compare
 what the file says **now** against a version from history — for a `plan_done/`
