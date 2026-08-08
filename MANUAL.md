@@ -255,8 +255,10 @@ it from those checks.
 
 Markers have to open a line, so a fence pasted into a prompt — which the worklog
 stores as `> ``` ` — is text, and a trailing unpaired marker is text rather than
-swallowing the rest of the file. An odd number of markers is an INV-13 violation
-naming the file. Close the fence and it clears.
+swallowing the rest of the file. A marker inside an HTML comment is not a marker
+either, since comments come out before anything looks for fences — so prose about
+fences, which this file and the specs are full of, can show one. An odd number of
+markers is an INV-13 violation naming the file. Close the fence and it clears.
 
 Two unclosed fences are a different problem: they are an even count, they pair as
 one closed fence, and nothing distinguishes them from one — templates do put

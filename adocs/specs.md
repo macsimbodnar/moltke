@@ -55,6 +55,17 @@ a `Status: <value>` line in its section; the S008 report template must conform.
 check abstains. INV-3 additionally treats a missing `plan.md` in an enabled
 repo as a violation.
 
+2026-08-08 (S055): INV-13 and `strip_guidance` share one `fence_markers`, which
+removes HTML comments and then finds the line-anchored markers. The invariant
+counted markers in the raw file while the stripper removed comments first, so a
+marker inside a comment was counted by the check and not by the thing the check
+exists to protect: `--stop` blocked under a message that was false for that file,
+and closing the fence as instructed would have unbalanced a pairing that was
+already correct. It failed the other way too — a commented marker plus a genuinely
+unclosed one is an even raw count, so a real imbalance went unreported (finding
+2026-08-07_adversarial.2-F08). Both directions are gone because there is one
+definition of what a marker is rather than two.
+
 2026-08-08 (S052): `--step` refuses, naming `--scaffold`, in a marked repository
 whose `adocs/` does not exist, instead of raising `FileNotFoundError` out of
 `step_status`, `step_start`, and `step_done`. `mode_step` caught `IndexError`

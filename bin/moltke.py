@@ -91,6 +91,27 @@ def parse_step_file(path):
     return fields
 
 
+COMMENT = re.compile(r"<!--.*?-->", re.S)
+FENCE_MARKER = re.compile(r"^ {0,3}```", re.M)
+
+
+def fence_markers(text):
+    """(text without HTML comments, the fence markers in it).
+
+    One definition, because two diverged (S055, .2-F08): INV-13 counted markers
+    in the raw file while `strip_guidance` removed comments first, so a marker
+    inside a comment blocked `--stop` under a message that was false for that
+    file — nothing was swallowed — and following the message would have
+    unbalanced a pairing that was already correct.
+
+    Markers must open a line (S033). A marker quoted in a worklog prompt arrives
+    as `> ``` `, because every prompt line is quoted, and one written inline in a
+    sentence is not at the start of a line: neither is a fence.
+    """
+    text = COMMENT.sub("", text)
+    return text, list(FENCE_MARKER.finditer(text))
+
+
 def strip_guidance(text):
     """Drop fenced blocks and HTML comments.
 
@@ -99,15 +120,12 @@ def strip_guidance(text):
     step is not planned, an example finding is not open, an example decision id
     is not taken.
     """
-    text = re.sub(r"<!--.*?-->", "", text, flags=re.S)
-    # Markers must open a line, and are paired in order. Both matter (S033).
-    # Pairing `.*?` globally meant one stray marker shifted every later pairing
-    # and deleted the real content between two unrelated fences, so a rule for
-    # making guidance invisible was making evidence invisible instead. An
-    # unpaired trailing marker is text: swallowing to end of file is exactly the
-    # failure. Line-anchored, so a marker quoted in a worklog prompt ("> ```")
-    # or written inline in a sentence is not a fence at all.
-    marks = list(re.finditer(r"^ {0,3}```", text, re.M))
+    text, marks = fence_markers(text)
+    # Markers are paired in order (S033). Pairing `.*?` globally meant one stray
+    # marker shifted every later pairing and deleted the real content between two
+    # unrelated fences, so a rule for making guidance invisible was making
+    # evidence invisible instead. An unpaired trailing marker is text: swallowing
+    # to end of file is exactly the failure.
     kept, pos = [], 0
     for opener, closer in zip(marks[::2], marks[1::2]):
         line_end = text.find("\n", closer.end())
@@ -513,9 +531,6 @@ def inv_10_audit_findings(root, config):
     return violations
 
 
-FENCE_MARKER = re.compile(r"^ {0,3}```", re.M)
-
-
 def inv_13_balanced_fences(root, config):
     """S033: two unclosed fences are indistinguishable from one closed fence, and
     the templates deliberately put headings inside fences, so no rule can tell
@@ -530,7 +545,10 @@ def inv_13_balanced_fences(root, config):
         path = root / rel
         if not path.is_file():
             continue
-        count = len(FENCE_MARKER.findall(path.read_text(encoding="utf-8", errors="replace")))
+        # Through fence_markers, so this counts exactly what strip_guidance
+        # pairs: a marker inside an HTML comment is neither stripped as a fence
+        # nor counted as one (S055).
+        count = len(fence_markers(path.read_text(encoding="utf-8", errors="replace"))[1])
         if count % 2:
             violations.append(
                 f"INV-13: {rel} has {count} code-fence markers, an odd number, so one fence is "

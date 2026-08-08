@@ -149,6 +149,54 @@ class TestAmbiguityIsReportedNotGuessed(unittest.TestCase):
             result = run_validate(root)
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
+    def test_a_marker_inside_an_html_comment_is_not_counted(self):
+        # S055 (.2-F08): strip_guidance removes comments before it pairs
+        # markers, so a marker inside one is invisible to the thing INV-13
+        # exists to protect. Counting it blocked --stop under a message that was
+        # false for that file, and following the message — closing the fence —
+        # would have unbalanced the pairing that was already correct.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            audit_report(root, [("2026-08-01_adversarial-F01", "accepted")])
+            report = root / "adocs" / "audit" / "2026-08-01_adversarial.md"
+            report.write_text(report.read_text(encoding="utf-8")
+                              + "\n<!-- reviewers: an evidence block opens with\n```\n"
+                                "and the checker pairs markers in order -->\n\n"
+                                "```\nevidence\n```\n", encoding="utf-8")
+            raw = report.read_text(encoding="utf-8")
+            self.assertEqual(len(re.findall(r"^ {0,3}```", raw, re.M)) % 2, 1,
+                             "precondition: the raw count is odd, which is what INV-13 saw")
+            self.assertEqual(moltke.report_findings(report),
+                             [("2026-08-01_adversarial-F01", "accepted")],
+                             "precondition: nothing is actually swallowed")
+            result = run_validate(root)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_a_genuinely_unclosed_fence_outside_a_comment_is_still_reported(self):
+        # Non-vacuity for the case above: ignoring commented markers must not
+        # make INV-13 ignore the imbalance it exists for.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            audit_report(root, [("2026-08-01_adversarial-F01", "accepted")])
+            report = root / "adocs" / "audit" / "2026-08-01_adversarial.md"
+            report.write_text(report.read_text(encoding="utf-8")
+                              + "\n<!-- a commented marker:\n```\n-->\n\n```\nunclosed\n",
+                              encoding="utf-8")
+            result = run_validate(root)
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn("INV-13", result.stdout)
+
+    def test_the_invariant_and_the_stripper_count_the_same_markers(self):
+        # Stated as its own property, since the two diverging is the defect:
+        # whatever strip_guidance pairs is what INV-13 counts.
+        cases = [("a\n```\nx\n```\nb\n", 2),
+                 ("<!--\n```\n-->\n```\nx\n```\n", 2),
+                 ("<!-- ``` -->\n```\nx\n", 1),
+                 ("> ```\nquoted\n", 0)]
+        for text, expected in cases:
+            with self.subTest(text=text):
+                self.assertEqual(len(moltke.fence_markers(text)[1]), expected)
+
     def test_an_audit_report_with_an_odd_count_is_reported(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = workflow_repo(tmp)
