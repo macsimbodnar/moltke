@@ -86,6 +86,29 @@ reports it. Fixing without re-running leaves it `planned`. That is deliberate:
 Re-running means step 1 again and comparing. It does not mean waiting for
 tomorrow: a same-day re-run gets its own suffixed report.
 
+## 6. Know when to stop
+
+The loop is: fix, release, re-run, triage. It has an end, and the end is a
+severity profile rather than an empty report (DEC-035).
+
+**When a re-run reports no `high` and no `medium`, stop.** Record the lows as
+always, then discharge them as `accepted` in one decision entry rather than
+planning a step each, and schedule no further audit. Only lows means the
+codebase has stopped giving up real defects, and an auditor asked to find
+something will keep finding something — that is drift, not diligence.
+
+A regression the audited batch introduced does not count towards continuing. Fix
+it, but read it as evidence that the batch was wrong, not that the codebase has
+more to give.
+
+Two conditions must hold for a run to count as a stopping run, because "only
+lows" has to mean the reviewer looked and found little:
+
+- it re-measured every prior finding from that finding's own reproduction
+- its mutation testing killed what it planted
+
+If either is missing, the run does not stop anything. Run it again properly.
+
 ## Rules that hold regardless
 
 - The report is written before any fix, and is never edited while fixing.

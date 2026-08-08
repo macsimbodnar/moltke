@@ -1647,3 +1647,7 @@ silently. That is audit finding F14, reproduced and planned as S014.
 ## 2026-08-08T13:21+02:00 prompt
 
 > let's proceed with the plan with the findings fix and after all of the fixes let's create a new version. Do not care about migration or backward compatibility
+
+## 2026-08-08T15:53+02:00 prompt
+
+> let's solve open points and then start impliementing the fixes one by one. During the next audit pay attention to not to start finding only minor things in that case it means that you can not find any big issue so no more actions needed because you will start to drift
