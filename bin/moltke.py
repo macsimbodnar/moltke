@@ -9,6 +9,7 @@ import argparse
 import datetime
 import hashlib
 import json
+import os
 import re
 import subprocess
 import sys
@@ -1694,11 +1695,19 @@ def step_done(root, config, step_id, stamp):
     if dirname != "plan_current":
         return refuse(f"{step_id} is in {dirname}, not plan_current/; only a step that is "
                       f"actually in progress can be completed")
+    steps = plan_steps(root)
     pauser = re.search(r"S\d{3}", field_value(fields, "paused_by"))
+    if pauser and pauser.group(0) in {done_id for done_id, _p, _f in steps["plan_done"]}:
+        # A pause naming a step that is already finished is stale, and refusing
+        # on it is a dead end the CLI cannot clear — hand-editing a step file is
+        # what --step exists to avoid (S070, .2-F04). Say so and go on; the
+        # field is rewritten below either way.
+        print(f"moltke: {step_id} was paused by {pauser.group(0)}, which is already in "
+              f"plan_done/; treating the pause as stale.")
+        pauser = None
     if pauser:
         return refuse(f"{step_id} is paused by {pauser.group(0)}; complete {pauser.group(0)} "
                       f"first, which unpauses this step automatically")
-    steps = plan_steps(root)
     for open_dir in ("plan_todo", "plan_current"):
         for other_id, _p, other_fields in steps[open_dir]:
             if other_id != step_id and step_id in field_value(other_fields, "blocks"):
@@ -1728,6 +1737,17 @@ def step_done(root, config, step_id, stamp):
     # INV-1 violation. Writing the stamped content straight to the destination
     # makes the first step the failing one; the source is only unlinked once the
     # destination exists, and the parent is unpaused after both.
+    # Nothing is written until every write is known to be possible (S070): the
+    # parent unpause is a different file and can fail on its own, and S062 left
+    # it after the point of no return, so a completion could half-apply into a
+    # state neither --step done nor --step start could clear.
+    parents = [parent_path for _pid, parent_path, parent_fields in steps["plan_current"]
+               if step_id in field_value(parent_fields, "paused_by")]
+    for parent_path in [path] + parents:
+        if not os.access(parent_path, os.W_OK):
+            return refuse(f"{parent_path.relative_to(root)} is not writable, and completing "
+                          f"{step_id} has to rewrite it; nothing was changed. Make it writable "
+                          f"and run this again")
     destination = root / DOCS / "plan_done" / path.name
     try:
         destination.write_text(with_field(read_file(path), "done", stamp),
@@ -1745,7 +1765,16 @@ def step_done(root, config, step_id, stamp):
                       f"({exc}); the copy was undone and nothing was changed")
     for parent_id, parent_path, parent_fields in steps["plan_current"]:
         if step_id in field_value(parent_fields, "paused_by"):
-            set_field(parent_path, "paused_by", "")
+            try:
+                set_field(parent_path, "paused_by", "")
+            except OSError as exc:
+                # Pre-flighted above, so this is a race rather than a mistake.
+                # The state is recoverable: the pause now names a completed step
+                # and --step done on the parent clears it (S070).
+                print(f"moltke: {parent_id} could not be unpaused ({exc}); its pause now names "
+                      f"a completed step, so --step done {parent_id} will clear it.",
+                      file=sys.stderr)
+                continue
             print(f"moltke: {parent_id} unpaused.")
     print(f"moltke: {step_id} completed and moved to plan_done/. Commit it; the move is the "
           f"last action of the step.")

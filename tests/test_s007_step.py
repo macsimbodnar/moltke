@@ -13,6 +13,7 @@ import unittest
 from pathlib import Path
 
 from fixtures import marked_repo, step_file, workflow_repo
+from surface import moltke
 
 MOLTKE = Path(__file__).resolve().parent.parent / "bin" / "moltke.py"
 REPO = MOLTKE.parent.parent
@@ -561,3 +562,81 @@ class TestARefusedCompletionChangesNothing(unittest.TestCase):
                 encoding="utf-8")
             self.assertNotRegex(parent, r"paused_by:\s*S004")
             self.assertEqual(validate(root).returncode, 0)
+
+
+class TestNoDeadEndCompletion(unittest.TestCase):
+    """S070 (2026-08-08_adversarial.2-F04): S062 put the write and the unlink
+    ahead of the point of no return and left the parent unpause after it. The
+    unpause writes a different file and can fail on its own, and when it did the
+    child was already in plan_done/ — leaving a parent paused by a completed
+    step that neither --step done nor --step start could clear. Fixing it by
+    hand is what --step exists to avoid."""
+
+    def blocked_pair(self, tmp):
+        root = workflow_repo(tmp)
+        add_testing_row(root, "S003")
+        run_moltke(root, "--step", "done", "S003", "--stamp", STAMP)
+        run_moltke(root, "--step", "start", "S002")
+        run_moltke(root, "--step", "block", "S002", "child")
+        add_testing_row(root, "S004")
+        self.assertEqual(validate(root).returncode, 0, validate(root).stdout)
+        return root
+
+    def test_an_unwritable_parent_refuses_before_anything_moves(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.blocked_pair(tmp)
+            parent = root / "adocs" / "plan_current" / "S002_pending.md"
+            parent.chmod(0o444)
+            try:
+                result = run_moltke(root, "--step", "done", "S004", "--stamp", STAMP)
+                self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+                self.assertTrue((root / "adocs" / "plan_current" / "S004_child.md").is_file(),
+                                "the child moved despite the refusal")
+                self.assertFalse((root / "adocs" / "plan_done" / "S004_child.md").exists())
+            finally:
+                parent.chmod(0o644)
+            self.assertEqual(validate(root).returncode, 0, validate(root).stdout)
+
+    def test_the_same_completion_succeeds_once_the_parent_is_writable(self):
+        # Non-vacuity: the refusal is about the unwritable file, not about the
+        # completion having stopped working.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.blocked_pair(tmp)
+            parent = root / "adocs" / "plan_current" / "S002_pending.md"
+            parent.chmod(0o444)
+            run_moltke(root, "--step", "done", "S004", "--stamp", STAMP)
+            parent.chmod(0o644)
+            result = run_moltke(root, "--step", "done", "S004", "--stamp", STAMP)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertNotRegex((root / "adocs" / "plan_current" / "S002_pending.md")
+                                .read_text(encoding="utf-8"), r"paused_by:\s*S004")
+
+    def test_a_stale_pause_can_be_cleared_by_the_cli(self):
+        # The dead end itself, reached however: a parent paused by a step that is
+        # already in plan_done/. Completing the parent must work rather than
+        # sending the user to edit a step file by hand.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.blocked_pair(tmp)
+            child = root / "adocs" / "plan_current" / "S004_child.md"
+            # Set the field rather than appending one: parse_step_file keeps the
+            # first occurrence, so an appended done: loses to the empty one.
+            child.write_text(moltke.with_field(child.read_text(encoding="utf-8"), "done", STAMP),
+                             encoding="utf-8")
+            child.rename(root / "adocs" / "plan_done" / "S004_child.md")   # by hand, as Bash would
+            self.assertRegex((root / "adocs" / "plan_current" / "S002_pending.md")
+                             .read_text(encoding="utf-8"), r"paused_by:\s*S004")
+            add_testing_row(root, "S002")
+            result = run_moltke(root, "--step", "done", "S002", "--stamp", STAMP)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertIn("S004", result.stdout, "it should say why it went ahead")
+            self.assertEqual(validate(root).returncode, 0)
+
+    def test_a_live_pause_still_refuses(self):
+        # Non-vacuity for the clause above: only a pause naming a completed step
+        # is stale, and the ordinary refusal has to survive.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.blocked_pair(tmp)
+            add_testing_row(root, "S002")
+            result = run_moltke(root, "--step", "done", "S002", "--stamp", STAMP)
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn("paused by S004", result.stderr)

@@ -57,6 +57,19 @@ a `Status: <value>` line in its section; the S008 report template must conform.
 check abstains. INV-3 additionally treats a missing `plan.md` in an enabled
 repo as a violation.
 
+2026-08-08 (S070): `--step done` pre-flights every file it is about to write —
+the step file and any paused parent — and refuses before touching anything if
+one is not writable. S062 moved the write and the unlink ahead of the point of
+no return and left the parent unpause after it; that unpause is a different
+file and can fail on its own, and when it did the child was already in
+`plan_done/`, leaving a parent paused by a completed step that neither
+`--step done` nor `--step start` could clear (finding
+2026-08-08_adversarial.2-F04). A pause naming a step already in `plan_done/` is
+now treated as stale and reported rather than refused, so that state is
+recoverable however it is reached — including by the `Bash` writes no fence
+sees. If the unpause still fails after the pre-flight, which is a race rather
+than a mistake, the message says which command clears it.
+
 2026-08-08 (S069): the `Stop` stamp gate judges step files, matching
 `STEP_FILE_RE` like `plan_steps` does. It tested the porcelain status and the
 path prefix alone, so anything arriving under `plan_done/` was asked for a
