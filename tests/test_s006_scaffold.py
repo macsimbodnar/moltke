@@ -8,6 +8,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from surface import moltke
+
 MOLTKE = Path(__file__).resolve().parent.parent / "bin" / "moltke.py"
 REPO = MOLTKE.parent.parent
 TEMPLATES = REPO / "templates"
@@ -353,13 +355,23 @@ class TestPlanningPhaseNudge(unittest.TestCase):
     def test_a_prime_directive_written_only_inside_guidance_does_not_count(self):
         # The template's own comment is guidance, and so is a fenced example: the
         # check reads the section through strip_guidance like everything else.
+        # Re-targeted by S063: a fenced directive is text on disk that no scanner
+        # can read, which INV-16 reports as a violation. The nudge stays quiet
+        # about it on purpose — asking for a directive that is already written
+        # sends the user to rewrite it instead of closing the fence.
         with tempfile.TemporaryDirectory() as tmp:
             root = self.scaffolded(tmp)
             specs = root / "adocs" / "specs.md"
             specs.write_text(specs.read_text(encoding="utf-8").replace(
                 "<!-- The single property this project must never violate. One sentence. -->",
                 "```\nnever lose a write\n```"), encoding="utf-8")
-            self.assertIn("adocs/specs.md", self.context(root))
+            self.assertEqual(moltke.prime_directive(root), "",
+                             "a fenced directive is still not a written one")
+            result = run_moltke(root, "--validate")
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn("INV-16", result.stdout)
+            self.assertIn("adocs/specs.md", result.stdout)
+            self.assertNotIn("has no prime directive yet", self.context(root))
 
     def test_an_unscaffolded_repository_says_nothing_about_planning(self):
         # Non-vacuity in the other direction: no marker means moltke is silent,

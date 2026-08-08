@@ -95,6 +95,12 @@ COMMENT = re.compile(r"<!--.*?-->", re.S)
 FENCE_MARKER = re.compile(r"^ {0,3}```", re.M)
 
 
+def strip_comments(text):
+    """HTML comments out. Guidance in a template is written as one, and INV-16
+    needs the same notion of "nothing written here" that strip_guidance uses."""
+    return COMMENT.sub("", text)
+
+
 def fence_markers(text):
     """(text without HTML comments, the fence markers in it).
 
@@ -108,7 +114,7 @@ def fence_markers(text):
     as `> ``` `, because every prompt line is quoted, and one written inline in a
     sentence is not at the start of a line: neither is a fence.
     """
-    text = COMMENT.sub("", text)
+    text = strip_comments(text)
     return text, list(FENCE_MARKER.finditer(text))
 
 
@@ -133,6 +139,34 @@ def strip_guidance(text):
         pos = len(text) if line_end < 0 else line_end + 1
     kept.append(text[pos:])
     return "".join(kept)
+
+
+STRIPPED_FILES = ("plan.md", "decisions.md", "worklog.md", "specs.md")
+
+
+def stripped_files(root):
+    """Every repository file read through `strip_guidance`, INV-13's scan list.
+
+    One list, derived from the readers rather than written beside them (S063,
+    2026-08-08_adversarial-F04): INV-13 scanned three files chosen by hand, S028
+    added `specs.md` as a fourth consumer through `prime_directive`, and neither
+    guard applied to it — a fence there hid the prime directive with every check
+    green. Audit reports are found rather than listed, since their names are
+    dates.
+    """
+    files = [f"{DOCS}/{name}" for name in STRIPPED_FILES]
+    audit_dir = root / DOCS / "audit"
+    if audit_dir.is_dir():
+        files += [str(p.relative_to(root)) for p in sorted(audit_dir.glob("*.md"))]
+    return files
+
+
+def read_stripped(path):
+    """A repository file with guidance stripped. Every whole-file read through
+    `strip_guidance` goes via here, so INV-13 and the scanners cannot disagree
+    about which files are guarded (S063)."""
+    text = path.read_text(encoding="utf-8", errors="replace")
+    return strip_guidance(text)
 
 
 def field_value(fields, key):
@@ -437,7 +471,7 @@ def inv_9_unique_dec_ids(root, config):
     if not path.is_file():
         return []
     seen, violations = set(), []
-    text = strip_guidance(path.read_text(encoding="utf-8"))
+    text = read_stripped(path)
     for dec_id in re.findall(r"^## (DEC-\d{3})\b", text, re.M):
         if dec_id in seen:
             violations.append(f"INV-9: duplicate decision id {dec_id} in decisions.md; "
@@ -457,7 +491,7 @@ def finding_references(root):
         # Through strip_guidance like every other scanner (S019, F05): a finding
         # id inside a fenced example is guidance, and the scaffolded
         # decisions.md ships exactly such an example.
-        references.append(strip_guidance(decisions.read_text(encoding="utf-8")))
+        references.append(read_stripped(decisions))
     return "\n".join(references)
 
 
@@ -496,7 +530,7 @@ def hidden_findings(report):
 def report_findings(report):
     """[(finding_id, status)] for a report. Fenced examples and comments in the
     template are guidance, not findings."""
-    text = strip_guidance(report.read_text(encoding="utf-8"))
+    text = read_stripped(report)
     headings = list(FINDING_RE.finditer(text))
     findings = []
     for index, match in enumerate(headings):
@@ -536,12 +570,8 @@ def inv_13_balanced_fences(root, config):
     the templates deliberately put headings inside fences, so no rule can tell
     them apart by content. Report the imbalance instead of guessing, because a
     guess loses a finding or a recap heading and says all checks pass."""
-    scanned = [f"{DOCS}/plan.md", f"{DOCS}/decisions.md", f"{DOCS}/worklog.md"]
-    audit_dir = root / DOCS / "audit"
-    if audit_dir.is_dir():
-        scanned += [str(p.relative_to(root)) for p in sorted(audit_dir.glob("*.md"))]
     violations = []
-    for rel in scanned:
+    for rel in stripped_files(root):
         path = root / rel
         if not path.is_file():
             continue
@@ -616,6 +646,34 @@ def scan_secrets(text):
     return hits
 
 
+PRIME_DIRECTIVE_SECTION = re.compile(r"^##\s+Prime directive\s*$(.*?)(?=^##\s|\Z)", re.M | re.S)
+
+
+def inv_16_prime_directive_readable(root, config):
+    """S063: a prime directive that is written and unreadable is worse than one
+    that is missing, because the missing one is reported.
+
+    INV-13's parity cannot reach this. Two example fences with their closers
+    removed are an even count, and one closed fence around the directive is the
+    same bytes — the ambiguity DEC-033 recorded. So this compares what the file
+    states against what survives stripping, exactly as INV-14 does for a finding
+    heading: either way, `specs.md` names a directive nothing can read, and
+    `--session-start` asks for one that is already there.
+    """
+    specs = root / DOCS / "specs.md"
+    if not specs.is_file():
+        return []
+    raw = PRIME_DIRECTIVE_SECTION.search(specs.read_text(encoding="utf-8", errors="replace"))
+    if not raw or not strip_comments(raw.group(1)).strip():
+        return []   # nothing written yet: that is the planning nudge's business
+    if prime_directive(root):
+        return []
+    return [f"INV-16: {DOCS}/specs.md states a prime directive that a code fence swallows, so "
+            f"every check reads it as unwritten and --session-start asks for one that is "
+            f"already there. The marker count is even, which is why INV-13 is quiet: close "
+            f"the example blocks around it, or move them out of the section"]
+
+
 def inv_15_worklog_secrets(root, config):
     """DEC-032: the check travels with the plugin instead of protecting moltke
     alone. Every marked repository logs prompts verbatim into a tracked file, so
@@ -673,6 +731,7 @@ INVARIANT_CHECKS = [
     ("INV-13", inv_13_balanced_fences),
     ("INV-14", inv_14_findings_not_hidden),
     ("INV-15", inv_15_worklog_secrets),
+    ("INV-16", inv_16_prime_directive_readable),
 ]
 
 
@@ -693,7 +752,7 @@ def plan_text(root):
     plan_path = root / DOCS / "plan.md"
     if not plan_path.is_file():
         return None
-    return strip_guidance(plan_path.read_text(encoding="utf-8"))
+    return read_stripped(plan_path)
 
 
 # A list entry, not prose: "1. S001", "- S001", "* S001". S045 — reading every
@@ -766,7 +825,7 @@ def prime_directive(root):
     specs = root / DOCS / "specs.md"
     if not specs.is_file():
         return ""
-    text = strip_guidance(specs.read_text(encoding="utf-8", errors="replace"))
+    text = read_stripped(specs)
     match = re.search(r"^##\s+Prime directive\s*$(.*?)(?=^##\s|\Z)", text, re.M | re.S)
     return match.group(1).strip() if match else ""
 
@@ -782,7 +841,10 @@ def planning_pending(root):
     if not (root / DOCS).is_dir():
         return []   # not scaffolded at all; --scaffold is the advice, not this
     pending = []
-    if not prime_directive(root):
+    if not prime_directive(root) and not inv_16_prime_directive_readable(root, None):
+        # Written-but-unreadable is INV-16's to report, not this one's: asking
+        # for a directive that is already on disk sends the user to rewrite what
+        # is there instead of closing the fence around it (S063).
         pending.append(f"{DOCS}/specs.md has no prime directive yet")
     if not plan_order(root):
         pending.append(f"{DOCS}/plan.md lists no steps yet")
@@ -1049,7 +1111,7 @@ def stop_turn_key(root, payload):
     worklog = root / DOCS / "worklog.md"
     prompts = 0
     if worklog.is_file():
-        text = strip_guidance(worklog.read_text(encoding="utf-8", errors="replace"))
+        text = read_stripped(worklog)
         for heading in WORKLOG_HEADING.finditer(text):
             line = heading.group(0)
             if not RECAP_HEADING.search(line) and PROMPT_HEADING.search(line):
@@ -1094,7 +1156,7 @@ def recap_pending(root):
     worklog = root / DOCS / "worklog.md"
     if not worklog.is_file():
         return True
-    text = strip_guidance(worklog.read_text(encoding="utf-8", errors="replace"))
+    text = read_stripped(worklog)
     recapped = False
     for heading in WORKLOG_HEADING.finditer(text):
         line = heading.group(0)

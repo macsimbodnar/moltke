@@ -332,3 +332,80 @@ class TestAReportCannotHideItsOwnFindings(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestEveryStrippedFileIsGuarded(unittest.TestCase):
+    """S063 (2026-08-08_adversarial-F04): INV-13 scanned a list written by hand,
+    and S028 added a fifth strip_guidance consumer — adocs/specs.md, through
+    prime_directive — without touching it. So a fence there hid the prime
+    directive from the only check that reads it, with --validate green, --stop
+    green, and --session-start nagging forever about a planning phase that was
+    finished. An odd count was silent too: parity was never consulted for that
+    file, which is what separates this from INV-14's territory."""
+
+    def fenced_specs(self, root, markers):
+        specs = root / "adocs" / "specs.md"
+        specs.write_text("# Specs\n\n## Prime directive\n\n" + "```\n" * markers
+                         + "never lose a write\n", encoding="utf-8")
+
+    def test_an_odd_marker_count_in_specs_is_reported(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            self.fenced_specs(root, 1)
+            result = run_validate(root)
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn("INV-13", result.stdout)
+            self.assertIn("specs.md", result.stdout)
+
+    def test_a_fence_hiding_the_prime_directive_does_not_pass_silently(self):
+        # The finding's own shape, and the half parity cannot reach: two example
+        # fences with their closers removed are an even count, so INV-13 has
+        # nothing to say even once specs.md is in its list. The directive is on
+        # disk and invisible to the only thing that reads it, so --validate and
+        # --stop stay green while --session-start nags forever about a planning
+        # phase that is finished.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            specs = root / "adocs" / "specs.md"
+            specs.write_text("# Specs\n\n## Prime directive\n\n```\n"
+                             "never lose a write\n```\n\n## Invariants\n\n- INV-1\n",
+                             encoding="utf-8")
+            self.assertIn("never lose a write", specs.read_text(encoding="utf-8"))
+            self.assertEqual(moltke.prime_directive(root), "",
+                             "precondition: the fence really does hide the directive")
+            self.assertEqual(len(moltke.fence_markers(
+                specs.read_text(encoding="utf-8"))[1]) % 2, 0,
+                "precondition: an even count, so parity is not what fires")
+            result = run_validate(root)
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn("specs.md", result.stdout)
+            nudge = run_moltke(root, "--session-start").stdout
+            self.assertNotIn("Planning phase pending", nudge,
+                             "a directive that is written must not read as unwritten")
+
+    def test_a_normal_specs_file_with_balanced_fences_stays_silent(self):
+        # Non-vacuity: specs.md is full of fenced examples in any real project.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            specs = root / "adocs" / "specs.md"
+            specs.write_text("# Specs\n\n## Prime directive\n\nnever lose a write\n\n"
+                             "## Invariants\n\n```\nINV-1 example\n```\n", encoding="utf-8")
+            self.assertEqual(run_validate(root).returncode, 0)
+
+    def test_no_scanner_reads_a_file_outside_the_guarded_set(self):
+        # The structural half: every whole-file read through strip_guidance goes
+        # via read_stripped, and INV-13 scans exactly what read_stripped is
+        # pointed at. A future scanner that pairs strip_guidance with read_text
+        # again fails here rather than in an audit two months later.
+        source = (REPO / "bin" / "moltke.py").read_text(encoding="utf-8")
+        offenders = [line.strip() for line in source.splitlines()
+                     if "strip_guidance(" in line and "read_text(" in line]
+        self.assertEqual(offenders, [],
+                         "read a repository file through read_stripped, which INV-13 covers")
+
+    def test_this_repository_has_every_stripped_file_in_the_scanned_list(self):
+        scanned = set(moltke.stripped_files(REPO))
+        for rel in ("adocs/plan.md", "adocs/decisions.md", "adocs/worklog.md",
+                    "adocs/specs.md"):
+            self.assertIn(rel, scanned)
+        self.assertIn("adocs/audit/2026-08-08_adversarial.md", scanned)

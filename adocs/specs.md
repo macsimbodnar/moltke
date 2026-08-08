@@ -38,6 +38,7 @@ Enforced by `bin/moltke.py` in marked repositories:
 - INV-13 `plan.md`, `decisions.md`, `worklog.md`, and every audit report have an even number of code-fence markers. 2026-08-07 (S033): added, because an unclosed fence makes content invisible to every scanner that reads the file.
 - INV-14 no audit report states a finding under its own name that `strip_guidance` then removes. 2026-08-08 (S049, DEC-033): added, because parity catches one unclosed fence and not two — two are an even count that pairs as one closed fence and deletes the finding between them.
 - INV-15 `worklog.md` holds nothing shaped like a credential: prefixed key shapes and PEM private-key headers. 2026-08-08 (S031, DEC-032, DEC-024): added, because prompt logging writes verbatim into a tracked file in every repository moltke is installed into, and the tool doing the writing is the one that should say so. Detected, never redacted, and never printed beyond the first 8 characters.
+- INV-16 `specs.md` never states a prime directive that `strip_guidance` then removes. 2026-08-08 (S063): added, because INV-13's parity cannot see an even marker count and a written-but-unreadable directive reads as unwritten to every check, including the planning nudge.
 
 Properties of the checker itself:
 
@@ -55,6 +56,21 @@ a `Status: <value>` line in its section; the S008 report template must conform.
 (append by move only). Repos without git history have no baseline, so the
 check abstains. INV-3 additionally treats a missing `plan.md` in an enabled
 repo as a violation.
+
+2026-08-08 (S063): INV-13 scans `stripped_files`, one list derived from the
+readers instead of written beside them, so `adocs/specs.md` — which S028 made a
+`strip_guidance` consumer through `prime_directive` — is guarded like the rest.
+Every whole-file read goes through `read_stripped`, which is what keeps the list
+and the scanners from disagreeing again; a call site pairing `strip_guidance`
+with `read_text` is a test failure now, not an audit finding in two months.
+
+INV-16 covers the half parity cannot reach. Two example fences with their closers
+removed are an even count, and one closed fence around the directive is the same
+bytes — the ambiguity DEC-033 recorded — so this compares what the file states
+against what survives stripping, exactly as INV-14 does for a finding heading.
+The planning nudge stays quiet in that case on purpose: asking for a directive
+that is already on disk sends the user to rewrite it rather than to close the
+fence around it (finding 2026-08-08_adversarial-F04).
 
 2026-08-08 (S062): `--step done` writes nothing until the move is certain. It
 stamped the step file, unpaused the parent, and renamed last — and the rename is

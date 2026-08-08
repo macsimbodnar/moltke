@@ -303,6 +303,11 @@ under its own name which no check can then read is an INV-14 violation naming it
 reports it too, so it surfaces when you save the report. Close the evidence blocks
 around the heading and it clears.
 
+INV-16 is the same rule for the one other place it matters: a prime directive
+written in `adocs/specs.md` and then swallowed by a fence reads as unwritten to
+every check, so it is reported rather than left to nag you forever about a
+planning phase you already finished.
+
 INV-14 sees hidden finding headings, in `adocs/audit/` only. It does not see other
 hidden content — a `Status:` line, an Impact section, anything in `plan.md`,
 `decisions.md`, or `worklog.md` — where an even count of unclosed fences still
