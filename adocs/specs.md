@@ -57,6 +57,18 @@ a `Status: <value>` line in its section; the S008 report template must conform.
 check abstains. INV-3 additionally treats a missing `plan.md` in an enabled
 repo as a violation.
 
+2026-08-08 (S064): every repository file moltke reads goes through `read_file`,
+which decodes UTF-8 and replaces what it cannot. Thirteen readers decoded
+strictly and six replaced, and INV-14's two halves disagreed about the same file
+— S049 added `hidden_findings` beside `report_findings` and gave only the new one
+the tolerant read. One latin-1 byte in a pasted terminal capture then turned
+`--validate`, `--post-write`, `--stop`, `--session-start`, `--step`, and
+`--audit list` into tracebacks, and `--session-start` producing no JSON also
+silences the channel S014 depends on (finding 2026-08-08_adversarial-F05).
+Replacing rather than raising is the deliberate half: moltke reads files it did
+not write and must keep reporting on them, and a mojibake character in a step
+file is cosmetic where a checker that cannot start is not.
+
 2026-08-08 (S063): INV-13 scans `stripped_files`, one list derived from the
 readers instead of written beside them, so `adocs/specs.md` — which S028 made a
 `strip_guidance` consumer through `prime_directive` — is guarded like the rest.

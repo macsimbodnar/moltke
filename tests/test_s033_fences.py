@@ -409,3 +409,61 @@ class TestEveryStrippedFileIsGuarded(unittest.TestCase):
                     "adocs/specs.md"):
             self.assertIn(rel, scanned)
         self.assertIn("adocs/audit/2026-08-08_adversarial.md", scanned)
+
+
+class TestOneDecodePolicy(unittest.TestCase):
+    """S064 (2026-08-08_adversarial-F05): thirteen readers decoded strictly and
+    six replaced, and INV-14's two halves disagreed about the same file. One
+    non-UTF-8 byte — a pasted terminal capture, a Bash heredoc, a file another
+    tool wrote — turned every mode into a traceback, which from a Stop hook
+    means exit 1, no message, and every gate off."""
+
+    LATIN1 = b"note: caf\xe9 latin-1\n"
+
+    def test_one_bad_byte_in_a_step_file_does_not_break_any_mode(self):
+        # S063 already made the strip_guidance readers tolerant; these are the
+        # ones it did not touch — parse_step_file, the testing ledger, status.md.
+        for target in ("adocs/plan_current/S003_active.md", "adocs/testing.md",
+                       "adocs/status.md"):
+            for mode, allowed in (("--validate", (0, 1)), ("--post-write", (0, 2)),
+                                  ("--stop", (0, 2)), ("--session-start", (0,)),
+                                  ("--step", (0, 1))):
+                with self.subTest(target=target, mode=mode), \
+                        tempfile.TemporaryDirectory() as tmp:
+                    root = workflow_repo(tmp)
+                    path = root / target
+                    path.write_bytes(path.read_bytes() + self.LATIN1)
+                    argv = [mode, "status"] if mode == "--step" else [mode]
+                    result = run_moltke(root, *argv, stdin="{}")
+                    output = result.stdout + result.stderr
+                    self.assertNotIn("UnicodeDecodeError", output)
+                    self.assertNotIn("Traceback", output)
+                    self.assertIn(result.returncode, allowed, output)
+
+    def test_one_bad_byte_in_an_audit_report_does_not_break_any_mode(self):
+        # The S049 twin: hidden_findings replaced and report_findings did not,
+        # so the two halves of one invariant disagreed about the same bytes.
+        for mode in ("--validate", "--stop", "--post-write"):
+            with self.subTest(mode=mode), tempfile.TemporaryDirectory() as tmp:
+                root = workflow_repo(tmp)
+                report = audit_report(root, [("2026-08-01_adversarial-F01", "accepted")])
+                report.write_bytes(report.read_bytes() + b"evidence: caf\xe9\n")
+                result = run_moltke(root, mode, stdin="{}")
+                self.assertNotIn("UnicodeDecodeError", result.stdout + result.stderr)
+
+    def test_audit_list_survives_it_too(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            report = audit_report(root, [("2026-08-01_adversarial-F01", "accepted")])
+            report.write_bytes(report.read_bytes() + b"evidence: caf\xe9\n")
+            result = run_moltke(root, "--audit", "list")
+            self.assertNotIn("UnicodeDecodeError", result.stdout + result.stderr)
+            self.assertIn("2026-08-01_adversarial-F01", result.stdout)
+
+    def test_there_is_one_decode_policy_in_the_source(self):
+        # Stated as a property of the code, since the defect was two policies
+        # rather than either one of them.
+        source = (REPO / "bin" / "moltke.py").read_text(encoding="utf-8")
+        strict = [line.strip() for line in source.splitlines()
+                  if ".read_text(" in line and "errors=" not in line]
+        self.assertEqual(strict, [], "read repository files through read_file")

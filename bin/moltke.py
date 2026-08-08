@@ -42,7 +42,7 @@ def load_marker(root):
     """Return (config, violations). config is None when the file is unreadable."""
     path = root / MARKER
     try:
-        config = json.loads(path.read_text(encoding="utf-8"))
+        config = json.loads(read_file(path))
     except (OSError, json.JSONDecodeError) as exc:
         return None, [f"{MARKER}: unreadable ({exc}); fix or delete the file, then rerun"]
     return config, check_marker(config)
@@ -84,7 +84,7 @@ PLAN_DIRS = ("plan_todo", "plan_current", "plan_done")
 
 def parse_step_file(path):
     fields = {}
-    for line in path.read_text(encoding="utf-8").splitlines():
+    for line in read_file(path).splitlines():
         match = re.match(r"^([a-z_]+):\s*(.*)$", line)
         if match:
             fields.setdefault(match.group(1), match.group(2).strip())
@@ -93,6 +93,23 @@ def parse_step_file(path):
 
 COMMENT = re.compile(r"<!--.*?-->", re.S)
 FENCE_MARKER = re.compile(r"^ {0,3}```", re.M)
+
+
+def read_file(path):
+    """Every repository file moltke reads, decoded one way (S064,
+    2026-08-08_adversarial-F05).
+
+    Thirteen readers decoded strictly and six replaced, and INV-14's two halves
+    disagreed about the same file — the recurring shape, a rule tightened in one
+    place and not its twin. One byte of latin-1 in a pasted terminal capture then
+    turned every mode into a traceback, which from a Stop hook means exit 1, no
+    message, and every gate off for the turn.
+
+    Replacing rather than raising is the right default here because moltke reads
+    files it did not write and must keep reporting on them: a mojibake character
+    in a step file is a cosmetic problem, and a checker that cannot start is not.
+    """
+    return path.read_text(encoding="utf-8", errors="replace")
 
 
 def strip_comments(text):
@@ -165,7 +182,7 @@ def read_stripped(path):
     """A repository file with guidance stripped. Every whole-file read through
     `strip_guidance` goes via here, so INV-13 and the scanners cannot disagree
     about which files are guarded (S063)."""
-    text = path.read_text(encoding="utf-8", errors="replace")
+    text = read_file(path)
     return strip_guidance(text)
 
 
@@ -262,7 +279,7 @@ def inv_5_done_evidence(root, config):
     testing_path = root / DOCS / "testing.md"
     rows = ""
     if testing_path.is_file():
-        rows = "\n".join(l for l in testing_path.read_text(encoding="utf-8").splitlines()
+        rows = "\n".join(l for l in read_file(testing_path).splitlines()
                          if l.startswith("|"))
     violations = []
     for step_id, path, fields in plan_steps(root)["plan_done"]:
@@ -518,7 +535,7 @@ def hidden_findings(report):
     against the ones that survive stripping needs no guess about which meaning
     the markers had: either way, a finding the report names is unreadable.
     """
-    raw = report.read_text(encoding="utf-8", errors="replace")
+    raw = read_file(report)
     visible = {finding_id for finding_id, _status in report_findings(report)}
     ids = []
     for finding_id in own_finding_headings(raw, report.stem):
@@ -578,7 +595,7 @@ def inv_13_balanced_fences(root, config):
         # Through fence_markers, so this counts exactly what strip_guidance
         # pairs: a marker inside an HTML comment is neither stripped as a fence
         # nor counted as one (S055).
-        count = len(fence_markers(path.read_text(encoding="utf-8", errors="replace"))[1])
+        count = len(fence_markers(read_file(path))[1])
         if count % 2:
             violations.append(
                 f"INV-13: {rel} has {count} code-fence markers, an odd number, so one fence is "
@@ -663,7 +680,7 @@ def inv_16_prime_directive_readable(root, config):
     specs = root / DOCS / "specs.md"
     if not specs.is_file():
         return []
-    raw = PRIME_DIRECTIVE_SECTION.search(specs.read_text(encoding="utf-8", errors="replace"))
+    raw = PRIME_DIRECTIVE_SECTION.search(read_file(specs))
     if not raw or not strip_comments(raw.group(1)).strip():
         return []   # nothing written yet: that is the planning nudge's business
     if prime_directive(root):
@@ -689,7 +706,7 @@ def inv_15_worklog_secrets(root, config):
         return []
     violations = []
     for label, number, snippet in scan_secrets(
-            worklog.read_text(encoding="utf-8", errors="replace")):
+            read_file(worklog)):
         violations.append(
             f"INV-15: {DOCS}/worklog.md line {number} holds something shaped like a "
             f"{label} (starts {snippet!r}). Prompts are recorded verbatim, so treat it as a "
@@ -812,7 +829,7 @@ def status_disagreements(root):
     same way. The in-progress stack is the field a crashed session corrupts.
     """
     path = root / DOCS / "status.md"
-    stated = status_fields(path.read_text(encoding="utf-8")) if path.is_file() else {}
+    stated = status_fields(read_file(path)) if path.is_file() else {}
     derived = status_fields("\n".join(status_lines(root)))
     return [(field, stated.get(field, "nothing"), value)
             for field, value in derived.items() if stated.get(field) != value]
@@ -916,7 +933,7 @@ def record_log_failure(root, stamp, exc):
         return
     since, count = stamp, 0
     try:
-        previous = json.loads(path.read_text(encoding="utf-8"))
+        previous = json.loads(read_file(path))
         if isinstance(previous, dict):
             since = previous.get("since") or since
             count = previous.get("count") if isinstance(previous.get("count"), int) else 0
@@ -937,7 +954,7 @@ def _peek_log_failure(root):
     if path is None or not path.is_file():
         return None
     try:
-        state = json.loads(path.read_text(encoding="utf-8"))
+        state = json.loads(read_file(path))
     except (OSError, ValueError):
         return None
     return state if isinstance(state, dict) else None
@@ -951,7 +968,7 @@ def take_log_failure(root):
     if path is None or not path.is_file():
         return None
     try:
-        state = json.loads(path.read_text(encoding="utf-8"))
+        state = json.loads(read_file(path))
     except (OSError, ValueError):
         state = {}
     if not isinstance(state, dict):
@@ -1267,7 +1284,7 @@ def mode_stop(root, config, marker_violations):
         count = 1
         if state_path:
             try:
-                state = json.loads(state_path.read_text(encoding="utf-8"))
+                state = json.loads(read_file(state_path))
                 # Same turn and the same problems: this is a retry. A new turn,
                 # or a different set of problems, starts over — progress must not
                 # count against you, and a stale count must not carry forward.
@@ -1335,7 +1352,7 @@ def declined(root):
     if not path.is_file():
         return False
     try:
-        config = json.loads(path.read_text(encoding="utf-8"))
+        config = json.loads(read_file(path))
     except (OSError, json.JSONDecodeError):
         return False
     return isinstance(config, dict) and config.get("enabled") is False
@@ -1454,7 +1471,7 @@ def next_step_id(root):
 
 
 def write_step(path, step_id, goal, blocks=""):
-    template = (TEMPLATE_ROOT / "step_template.md").read_text(encoding="utf-8")
+    template = read_file((TEMPLATE_ROOT / "step_template.md"))
     lines = []
     for line in template.splitlines():
         key = line.split(":", 1)[0].strip()
@@ -1475,7 +1492,7 @@ def append_to_plan(root, step_id, goal):
     plan_path = root / DOCS / "plan.md"
     numbers = [int(n) for n in re.findall(r"^\s*(\d+)\.\s", plan_text(root) or "", re.M)]
     entry = f"{max(numbers) + 1 if numbers else 1}. {step_id}  {goal}".rstrip()
-    text = plan_path.read_text(encoding="utf-8")
+    text = read_file(plan_path)
     if not text.endswith("\n"):
         text += "\n"
     plan_path.write_text(text + entry + "\n", encoding="utf-8")
@@ -1501,7 +1518,7 @@ def with_field(text, key, value):
 
 def set_field(path, key, value):
     """Set a step field in place."""
-    path.write_text(with_field(path.read_text(encoding="utf-8"), key, value), encoding="utf-8")
+    path.write_text(with_field(read_file(path), key, value), encoding="utf-8")
 
 
 def step_new(root, config, name, goal):
@@ -1619,7 +1636,7 @@ def step_done(root, config, step_id, stamp):
                 return refuse(f"{other_id} still declares blocks: {step_id}; complete or "
                               f"drop {other_id} first")
     testing = root / DOCS / "testing.md"
-    rows = testing.read_text(encoding="utf-8") if testing.is_file() else ""
+    rows = read_file(testing) if testing.is_file() else ""
     if not re.search(rf"\b{step_id}\b", "\n".join(l for l in rows.splitlines()
                                                   if l.startswith("|"))):
         return refuse(f"no testing.md row references {step_id}; acceptance rows are added "
@@ -1644,7 +1661,7 @@ def step_done(root, config, step_id, stamp):
     # destination exists, and the parent is unpaused after both.
     destination = root / DOCS / "plan_done" / path.name
     try:
-        destination.write_text(with_field(path.read_text(encoding="utf-8"), "done", stamp),
+        destination.write_text(with_field(read_file(path), "done", stamp),
                                encoding="utf-8")
     except OSError as exc:
         return refuse(f"could not write {destination.relative_to(root)} ({exc}); nothing was "
@@ -1672,7 +1689,7 @@ def parked_lines(root):
     if not status_path.is_file():
         return []
     kept, collecting = [], False
-    for line in status_path.read_text(encoding="utf-8").splitlines():
+    for line in read_file(status_path).splitlines():
         if re.match(r"^\s*-\s*Parked:", line):
             collecting = True
             continue
@@ -1779,7 +1796,7 @@ def audit_new(root, config, audit_type):
     # Captured before the report exists, so the report itself shows up as part of
     # the run's footprint and is classified there rather than being invisible.
     baseline = worktree_state(root)
-    template = (TEMPLATE_ROOT / "audit_report_template.md").read_text(encoding="utf-8")
+    template = read_file((TEMPLATE_ROOT / "audit_report_template.md"))
     report.parent.mkdir(parents=True, exist_ok=True)
     report.write_text(template.replace("YYYY-MM-DD_type", report.stem)
                               .replace("YYYY-MM-DD", datetime.date.today().isoformat())
@@ -1872,7 +1889,7 @@ def audit_check(root, config):
     saved = None
     if baseline_path is not None and baseline_path.is_file():
         try:
-            saved = json.loads(baseline_path.read_text(encoding="utf-8"))
+            saved = json.loads(read_file(baseline_path))
         except (OSError, ValueError):
             saved = None
     if not isinstance(saved, dict) or not isinstance(saved.get("tree"), dict):
