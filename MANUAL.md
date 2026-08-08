@@ -340,11 +340,14 @@ true of every repository moltke is installed into.
 
 Two things make it survivable. The worklog is append-only by convention only, not
 enforced, so cleaning it is an ordinary edit and commit — no invariant to work
-around and no decision entry needed to authorise it. And the suite fails on
-prefixed key shapes and PEM private-key headers appearing in the worklog:
-AWS, GitHub, Anthropic, OpenAI, Slack, Google, Stripe, npm, JWTs. Detection, not
-redaction: redacting at write time would contradict the verbatim guarantee, and a
-false positive would silently destroy the record of what was actually said.
+around and no decision entry needed to authorise it. And INV-15 fails on prefixed
+key shapes and PEM private-key headers appearing in the worklog: AWS, GitHub,
+Anthropic, OpenAI, Slack, Google, Stripe, npm, JWTs. It runs wherever moltke
+does, so `--validate` reports it and the turn will not end while it holds, in
+your repository and not only in moltke's own. A hit names the shape, the line,
+and the first eight characters — never the value. Detection, not redaction:
+redacting at write time would contradict the verbatim guarantee, and a false
+positive would silently destroy the record of what was actually said.
 
 If a real secret lands there, order matters. **Rotate the credential first** —
 it is already committed, and possibly pushed, so treat it as compromised no
@@ -354,11 +357,13 @@ recoverable from any existing clone or fork regardless, which is why rotation is
 the fix and the file edit is only tidying.
 
 The check has limits worth knowing. It scans `adocs/worklog.md` only, not the rest
-of `adocs/`. It uses fixed prefixes and PEM headers, with no entropy or bare-hex
-rule, because the worklog carries a commit sha in every recap and would otherwise
-be red every turn — an unprefixed password or a bare high-entropy string is not
-caught. And it runs in moltke's own suite: a repository that installs moltke does
-not inherit it, so wire an equivalent check into your own suite.
+of `adocs/`: a key pasted into a decision entry or a step file is not caught. It
+uses fixed prefixes and PEM headers, with no entropy or bare-hex rule, because
+the worklog carries a commit sha in every recap and would otherwise be red every
+turn — an unprefixed password or a bare high-entropy string is not caught. And it
+is not among the cheap checks `--post-write` runs, because it reads a file that
+grows without bound, so it arrives at `--validate` and at the end of the turn
+rather than the moment after the write.
 
 **The recap gate reads headings, not sizes.** `Stop` refuses when source changed
 and no `## …recap…` heading follows the last `## … prompt` heading in the

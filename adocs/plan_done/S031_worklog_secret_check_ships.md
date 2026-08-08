@@ -7,4 +7,4 @@ decisions:  DEC-024, DEC-032
 closes:
 blocks:
 paused_by:
-done:
+done:      2026-08-08: the secret shapes moved from tests/test_s022_secrets.py into bin/moltke.py and run as INV-15, so --validate reports them and --stop refuses on them in every marked repository rather than only in moltke's own suite. The suite test imports the shipped shapes, so the detector has one definition and its non-vacuity guard covers the version that ships. Scope unchanged from DEC-024: worklog.md only, prefixed shapes and PEM headers only, no entropy or bare-hex rule; a hit names the shape, the line, and the first 8 characters, never the value. Not a cheap check, since it reads the unbounded worklog, so --post-write skips it as it skips INV-13. 6 tests, red observed by unregistering the invariant and re-running. Suite 286 OK, --validate green. README test count 280 to 286; MANUAL's secret section now says the check travels and drops the sentence telling users to wire their own; specs gained INV-15 and a dated note.

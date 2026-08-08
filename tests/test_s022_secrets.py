@@ -1,5 +1,10 @@
-"""S022 (DEC-024): secret-leak checks run inside the normal suite, not as a
-separate ritual (AGENTS.md section 6).
+"""S022 (DEC-024), S031 (DEC-032): secret-leak checks run inside the normal
+suite, not as a separate ritual (AGENTS.md section 6).
+
+The shapes live in bin/moltke.py and run as INV-15, so every repository moltke
+is installed into inherits the check rather than only moltke's own suite. This
+file imports them, so the detector has exactly one definition and the
+non-vacuity guard below covers the version that ships.
 
 Detect, never redact. Redaction at write time would contradict the verbatim
 guarantee of section 9, and a false positive would silently destroy forensic
@@ -11,50 +16,24 @@ recap. The trade is deliberate — catch the shapes worth catching, stay quiet
 otherwise.
 """
 
-import re
+import subprocess
+import sys
+import tempfile
 import unittest
 from pathlib import Path
 
+from fixtures import workflow_repo
+from surface import moltke
+
+MOLTKE = Path(__file__).resolve().parent.parent / "bin" / "moltke.py"
+
 WORKLOG = Path(__file__).resolve().parent.parent / "adocs" / "worklog.md"
 
-# (label, pattern, a known-bad example the pattern must catch). The examples are
-# synthetic and exist to keep the detector honest: a pattern that stopped
-# matching would otherwise leave this whole file passing on an empty scan.
-SHAPES = [
-    ("AWS access key id",
-     re.compile(r"\b(?:AKIA|ASIA)[0-9A-Z]{16}\b"),
-     "AKIA" + "IOSFODNN7EXAMPLE"),
-    ("GitHub token",
-     re.compile(r"\bgh[pousr]_[A-Za-z0-9]{36,}\b"),
-     "ghp_" + "0123456789abcdefghijklmnopqrstuvwxyzAB"),
-    ("GitHub fine-grained PAT",
-     re.compile(r"\bgithub_pat_[A-Za-z0-9_]{22,}\b"),
-     "github_pat_" + "11ABCDEFG0abcdefghijklmn"),
-    ("Anthropic API key",
-     re.compile(r"\bsk-ant-[A-Za-z0-9_-]{20,}"),
-     "sk-ant-" + "api03-Aa0Bb1Cc2Dd3Ee4Ff5Gg6"),
-    ("OpenAI API key",
-     re.compile(r"\bsk-(?:proj-)?[A-Za-z0-9]{32,}\b"),
-     "sk-" + "Aa0Bb1Cc2Dd3Ee4Ff5Gg6Hh7Ii8Jj9Kk0Ll1"),
-    ("Slack token",
-     re.compile(r"\bxox[abprs]-[A-Za-z0-9-]{10,}"),
-     "xoxb-" + "1234567890-ABCdefGHIjkl"),
-    ("Google API key",
-     re.compile(r"\bAIza[0-9A-Za-z_-]{35}\b"),
-     "AIza" + "SyA0123456789abcdefghijklmnopqrstuv"),
-    ("Stripe live key",
-     re.compile(r"\b[srp]k_live_[A-Za-z0-9]{16,}\b"),
-     "sk_live_" + "0123456789abcdefghij"),
-    ("npm token",
-     re.compile(r"\bnpm_[A-Za-z0-9]{36}\b"),
-     "npm_" + "0123456789abcdefghijklmnopqrstuvwxyz"),
-    ("PEM private key header",
-     re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----"),
-     "-----BEGIN RSA PRIVATE KEY-----"),
-    ("JSON web token",
-     re.compile(r"\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}"),
-     "eyJhbGciOiJIUzI1NiJ9." + "eyJzdWIiOiIxMjM0NTY3ODkwIn0." + "dBjftJeZ4CVPmB92K27u"),
-]
+# The shipped shapes, not a copy: a second definition would drift, and the copy
+# under test would stop being the code that runs in anyone's repository.
+SHAPES = moltke.SECRET_SHAPES
+scan = moltke.scan_secrets
+
 
 # Shapes this must never fire on. The worklog records a commit sha in every recap
 # and md5 digests wherever a file was verified byte-identical, so a bare-hex or
@@ -71,17 +50,6 @@ BENIGN = [
     "npm install",
     "-----BEGIN CERTIFICATE-----",
 ]
-
-
-def scan(text):
-    """[(label, line number, first 8 characters of the match)] for every hit."""
-    hits = []
-    for number, line in enumerate(text.splitlines(), start=1):
-        for label, pattern, _example in SHAPES:
-            match = pattern.search(line)
-            if match:
-                hits.append((label, number, match.group(0)[:8]))
-    return hits
 
 
 class TestDetector(unittest.TestCase):
@@ -124,3 +92,80 @@ class TestWorklog(unittest.TestCase):
             f"verbatim, so this is a real leak until proven otherwise: rotate the credential "
             f"first, then edit the worklog — it is append-only by convention and not enforced, "
             f"so cleaning it is an ordinary commit. See MANUAL.md, known issues.")
+
+
+class TestTheInvariantTravels(unittest.TestCase):
+    """S031 (DEC-032): the shapes protected moltke's own worklog and nothing
+    else. A repository that installs the plugin runs moltke's hooks, not
+    moltke's suite, so it inherited verbatim prompt logging into a tracked file
+    with no check at all — and moltke is the thing writing the secret to disk."""
+
+    def run_moltke(self, root, *args, stdin=""):
+        return subprocess.run([sys.executable, str(MOLTKE), *args], cwd=root,
+                              capture_output=True, text=True, input=stdin)
+
+    def planted(self, tmp, example):
+        root = workflow_repo(tmp)
+        worklog = root / "adocs" / "worklog.md"
+        worklog.write_text(worklog.read_text(encoding="utf-8")
+                           + f"\n## 2026-08-08 prompt\n\n> deploy with {example}\n",
+                           encoding="utf-8")
+        return root
+
+    def test_validate_reports_every_planted_shape(self):
+        for label, _pattern, example in SHAPES:
+            with self.subTest(label), tempfile.TemporaryDirectory() as tmp:
+                root = self.planted(tmp, example)
+                result = self.run_moltke(root, "--validate")
+                self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+                self.assertIn("INV-15", result.stdout)
+                self.assertIn(label, result.stdout)
+
+    def test_stop_refuses_on_one(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.planted(tmp, SHAPES[0][2])
+            result = self.run_moltke(root, "--stop", stdin="{}")
+            self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+            self.assertIn("INV-15", result.stderr)
+
+    def test_the_report_names_the_line_and_truncates_the_value(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            example = SHAPES[0][2]
+            root = self.planted(tmp, example)
+            planted_line = (root / "adocs" / "worklog.md").read_text(
+                encoding="utf-8").splitlines().index(f"> deploy with {example}") + 1
+            stdout = self.run_moltke(root, "--validate").stdout
+            self.assertIn(f"line {planted_line}", stdout,
+                          "the line number is what makes it findable")
+            self.assertNotIn(example, stdout, "the whole value must never be printed")
+            self.assertIn(example[:8], stdout)
+
+    def test_a_clean_worklog_stays_silent(self):
+        # Non-vacuity: the fixture repository must be green without the plant,
+        # or every assertion above could be any other violation.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            result = self.run_moltke(root, "--validate")
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_benign_content_in_a_real_worklog_does_not_fire(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            worklog = root / "adocs" / "worklog.md"
+            worklog.write_text(worklog.read_text(encoding="utf-8")
+                               + "\n## 2026-08-08 recap S001\n\ncommit "
+                               + ", ".join(BENIGN) + "\n", encoding="utf-8")
+            result = self.run_moltke(root, "--validate")
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_only_the_worklog_is_scanned(self):
+        # The scope DEC-024 set: a key pasted into a decision entry or a step
+        # file is out of scope, and widening it silently would be a different
+        # trade than the one recorded.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            decisions = root / "adocs" / "decisions.md"
+            decisions.write_text(decisions.read_text(encoding="utf-8")
+                                 + f"\nkey {SHAPES[0][2]}\n", encoding="utf-8")
+            result = self.run_moltke(root, "--validate")
+            self.assertNotIn("INV-15", result.stdout)

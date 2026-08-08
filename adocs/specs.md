@@ -37,6 +37,7 @@ Enforced by `bin/moltke.py` in marked repositories:
 - INV-10 every audit finding is `open`, `planned`, `closed`, or `accepted`, and no report has `open` findings without a step or decision referencing them.
 - INV-13 `plan.md`, `decisions.md`, `worklog.md`, and every audit report have an even number of code-fence markers. 2026-08-07 (S033): added, because an unclosed fence makes content invisible to every scanner that reads the file.
 - INV-14 no audit report states a finding under its own name that `strip_guidance` then removes. 2026-08-08 (S049, DEC-033): added, because parity catches one unclosed fence and not two — two are an even count that pairs as one closed fence and deletes the finding between them.
+- INV-15 `worklog.md` holds nothing shaped like a credential: prefixed key shapes and PEM private-key headers. 2026-08-08 (S031, DEC-032, DEC-024): added, because prompt logging writes verbatim into a tracked file in every repository moltke is installed into, and the tool doing the writing is the one that should say so. Detected, never redacted, and never printed beyond the first 8 characters.
 
 Properties of the checker itself:
 
@@ -54,6 +55,21 @@ a `Status: <value>` line in its section; the S008 report template must conform.
 (append by move only). Repos without git history have no baseline, so the
 check abstains. INV-3 additionally treats a missing `plan.md` in an enabled
 repo as a violation.
+
+2026-08-08 (S031, DEC-032): the secret shapes moved from
+`tests/test_s022_secrets.py` into `bin/moltke.py` and run as INV-15, so
+`--validate` reports them and `--stop` refuses on them in every marked
+repository. They protected moltke's own worklog before and nothing else: a
+repository that installs the plugin runs moltke's hooks, not moltke's suite, so
+it inherited verbatim prompt logging into a tracked file with no check at all.
+The suite test imports the shipped shapes rather than keeping a copy, so the
+detector has one definition and its non-vacuity guard — every pattern asserted
+against its own example before anything is scanned — covers the version that
+ships. Scope is unchanged from DEC-024: `worklog.md` only, prefixed shapes and
+PEM headers only, no entropy or bare-hex rule, because every recap carries a
+commit sha. A hit names the shape, the line, and the first 8 characters, never
+the value. Not a cheap check: it reads the unbounded worklog, so `--post-write`
+skips it exactly as it skips INV-13.
 
 2026-08-08 (S029): `--scaffold`'s `kept` lines report, file by file, whether
 `AGENTS.md`, `CLAUDE.md`, and `.cursor/rules/moltke.mdc` still match the

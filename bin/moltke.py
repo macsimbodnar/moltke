@@ -558,6 +558,89 @@ def inv_13_balanced_fences(root, config):
     return violations
 
 
+# (label, pattern, a known-bad example the pattern must catch). The examples
+# travel with the shapes on purpose (DEC-032): the suite asserts each pattern
+# against its own example before scanning anything, so a pattern that stopped
+# matching cannot leave the check passing by failing to look. They are synthetic.
+SECRET_SHAPES = [
+    ("AWS access key id",
+     re.compile(r"\b(?:AKIA|ASIA)[0-9A-Z]{16}\b"),
+     "AKIA" + "IOSFODNN7EXAMPLE"),
+    ("GitHub token",
+     re.compile(r"\bgh[pousr]_[A-Za-z0-9]{36,}\b"),
+     "ghp_" + "0123456789abcdefghijklmnopqrstuvwxyzAB"),
+    ("GitHub fine-grained PAT",
+     re.compile(r"\bgithub_pat_[A-Za-z0-9_]{22,}\b"),
+     "github_pat_" + "11ABCDEFG0abcdefghijklmn"),
+    ("Anthropic API key",
+     re.compile(r"\bsk-ant-[A-Za-z0-9_-]{20,}"),
+     "sk-ant-" + "api03-Aa0Bb1Cc2Dd3Ee4Ff5Gg6"),
+    ("OpenAI API key",
+     re.compile(r"\bsk-(?:proj-)?[A-Za-z0-9]{32,}\b"),
+     "sk-" + "Aa0Bb1Cc2Dd3Ee4Ff5Gg6Hh7Ii8Jj9Kk0Ll1"),
+    ("Slack token",
+     re.compile(r"\bxox[abprs]-[A-Za-z0-9-]{10,}"),
+     "xoxb-" + "1234567890-ABCdefGHIjkl"),
+    ("Google API key",
+     re.compile(r"\bAIza[0-9A-Za-z_-]{35}\b"),
+     "AIza" + "SyA0123456789abcdefghijklmnopqrstuv"),
+    ("Stripe live key",
+     re.compile(r"\b[srp]k_live_[A-Za-z0-9]{16,}\b"),
+     "sk_live_" + "0123456789abcdefghij"),
+    ("npm token",
+     re.compile(r"\bnpm_[A-Za-z0-9]{36}\b"),
+     "npm_" + "0123456789abcdefghijklmnopqrstuvwxyz"),
+    ("PEM private key header",
+     re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----"),
+     "-----BEGIN RSA PRIVATE KEY-----"),
+    ("JSON web token",
+     re.compile(r"\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}"),
+     "eyJhbGciOiJIUzI1NiJ9." + "eyJzdWIiOiIxMjM0NTY3ODkwIn0." + "dBjftJeZ4CVPmB92K27u"),
+]
+
+
+def scan_secrets(text):
+    """[(label, line number, first 8 characters of the match)] for every hit.
+
+    Prefixed key shapes and PEM headers only. No entropy or bare-hex rule: a
+    worklog carries a commit sha in every recap and md5 digests wherever a file
+    was verified, and those rules would fire on every work turn (DEC-024). The
+    trade is deliberate — catch the shapes worth catching, stay quiet otherwise.
+    """
+    hits = []
+    for number, line in enumerate(text.splitlines(), start=1):
+        for label, pattern, _example in SECRET_SHAPES:
+            match = pattern.search(line)
+            if match:
+                hits.append((label, number, match.group(0)[:8]))
+    return hits
+
+
+def inv_15_worklog_secrets(root, config):
+    """DEC-032: the check travels with the plugin instead of protecting moltke
+    alone. Every marked repository logs prompts verbatim into a tracked file, so
+    the exposure is a property of every repository moltke is installed into, and
+    the tool writing the secret to disk is the one that should say so.
+
+    Detect, never redact (DEC-024): redaction at write time would contradict the
+    verbatim guarantee, and a false positive would silently destroy the record of
+    what was said. Never prints more than the first 8 characters of a match.
+    """
+    worklog = root / DOCS / "worklog.md"
+    if not worklog.is_file():
+        return []
+    violations = []
+    for label, number, snippet in scan_secrets(
+            worklog.read_text(encoding="utf-8", errors="replace")):
+        violations.append(
+            f"INV-15: {DOCS}/worklog.md line {number} holds something shaped like a "
+            f"{label} (starts {snippet!r}). Prompts are recorded verbatim, so treat it as a "
+            f"real leak until proven otherwise: rotate the credential first, because it is "
+            f"already committed, then edit the worklog — it is append-only by convention and "
+            f"not enforced, so cleaning it is an ordinary commit")
+    return violations
+
+
 def inv_14_findings_not_hidden(root, config):
     """S049: INV-13 catches one unclosed fence. Two are an even count and pair as
     one closed fence, which is the shape a reviewer produces by pasting two
@@ -589,6 +672,7 @@ INVARIANT_CHECKS = [
     ("INV-10", inv_10_audit_findings),
     ("INV-13", inv_13_balanced_fences),
     ("INV-14", inv_14_findings_not_hidden),
+    ("INV-15", inv_15_worklog_secrets),
 ]
 
 
