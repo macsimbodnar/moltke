@@ -129,7 +129,7 @@ on what version is in `~/.claude/plugins/cache`, outside this repository.
 
 ### 2026-08-08_adversarial.2-F01  high  the S060 backstop makes `--stop` block forever on an unreadable path: the deadlock cap never advances, and every problem collected in the same call is dropped
 
-Status: open
+Status: closed
 
 Evidence: `mode_stop` collects problems (`bin/moltke.py:1233`), then reads paths
 that are outside `run_checks` — `status_disagreements`, `recap_pending`, the
@@ -203,7 +203,7 @@ step file, each asserting that five consecutive `--stop` calls in one turn read
 
 ### 2026-08-08_adversarial.2-F02  medium  on the same trigger `--session-start` prints no JSON at all, so the one channel that reaches the model goes silent on an exit 0
 
-Status: open
+Status: closed
 
 Evidence: the backstop returns `EXIT_OK` for `--session-start`
 (`bin/moltke.py:2186`) after printing to stderr (`bin/moltke.py:2184`).
@@ -244,7 +244,7 @@ stdout parses as JSON and mentions the path. Not applied here.
 
 ### 2026-08-08_adversarial.2-F03  medium  the stamp gate judges any path under `plan_done/`, so `--scaffold`'s own `.gitkeep` blocks every `Stop` in a repository that already had commits
 
-Status: open
+Status: closed
 
 Evidence: the gate tests the porcelain status and the path prefix only
 (`bin/moltke.py:1264-1278`); nothing requires the entry to be a step file, and
@@ -304,7 +304,7 @@ commit, asserting `--stop` names no `.gitkeep`; plus a stray `notes.txt` under
 
 ### 2026-08-08_adversarial.2-F04  medium  `--step done` still has one mutation after the point of no return, and the state it leaves has no way out through the CLI
 
-Status: open
+Status: closed
 
 Evidence: S062 moved the write to `plan_done/` first and the unlink second, and
 left the parent unpause third (`bin/moltke.py:1677-1680`), after both. The unpause
@@ -370,7 +370,7 @@ able to proceed. Not applied here.
 
 ### 2026-08-08_adversarial.2-F05  medium  INV-7's remedy for a rename inside `plan_done/` is `git checkout -- old -> new`, which as a shell command truncates the renamed file
 
-Status: open
+Status: closed
 
 Evidence: INV-7's HEAD half parses porcelain by slicing
 (`bin/moltke.py:369-373`), `status, _, entry = line[:2], line[2], line[3:]`, and
@@ -418,7 +418,7 @@ here.
 
 ### 2026-08-08_adversarial.2-F06  medium  S063's structural guard against the recurring defect cannot fire, because S064 removed the thing it looks for
 
-Status: open
+Status: closed
 
 Evidence: `adocs/specs.md:75-77` states "Every whole-file read goes through
 `read_stripped`, which is what keeps the list and the scanners from disagreeing
@@ -473,7 +473,7 @@ asserting the suite goes red. Not applied here.
 
 ### 2026-08-08_adversarial.2-F07  low  reverting S060's `-uall` in `--stop` leaves all 308 tests green, though it changes what the stamp gate can see
 
-Status: open
+Status: closed
 
 Evidence: mutation. `bin/moltke.py:1244` back to `_git_lines(root, "status",
 "--porcelain")` in a copy of the repository outside it:
@@ -510,7 +510,7 @@ Not applied here.
 
 ### 2026-08-08_adversarial.2-F08  low  `python3 tests/test_s033_fences.py` runs `unittest.main()` before the S063 and S064 classes are defined, so nine tests never run
 
-Status: open
+Status: closed
 
 Evidence: `tests/test_s033_fences.py:334` holds `unittest.main()` under `if
 __name__ == "__main__":`, and `TestEveryStrippedFileIsGuarded` (line 337) and
@@ -541,7 +541,7 @@ call. Not applied here.
 
 ### 2026-08-08_adversarial.2-F09  low  INV-14 blames a code fence for a finding heading an HTML comment hides, and the remedy it prints cannot be followed
 
-Status: open
+Status: closed
 
 Evidence: `hidden_findings` (`bin/moltke.py:528-544`) compares the raw text against
 the stripped text, and `strip_guidance` removes HTML comments as well as fences, so
@@ -584,7 +584,7 @@ the fixture above, asserting the message names the comment. Not applied here.
 
 ### 2026-08-08_adversarial.2-F10  low  `--audit` exits 2 through the backstop, which README's exit table assigns to the three hook modes only, and a write failure is reported as "could not read the repository"
 
-Status: open
+Status: closed
 
 Evidence: `README.md:71-76` maps exit `2` to "a blocked action, with what to do
 about it", produced by `mode_pre_write`, `mode_stop`, `mode_post_write`, and exit
@@ -622,7 +622,7 @@ table and say the backstop is the fourth producer of exit 2. Not applied here.
 
 ### 2026-08-08_adversarial.2-F11  low  `--audit check` keeps the pre-S050 narrow definition of "newly here", so a staged-then-edited new test is reported as unexpected
 
-Status: open
+Status: closed
 
 Evidence: `_is_new_file` (`bin/moltke.py:1823-1824`) is `status in ("??", "A ")`,
 the predicate S050 replaced in the `Stop` gates with `_arrives_here`
@@ -664,7 +664,7 @@ asserting `expected`. Not applied here.
 
 ### 2026-08-08_adversarial.2-F12  low  INV-16 tests both sides for emptiness rather than comparing them, so a directive fenced beside other prose is invisible and unreported
 
-Status: open
+Status: closed
 
 Evidence: `inv_16_prime_directive_readable` (`bin/moltke.py:683-687`) returns
 clean as soon as `prime_directive(root)` is non-empty; it never compares the raw

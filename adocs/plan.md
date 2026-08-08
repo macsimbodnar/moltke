@@ -92,4 +92,12 @@ step instead.
 74. S076  --audit's exit codes match the documented table, and a write failure says write
 75. S077  --audit check shares one definition of newly here
 76. S078  INV-16 compares the two sides instead of testing both for emptiness
-77. S059  verify the installed release in a live session, after reinstall
+77. S080  a Stop state file that cannot be written does not wedge the session
+78. S081  every git-derived check works when the marked root is below the git top level
+79. S082  --step block refuses on an already-paused parent instead of breaking INV-1
+80. S083  --step new and --step block leave nothing behind when they refuse
+81. S084  INV-7's rename remedy is a command that restores the file
+82. S085  testing.md is read through strip_guidance like every other scanner input
+83. S086  --roadmap exits as its documentation says
+84. S087  a malformed hook payload refuses instead of raising
+85. S059  verify the installed release in a live session, after reinstall
