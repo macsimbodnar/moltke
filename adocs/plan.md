@@ -78,4 +78,5 @@ step instead.
 60. S063  INV-13 scans every file strip_guidance is pointed at, specs.md included
 61. S064  one decode policy for every file moltke reads
 62. S065  MANUAL says which commit an immutability violation names
-63. S059  verify the installed 0.5.0 in a live session, after reinstall
+63. S066  bump 0.6.0, re-run the audit, close the findings it no longer reports
+64. S059  verify the installed release in a live session, after reinstall
