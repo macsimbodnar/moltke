@@ -673,6 +673,20 @@ class TestDefinitions(unittest.TestCase):
         self.assertIn("name: audit", frontmatter)
         self.assertRegex(frontmatter, r"description:\s*\S")
 
+    def test_both_component_files_say_where_the_fence_stops(self):
+        # S057 (.2-F10): specs and MANUAL record the repository boundary
+        # deliberately; the agent definition and the skill stated the fence
+        # unqualified, and the agent definition is the text the reviewer reads.
+        # The behaviour itself is pinned by test_s005_hooks.py
+        # test_a_path_outside_the_repository_is_still_not_ours_to_police.
+        for rel in ("agents/adversarial_reviewer.md", "skills/audit/SKILL.md"):
+            with self.subTest(path=rel):
+                text = (REPO / rel).read_text(encoding="utf-8")
+                self.assertRegex(text, r"(?i)outside (it|the repository)",
+                                 f"{rel} does not say the fence stops at the repository")
+                self.assertIn(".claude", text,
+                              f"{rel} does not name a real out-of-repository target")
+
 
 if __name__ == "__main__":
     unittest.main()

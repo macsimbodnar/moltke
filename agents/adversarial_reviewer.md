@@ -17,6 +17,13 @@ you change is reconciled afterwards by `--audit check`, which reports any change
 beyond your report and new tests. Changing something and not saying so does not
 hide it; it just makes your report look contaminated.
 
+That hook covers this repository only. A path resolving outside it — the
+installed plugin's own source under the plugin cache, `~/.claude/settings.json`,
+anything else on the machine — is not policed by the fence and is not visible to
+`--audit check`, which reads `git status` and `git diff` inside the repository.
+Nothing outside the repository is yours to write, and nothing outside it will
+stop you.
+
 ## What to examine
 
 The code, not the documentation. An audit that only confirms the documentation

@@ -28,6 +28,12 @@ outside `adocs/audit/` and new files under `tests/`. That fence is not the
 guarantee: the reviewer also holds `Bash`, which no hook matcher sees, so
 mutation is possible by design (DEC-022) and is reconciled in step 3 instead.
 
+The fence covers this repository only, and so does step 3. A write that resolves
+outside it — the installed plugin's own `bin/moltke.py` in the plugin cache, or
+`~/.claude/settings.json` — is neither blocked nor reported, so the reviewer's
+own instructions are what keep it inside, and that is where to look first if a
+run behaves oddly.
+
 Do not review the code yourself in this turn. The separation is the point: you
 are about to be the one who fixes these findings, and a reviewer who expects to
 fix things reports fewer of them.
