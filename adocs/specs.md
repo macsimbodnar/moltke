@@ -246,7 +246,12 @@ content heuristic can separate them: the templates deliberately put headings
 inside fences, which is what `strip_guidance` exists for — the audit report
 template's example finding is one. So that case is reported rather than guessed,
 which is INV-13. `--post-write` does not run it; the worklog grows without bound
-and this reads it whole.
+and this reads it whole. — Amended 2026-08-08 (S049, DEC-033): "that case is
+reported" was true of an odd marker count only, and two unclosed fences are an
+even one, so in an audit report the case was neither reported nor guessed but
+silently lost. INV-14 covers it there by comparing headings rather than counting
+markers, and does run in `--post-write`. The ambiguity itself is unchanged, and
+outside `adocs/audit/` INV-13's parity is still the only guard.
 
 2026-08-07 (S035): moltke's own state files are located by asking git, through a
 single `git_dir` running `git rev-parse --absolute-git-dir`, not by testing
