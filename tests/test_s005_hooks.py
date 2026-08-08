@@ -513,6 +513,101 @@ class TestStop(unittest.TestCase):
             result = run_moltke(root, "--stop", stdin="{}")
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
+    def test_the_stamp_gate_survives_a_staged_arrival_that_is_not_on_disk(self):
+        # S060 (2026-08-08_adversarial-F01): the gate decided on the porcelain
+        # status and then opened the path. `AD` and `RD` say the index has the
+        # file and the worktree does not, so parse_step_file raised, mode_stop
+        # had no handler, and the hook died at exit 1 with nothing printed —
+        # every gate off for the turn. `RD` is reached by following the gate's
+        # own remedy: it blocks, --pre-write forbids editing the file it names,
+        # and `mv` back is the only compliant way out.
+        def rd(root, src, dst):
+            git(root, "mv", str(src.relative_to(root)), str(dst.relative_to(root)))
+            dst.rename(src)     # the remedy, from Bash
+
+        def ad(root, src, dst):
+            src.rename(dst)
+            git(root, "add", "-A")
+            dst.rename(src)
+
+        for name, move in (("RD", rd), ("AD", ad)):
+            with self.subTest(shape=name), tempfile.TemporaryDirectory() as tmp:
+                root = self._completed_by_hand(tmp, move)
+                result = run_moltke(root, "--stop", stdin="{}")
+                self.assertNotIn("Traceback", result.stderr)
+                self.assertNotEqual(result.returncode, 1,
+                                    f"a Stop hook exiting 1 enforces nothing: {result.stderr}")
+                self.assertTrue(result.stderr.strip(),
+                                "the turn ended with no message at all")
+
+    def test_the_problems_found_before_the_missing_file_are_still_printed(self):
+        # The crash happened before anything was written, so a real violation in
+        # the same call vanished with it.
+        def rd(root, src, dst):
+            git(root, "mv", str(src.relative_to(root)), str(dst.relative_to(root)))
+            dst.rename(src)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._completed_by_hand(tmp, rd)
+            (root / "adocs" / "plan.md").write_text(
+                "# Plan\n\n1. S001 base\n2. S002 pending\n3. S003 active\n4. S099 phantom\n",
+                encoding="utf-8")
+            result = run_moltke(root, "--stop", stdin="{}")
+            self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+            self.assertIn("INV-3", result.stderr)
+            self.assertIn("S099", result.stderr)
+
+    def test_a_wholly_untracked_plan_done_does_not_crash_the_gate(self):
+        # Porcelain without -uall collapses an untracked directory into one
+        # entry, `?? adocs/plan_done/`, which startswith() accepted and which is
+        # a directory on disk. worktree_state has passed -uall since S036 with a
+        # comment saying exactly why; the Stop gates did not.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            done = root / "adocs" / "plan_done"
+            kept = (done / "S001_base.md").read_text(encoding="utf-8")
+            for entry in done.iterdir():
+                entry.unlink()
+            done.rmdir()
+            git_baseline(root)
+            done.mkdir()
+            (done / "S001_base.md").write_text(kept, encoding="utf-8")
+            log_prompt(root)
+            porcelain = git(root, "status", "--porcelain").stdout
+            self.assertIn("?? adocs/plan_done/\n", porcelain,
+                          "precondition: git collapsed the untracked directory")
+            result = run_moltke(root, "--stop", stdin="{}")
+            self.assertNotIn("Traceback", result.stderr)
+            self.assertNotEqual(result.returncode, 1, result.stderr)
+
+    def test_an_unreadable_tree_reports_instead_of_raising(self):
+        # The general case S052 fixed for --step and left everywhere else: an
+        # invariant that cannot read what it is pointed at must say so, not
+        # raise. A directory where a step file belongs is the cheapest way to
+        # produce one; the shape does not matter, the handling does.
+        for mode, expected in (("--stop", 2), ("--post-write", 2), ("--validate", 1)):
+            with self.subTest(mode=mode), tempfile.TemporaryDirectory() as tmp:
+                root = workflow_repo(tmp)
+                (root / "adocs" / "plan_todo" / "S004_broken.md").mkdir()
+                (root / "adocs" / "plan.md").write_text(
+                    "# Plan\n\n1. S001 base\n2. S002 pending\n3. S003 active\n4. S004 broken\n",
+                    encoding="utf-8")
+                result = run_moltke(root, mode, stdin="{}")
+                output = result.stdout + result.stderr
+                self.assertNotIn("Traceback", output)
+                self.assertEqual(result.returncode, expected, output)
+                self.assertIn("S004_broken.md", output)
+
+    def test_a_present_arrival_still_reaches_the_stamp_gate(self):
+        # Non-vacuity: skipping what is not on disk must not skip what is.
+        def git_mv(root, src, dst):
+            git(root, "mv", str(src.relative_to(root)), str(dst.relative_to(root)))
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._completed_by_hand(tmp, git_mv)
+            result = run_moltke(root, "--stop", stdin="{}")
+            self.assertEqual(len(stamp_complaints(result)), 1, result.stderr)
+
     def test_recap_gate_abstains_before_the_first_commit(self):
         # A repo with no HEAD has no history a recap would sit alongside, so a
         # fresh scaffold must not block. Precondition first: the same tree with

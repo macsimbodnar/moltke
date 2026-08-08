@@ -174,6 +174,12 @@ unknown operation, a failing `test_command` — goes to stderr. **If you script
 this, capture both**, or you will get an exit code with no message. That matters
 most outside Claude Code, where `--validate` is the only lever you have.
 
+No mode ends in a Python traceback. A file moltke cannot read — a directory
+where a step file belongs, a path the index has and the worktree does not — is
+reported as a violation naming the check that hit it, and anything else a broken
+tree reaches is caught at the top and exits `2` with the path. `--log-prompt` and
+`--session-start` still exit `0` there, because neither may ever block.
+
 Two more details for anyone parsing output. `--post-write` returns `2` but is
 non-blocking by contract: the tool it follows has already run, and the exit code
 only surfaces the text. And stderr is not exclusively for failures — `--audit new`
@@ -211,7 +217,10 @@ not that it was answered honestly. It sees the step arrive in `plan_done/`
 however you moved it — `git mv`, a plain `mv`, or `mv` then `git add -A`. Up to
 and including 0.4.0 a staged rename walked past it, and past the recap gate for
 a file moved out of `adocs/`, because both read the old path; 0.5.0 carries the
-fix. The same used to be true of the green-suite
+fix. It abstains before the first commit, where every file is new, and it skips
+a path the index has and the worktree does not — which is what moving a step
+back out of `plan_done/` produces, and the only compliant way to undo a
+completion, since the file itself may not be edited there. The same used to be true of the green-suite
 requirement — nothing ran a suite at all — which is what `test_command` fixes;
 without that key set, completion is still trusted rather than checked.
 

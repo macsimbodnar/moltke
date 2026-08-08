@@ -56,6 +56,29 @@ a `Status: <value>` line in its section; the S008 report template must conform.
 check abstains. INV-3 additionally treats a missing `plan.md` in an enabled
 repo as a violation.
 
+2026-08-08 (S060): no mode ends in a traceback. Every invariant runs through one
+`run_checks`, which turns an `OSError` into a violation naming the check, and
+`main` carries a backstop for everything else a broken tree reaches — status
+regeneration, the plan reader, the porcelain gates — reporting and exiting 2,
+or 0 for `--log-prompt` and `--session-start`, which must never block. Three call
+sites ran the invariant loop and none handled a read failure, so a directory
+where a step file belongs killed `--validate`, `--post-write`, and `--stop`
+alike. From a `Stop` hook that is the worst case there is: exit 1 is
+non-blocking, so the turn ends with every gate off and nothing printed, losing
+the problems already collected in the same call (finding
+2026-08-08_adversarial-F01).
+
+The stamp gate skips an entry that is not a file on disk. `AD` and `RD` say the
+index has the path and the worktree does not, and `RD` is what following the
+gate's own instruction produces: it blocks, `--pre-write` refuses to edit the
+file it names, so `mv` back is the only compliant way out. Nothing arrived, so
+there is nothing to stamp; the tree is still reported, by INV-7. `--stop` reads
+porcelain with `-uall`, as `worktree_state` has since S036 and for the same
+reason — plain porcelain collapses a wholly untracked directory into one entry,
+so `?? adocs/plan_done/` reached the gate as a path that is a directory. That
+also makes the gate see individual arrivals before the first commit, where every
+file is new, so it abstains there exactly as the recap gate already did.
+
 2026-08-08 (S031, DEC-032): the secret shapes moved from
 `tests/test_s022_secrets.py` into `bin/moltke.py` and run as INV-15, so
 `--validate` reports them and `--stop` refuses on them in every marked

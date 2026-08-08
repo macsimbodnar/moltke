@@ -1643,3 +1643,7 @@ silently. That is audit finding F14, reproduced and planned as S014.
 ## 2026-08-08T12:13+02:00 prompt
 
 > let's go over them in an iteractive way, put a little explanation on top of the question
+
+## 2026-08-08T13:21+02:00 prompt
+
+> let's proceed with the plan with the findings fix and after all of the fixes let's create a new version. Do not care about migration or backward compatibility

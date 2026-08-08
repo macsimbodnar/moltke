@@ -981,13 +981,34 @@ CHEAP_CHECKS = ("INV-1", "INV-2", "INV-3", "INV-4", "INV-5", "INV-6", "INV-9", "
                 "INV-14")
 
 
+def run_checks(root, config, only=None):
+    """Every invariant, or only the named ones, with an unreadable tree reported
+    rather than raised (S060, 2026-08-08_adversarial-F01).
+
+    One place, because three call sites ran this loop and none of them handled
+    an OSError: a directory where a step file belongs, or a file the index has
+    and the worktree does not, killed `--validate`, `--post-write`, and `--stop`
+    alike. A `Stop` hook that exits 1 enforces nothing and says nothing, which is
+    worse than any violation it might have reported. S052 turned the same class
+    of failure into a refusal for `--step` and stopped there.
+    """
+    violations = []
+    for name, fn in INVARIANT_CHECKS:
+        if only is not None and name not in only:
+            continue
+        try:
+            violations.extend(fn(root, config))
+        except OSError as exc:
+            violations.append(f"{name} could not read the repository ({exc}). A check that "
+                              f"cannot look is not a check that passed: fix the path it names, "
+                              f"then run bin/moltke.py --validate")
+    return violations
+
+
 def mode_post_write(root, config, marker_violations):
     # Non-blocking by contract (the tool already ran); exit 2 only surfaces
     # stderr to Claude. Git-based checks are skipped to keep this cheap.
-    violations = list(marker_violations)
-    for name, fn in INVARIANT_CHECKS:
-        if name in CHEAP_CHECKS:
-            violations.extend(fn(root, config))
+    violations = list(marker_violations) + run_checks(root, config, CHEAP_CHECKS)
     if violations:
         for violation in violations:
             print(f"moltke: {violation}", file=sys.stderr)
@@ -1107,16 +1128,18 @@ def _stale_remedy(root):
 
 def mode_stop(root, config, marker_violations):
     payload = hook_input()  # stdin is read once; every use below shares it
-    problems = list(marker_violations)
-    for _name, fn in INVARIANT_CHECKS:
-        problems.extend(fn(root, config))
+    problems = list(marker_violations) + run_checks(root, config)
 
     remedy = _stale_remedy(root)
     for field, said, real in status_disagreements(root):
         problems.append(f"status.md is stale or missing: {field} says {said!r}, the filesystem "
                         f"says {real!r}. {remedy[0].upper()}{remedy[1:]} before ending the turn.")
 
-    porcelain = _git_lines(root, "status", "--porcelain")
+    # -uall, like worktree_state since S036 and for the same reason: plain
+    # porcelain collapses a wholly untracked directory into one entry, so
+    # `?? adocs/plan_done/` reached the stamp gate as a path that is a directory
+    # on disk. One porcelain shape for every reader (S060).
+    porcelain = _git_lines(root, "status", "--porcelain", "-uall")
     if porcelain is not None:
         # Both sides of a rename (S050): a file promoted out of adocs/ adds a
         # source file and a file moved into adocs/ removes one, and judging the
@@ -1132,9 +1155,19 @@ def mode_stop(root, config, marker_violations):
                             f"the last logged prompt; append a recap (step id, what changed, "
                             f"files, tests, commit) before ending the turn, or commit the "
                             f"change if the turn that made it was already recapped.")
-        for line in porcelain:
+        for line in porcelain if committed else []:
+            # Before the first commit every file is an arrival, including the
+            # scaffold's own, which is why the recap gate abstains there too.
+            # With -uall those now reach this gate individually (S060).
             entry = porcelain_paths(line)[-1]
             if _arrives_here(line[:2]) and entry.startswith(f"{DOCS}/plan_done/"):
+                # The index can name a path the worktree no longer has — `AD`,
+                # `RD` — and `RD` is what following this gate's own remedy
+                # produces: it blocks, --pre-write forbids editing the file it
+                # names, so `mv` back is the only compliant way out. Nothing
+                # arrived, so there is nothing to stamp (S060).
+                if not (root / entry).is_file():
+                    continue
                 fields = parse_step_file(root / entry)
                 stamp = fields.get("done", "")
                 if "README" not in stamp or "MANUAL" not in stamp:
@@ -1944,9 +1977,7 @@ def mode_step(root, config, argv, goal, stamp, marker_violations=()):
 
 
 def run_validate(root, config, marker_violations):
-    violations = list(marker_violations)
-    for _name, fn in INVARIANT_CHECKS:
-        violations.extend(fn(root, config))
+    violations = list(marker_violations) + run_checks(root, config)
     if violations:
         for violation in violations:
             print(f"VIOLATION: {violation}")
@@ -1994,22 +2025,32 @@ def main(argv=None):
     if isinstance(config, dict) and config.get("enabled") is False:
         return EXIT_OK  # INV-11: declined repo, even if other fields are junk
 
-    if args.validate:
-        return run_validate(root, config, marker_violations)
-    if args.session_start:
-        return mode_session_start(root, config)
-    if args.log_prompt:
-        return mode_log_prompt(root, config)
-    if args.pre_write is not None:
-        return mode_pre_write(root, config, args.pre_write)
-    if args.post_write:
-        return mode_post_write(root, config, marker_violations)
-    if args.stop:
-        return mode_stop(root, config, marker_violations)
-    if args.step:
-        return mode_step(root, config, args.step, args.goal, args.stamp, marker_violations)
-    if args.audit:
-        return mode_audit(root, config, args.audit)
+    try:
+        if args.validate:
+            return run_validate(root, config, marker_violations)
+        if args.session_start:
+            return mode_session_start(root, config)
+        if args.log_prompt:
+            return mode_log_prompt(root, config)
+        if args.pre_write is not None:
+            return mode_pre_write(root, config, args.pre_write)
+        if args.post_write:
+            return mode_post_write(root, config, marker_violations)
+        if args.stop:
+            return mode_stop(root, config, marker_violations)
+        if args.step:
+            return mode_step(root, config, args.step, args.goal, args.stamp, marker_violations)
+        if args.audit:
+            return mode_audit(root, config, args.audit)
+    except OSError as exc:
+        # The backstop (S060). run_checks names the invariant that could not
+        # read; this catches everything else a broken tree reaches — status
+        # regeneration, the plan reader, the porcelain gates — so no mode ever
+        # ends in a traceback. A traceback is neither of the two things exit 1
+        # means, and from a Stop hook it means every gate was off and silent.
+        print(f"moltke: could not read the repository ({exc}). Fix the path named above, "
+              f"then run bin/moltke.py --validate.", file=sys.stderr)
+        return EXIT_OK if args.log_prompt or args.session_start else EXIT_BLOCK
     return EXIT_OK
 
 
