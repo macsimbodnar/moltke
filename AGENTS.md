@@ -178,7 +178,7 @@ Ids are referenced from step files, commit messages, code comments, and `specs.m
 - Work turns additionally get a recap: step id, what changed, files touched, tests added, commit sha.
 - Pure questions and discussion need no recap.
 
-**Every completed unit of work also ends with a short console recap**: what was done, what changed, what proves it, the commit sha. A handful of lines, not a report. This is additional to the worklog recap and applies to work that is not a step completion too — a planning session, an audit run. The worklog is forensic and nobody reads it live; the console is where the user finds out what happened.
+**Every completed unit of work also ends with a short console recap**: a couple of sentences saying what was done and what it means, then `bin/moltke.py --roadmap` for where that leaves the plan. Two sentences, not a report — anything longer is written when it is asked for. This is additional to the worklog recap and applies to work that is not a step completion too, such as a planning session or an audit run. The worklog is forensic and nobody reads it live; the console is where the user finds out what happened.
 
 **The worklog is not a context source.** It is forensic history for humans, and it grows without bound. Never read it to work out what to do or why something is the way it is; that is what `status.md`, `plan.md`, `specs.md`, and `decisions.md` are for. If something in the worklog turns out to matter, promote it into one of those files. An agent that starts a session by reading the worklog is doing it wrong.
 

@@ -132,6 +132,7 @@ Cursor) must, since hooks exist only in Claude Code.
 | Command | What it does |
 |---|---|
 | `--validate` | run every invariant, print all violations, exit 1 if any |
+| `--roadmap` | print where the plan is: one timeline strip, the done/left split, and the step in progress or the derived next one. Derived from `plan.md` and the plan directories, never from `status.md` |
 | `--scaffold` | create the marker, `AGENTS.md`, `CLAUDE.md`, the Cursor pointer, and `adocs/` from templates; never overwrites an existing file, and reports for each kept ruleset file whether it still matches the installed template |
 | `--decline` | record that this repository declines the workflow, durably; refuses to disable an already-enabled repository |
 | `--step new <name>` | allocate the next step id, write the step file, list it in `plan.md` |

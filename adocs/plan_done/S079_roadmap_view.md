@@ -1,0 +1,10 @@
+id:         S079
+goal:       a --roadmap mode prints where the plan is, as one timeline strip
+accepts:    `--roadmap` derives the view from plan.md order and the three plan directories, never from status.md, so it cannot drift; it prints one strip with the first and last planned ids at its ends, a done/left summary under it, and the current step named beneath, falling back to the derived next step when nothing is in progress; the strip stays one line at any plan size, bucketing steps when there are more than the strip is wide; a repository with no steps planned says so rather than printing an empty bar; exit 0 always, since it reports nothing that can fail; the golden surface test is refreshed and the specs CLI table and MANUAL describe it in the same commit
+touches:    bin/moltke.py; tests/golden/cli_surface.txt; tests/test_s009_surface.py fixtures if needed; a new test file; adocs/specs.md; MANUAL.md; AGENTS.md and templates/AGENTS.md for the recap rule
+excludes:   emitting the roadmap from --session-start, which was considered and left out so the context channel does not keep growing; any per-step detail beyond the current one
+decisions:  DEC-038
+closes:
+blocks:
+paused_by:
+done:      2026-08-08: --roadmap prints the plan as one timeline strip, derived from plan.md order and the three plan directories and never from status.md, so it cannot report what the repository does not say. Buckets steps once the plan is longer than the strip is wide, and a bucket holding unfinished work reads unfinished, so the bar never overstates progress. Names the step in progress, or the derived next one when nothing is current, and says so plainly for a finished or unplanned tree. Left out of --session-start deliberately: that channel already carries staleness, the planning nudge, and the prompt-failure breadcrumb, and it only ever grows. 12 tests, red observed. AGENTS.md and its shipped copy narrow the recap rule to a couple of sentences plus the roadmap, per DEC-038. Suite 324 OK, --validate green. README test count 312 to 324; MANUAL and the specs CLI table gained the --roadmap row in this commit, with the golden refreshed.

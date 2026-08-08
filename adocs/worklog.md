@@ -1658,3 +1658,7 @@ silently. That is audit finding F14, reproduced and planned as S014.
 > 
 > * the agent that run the audit must be with clear context. So it does not carry any bias from the old session. They must work like red/blu teams.
 > * After each work done i want the agent to print in console a short recap of work done
+
+## 2026-08-08T16:24+02:00 prompt
+
+> the recap that i mention in the last rule should be short, like a couple of sentences. Just to get an idea of what was done. Plus i want to add some visual representation where we are on the roadmap. Something simple not like tables but like or a gant that can be printed in console jsut ot get an idea what's next and what was done

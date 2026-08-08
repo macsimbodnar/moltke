@@ -548,6 +548,7 @@ which is the only enforcement available outside Claude Code.
 | `--post-write` | PostToolUse | cheap invariant scan, non-blocking |
 | `--stop` | Stop hook | exit 2 with an actionable message if source changed without a worklog recap, a stale `status.md`, a completed step lacking `testing.md` rows, or unchecked README and MANUAL |
 | `--validate` | manual, any tool | run every invariant, report all violations, exit non-zero |
+| `--roadmap` | — | 2026-08-08 (S079, DEC-038): print where the plan is as one timeline strip, derived from `plan.md` order and the three plan directories. Never reads `status.md`, so it cannot report what the repository does not say. Exit 0 always |
 | `--scaffold` | `init` skill | create the marker, `AGENTS.md`, `CLAUDE.md`, the Cursor pointer, and `adocs/` from templates; never overwrites an existing file |
 | `--decline` | `init` skill | write `{"schema": 1, "enabled": false}`, durably; refuses to disable an already-enabled repository |
 | `--audit OP ...` | `audit` skill | 2026-08-01 (S008): `new <type>` opens `adocs/audit/YYYY-MM-DD_<type>.md` from the template and never overwrites, taking a `.2`, `.3` sequence suffix on a same-day re-run (S020); `list` prints every finding with its status and what references it, exiting non-zero while an open finding has neither a step nor a decision. 2026-08-06 (S017): `new` also records a working-tree baseline in `.git/moltke_audit_baseline.json`, and `check` reconciles the run against it, printing expected and unexpected changes and exiting 1 on anything unexpected |

@@ -2165,6 +2165,80 @@ def run_validate(root, config, marker_violations):
     return EXIT_OK
 
 
+STRIP_WIDTH = 46
+
+
+def roadmap_cells(order, done, current, width=STRIP_WIDTH):
+    """One character per bucket of consecutive steps, in plan order.
+
+    A bucket is done only when every step in it is done, so a long plan never
+    reads as further along than it is (DEC-038). Under `width` steps each cell
+    is one step and the question does not arise.
+    """
+    if not order:
+        return ""
+    cells = []
+    for index in range(min(width, len(order))):
+        first = index * len(order) // min(width, len(order))
+        last = (index + 1) * len(order) // min(width, len(order))
+        bucket = order[first:last] or [order[first]]
+        if any(step_id in current for step_id in bucket):
+            cells.append("\u25b6")
+        elif all(step_id in done for step_id in bucket):
+            cells.append("\u2588")
+        else:
+            cells.append("\u2591")
+    return "".join(cells)
+
+
+def mode_roadmap(root, config):
+    """Where the plan is, as one timeline strip.
+
+    Derived from `plan.md` order and the three plan directories, like every
+    other check, so it cannot report something the repository does not say
+    (DEC-038). `status.md` is not read at all.
+    """
+    order = plan_order(root) or []
+    if not order:
+        print(f"moltke: no steps planned yet. {DOCS}/plan.md holds the ordered list, "
+              f"and bin/moltke.py --step new <name> adds to it.")
+        return EXIT_OK
+
+    steps = plan_steps(root)
+    done = {step_id for step_id, _p, _f in steps["plan_done"]}
+    current = {step_id: fields for step_id, _p, fields in steps["plan_current"]}
+    done_count = sum(1 for step_id in order if step_id in done)
+    left = len(order) - done_count
+
+    strip = roadmap_cells(order, done, current)
+    print(f"{order[0]} \u258f{strip}\u2595 {order[-1]}")
+
+    # The elbow sits under the last done cell, so the split reads at a glance.
+    filled = len(strip) - strip.count("\u2591") - strip.count("\u25b6")
+    done_label = f" {done_count} done "
+    rule = "\u2500" * max(0, filled - len(done_label) - 1)
+    tail = "nothing left" if not left else f"{left} left"
+    print(f"{' ' * len(order[0])} \u2514{done_label}{rule}\u2518 \u2514 {tail}")
+
+    active = [step_id for step_id in order if step_id in current]
+    if active:
+        for step_id in active:
+            fields = current[step_id]
+            paused = field_value(fields, "paused_by")
+            mark = f" [paused by {paused}]" if paused else ""
+            print(f"\n{' ' * len(order[0])} now  {step_id}  {field_value(fields, 'goal')}{mark}")
+    else:
+        nxt = derived_next(root)
+        if nxt:
+            goal = ""
+            for dirname in PLAN_DIRS:
+                for step_id, _path, fields in steps[dirname]:
+                    if step_id == nxt:
+                        goal = field_value(fields, "goal")
+            print(f"\n{' ' * len(order[0])} next {nxt}  {goal}")
+    return EXIT_OK
+
+
 def build_parser():
     """The public surface, in one place so the golden test can read it (DEC-010)."""
     parser = argparse.ArgumentParser(prog="moltke.py", description=__doc__)
@@ -2176,6 +2250,7 @@ def build_parser():
     modes.add_argument("--post-write", action="store_true", help="PostToolUse hook (S005)")
     modes.add_argument("--stop", action="store_true", help="Stop hook (S005)")
     modes.add_argument("--validate", action="store_true", help="run every invariant, report all violations")
+    modes.add_argument("--roadmap", action="store_true", help="print where the plan is, as one timeline strip")
     modes.add_argument("--scaffold", action="store_true", help=f"create the marker, AGENTS.md, and {DOCS}/ from templates")
     modes.add_argument("--decline", action="store_true", help="record that this repository declines the workflow, durably")
     modes.add_argument("--step", nargs="+", metavar="OP",
@@ -2206,6 +2281,8 @@ def main(argv=None):
     try:
         if args.validate:
             return run_validate(root, config, marker_violations)
+        if args.roadmap:
+            return mode_roadmap(root, config)
         if args.session_start:
             return mode_session_start(root, config)
         if args.log_prompt:

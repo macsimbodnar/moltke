@@ -5,6 +5,7 @@
 --log-prompt
 --post-write
 --pre-write [PATH]
+--roadmap
 --scaffold
 --session-start
 --stamp VALUE
