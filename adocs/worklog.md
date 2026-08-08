@@ -1631,3 +1631,7 @@ silently. That is audit finding F14, reproduced and planned as S014.
 ## 2026-08-08T00:55+02:00 prompt
 
 > let's go with the recommended one
+
+## 2026-08-08T11:06+02:00 prompt
+
+> next

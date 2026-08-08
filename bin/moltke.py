@@ -928,6 +928,30 @@ def recap_pending(root):
 RECAP_EXEMPT = (f"{DOCS}/", ".claude/")
 
 
+def porcelain_paths(line):
+    """Every path a `git status --porcelain` line refers to.
+
+    A staged rename is one line, `R  old -> new`, and both halves matter: the
+    destination is what exists now, the source is a path that just stopped
+    existing. Reading `line[3:]` whole gave the old path for renames, which is
+    how `git mv` — the move AGENTS.md section 4 names for completing a step —
+    walked past both `Stop` gates (S050, 2026-08-07_adversarial.2-F03). Quotes
+    are git's own, around paths that need them.
+    """
+    entry = line[3:]
+    parts = entry.split(" -> ", 1) if " -> " in entry else [entry]
+    return [part.strip('"') for part in parts]
+
+
+def _arrives_here(status):
+    """Whether a porcelain status means the path is newly at its location.
+
+    Untracked, added, renamed, copied. The index half is what decides, so `AM`
+    and `RM` — added or renamed, then edited — count like `A ` and `R `.
+    """
+    return status == "??" or status[0] in ("A", "R", "C")
+
+
 def mode_stop(root, config, marker_violations):
     payload = hook_input()  # stdin is read once; every use below shares it
     problems = list(marker_violations)
@@ -940,8 +964,12 @@ def mode_stop(root, config, marker_violations):
 
     porcelain = _git_lines(root, "status", "--porcelain")
     if porcelain is not None:
+        # Both sides of a rename (S050): a file promoted out of adocs/ adds a
+        # source file and a file moved into adocs/ removes one, and judging the
+        # line by its old path alone made the first read as exempt.
         changed_source = [line for line in porcelain
-                          if not line[3:].startswith(RECAP_EXEMPT)]
+                          if any(not path.startswith(RECAP_EXEMPT)
+                                 for path in porcelain_paths(line))]
         # No commit yet means no history a recap would sit alongside, and the
         # scaffold's own files are not work: abstain, as INV-7 and INV-8 do.
         committed = _git_lines(root, "rev-parse", "HEAD") is not None
@@ -951,8 +979,8 @@ def mode_stop(root, config, marker_violations):
                             f"files, tests, commit) before ending the turn, or commit the "
                             f"change if the turn that made it was already recapped.")
         for line in porcelain:
-            entry = line[3:]
-            if line[:2] in ("??", "A ") and entry.startswith(f"{DOCS}/plan_done/"):
+            entry = porcelain_paths(line)[-1]
+            if _arrives_here(line[:2]) and entry.startswith(f"{DOCS}/plan_done/"):
                 fields = parse_step_file(root / entry)
                 stamp = fields.get("done", "")
                 if "README" not in stamp or "MANUAL" not in stamp:
@@ -1384,11 +1412,10 @@ def worktree_state(root):
         return None
     state = {}
     for line in lines:
-        status, entry = line[:2], line[3:]
-        if " -> " in entry:  # a rename; the new name is what exists now
-            entry = entry.split(" -> ", 1)[1]
-        entry = entry.strip('"')
-        state[entry] = [status, _content_hash(root / entry)]
+        # The new name is what exists now. One definition of that, shared with
+        # both Stop gates since S050.
+        entry = porcelain_paths(line)[-1]
+        state[entry] = [line[:2], _content_hash(root / entry)]
     return state
 
 

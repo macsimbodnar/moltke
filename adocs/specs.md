@@ -55,6 +55,20 @@ a `Status: <value>` line in its section; the S008 report template must conform.
 check abstains. INV-3 additionally treats a missing `plan.md` in an enabled
 repo as a violation.
 
+2026-08-08 (S050): both `--stop` gates read `git status --porcelain` through one
+`porcelain_paths`, which splits a rename line on ` -> ` — the same rule
+`worktree_state` already used. A staged rename is one line, `R  old -> new`:
+`line[3:]` gave the old path, and `R ` was in neither `("??", "A ")`, so the
+README/MANUAL stamp gate saw nothing when a completed step reached `plan_done/`
+by `git mv`, the move AGENTS.md section 4 names, or by `mv` followed by the
+`git add -A` every commit passes through. Arrival is now judged on the index half
+of the code — `A`, `R`, or `C`, plus untracked — so `AM` and `RM` count too. The
+recap gate judges a rename by both sides rather than the destination alone,
+because a file promoted out of `adocs/` adds a source file and one moved into
+`adocs/` removes one; a rename that stays inside `adocs/` is exempt as before
+(finding 2026-08-07_adversarial.2-F03). The stamp gate had no test at all until
+this step: it was the only survivor of the seventeen mutations that finding ran.
+
 2026-08-08 (S049, DEC-033): INV-14 compares the finding headings an audit report
 states in its raw text against the ones that survive `strip_guidance`. S033 fixed
 the pairing and reported an odd marker count as INV-13; two unclosed fences are an

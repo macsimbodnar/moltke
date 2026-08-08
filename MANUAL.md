@@ -187,7 +187,10 @@ subdirectory move as the escape hatch if it ever matters.
 **The README and MANUAL gate is mechanical.** `--step done` and the Stop hook
 require the completion stamp to mention README and MANUAL. They cannot tell
 whether you actually looked. The check enforces that the question was asked,
-not that it was answered honestly. The same used to be true of the green-suite
+not that it was answered honestly. It sees the step arrive in `plan_done/`
+however you moved it — `git mv`, a plain `mv`, or `mv` then `git add -A`; up to
+and including 0.4.0 a staged rename walked past it, and past the recap gate for
+a file moved out of `adocs/`, because both read the old path. The same used to be true of the green-suite
 requirement — nothing ran a suite at all — which is what `test_command` fixes;
 without that key set, completion is still trusted rather than checked.
 

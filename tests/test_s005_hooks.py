@@ -24,12 +24,23 @@ def run_moltke(cwd, *args, stdin=""):
     )
 
 
+def git(root, *args):
+    return subprocess.run(
+        ["git", "-C", str(root), "-c", "user.name=t", "-c", "user.email=t@t", *args],
+        capture_output=True, text=True, check=True,
+    )
+
+
 def git_baseline(root):
     for args in (("init", "-q"), ("add", "-A"), ("commit", "-qm", "base")):
-        subprocess.run(
-            ["git", "-C", str(root), "-c", "user.name=t", "-c", "user.email=t@t", *args],
-            capture_output=True, text=True, check=True,
-        )
+        git(root, *args)
+
+
+STAMP_COMPLAINT = "README and MANUAL check recorded"
+
+
+def stamp_complaints(result):
+    return [line for line in result.stderr.splitlines() if STAMP_COMPLAINT in line]
 
 
 class TestLogPrompt(unittest.TestCase):
@@ -397,6 +408,110 @@ class TestStop(unittest.TestCase):
                 result = run_moltke(root, "--stop", stdin="{}")
                 self.assertEqual(result.returncode, 2 if blocks else 0,
                                  f"{path}: {result.stdout + result.stderr}")
+
+    def _completed_by_hand(self, tmp, move, stamp="2026-08-07 suite green"):
+        """A repo where S003 has just reached plan_done/ by `move`, with a stamp
+        that records no README or MANUAL check. Everything else is clean."""
+        root = workflow_repo(tmp)
+        current = root / "adocs" / "plan_current" / "S003_active.md"
+        current.write_text(current.read_text(encoding="utf-8") + f"done:       {stamp}\n",
+                           encoding="utf-8")
+        testing = root / "adocs" / "testing.md"
+        testing.write_text(testing.read_text(encoding="utf-8")
+                           + "| S003 | active works | manual | pass |\n", encoding="utf-8")
+        git_baseline(root)
+        log_prompt(root)
+        move(root, current, root / "adocs" / "plan_done" / "S003_active.md")
+        return root
+
+    def test_the_stamp_gate_fires_when_a_step_is_moved_by_hand(self):
+        # Non-vacuity anchor for the three shapes below, and the gate's first
+        # test at all: it survived deletion as the only one of seventeen
+        # mutations the suite did not catch (2026-08-07_adversarial.2-F03).
+        def plain_mv(root, src, dst):
+            src.rename(dst)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._completed_by_hand(tmp, plain_mv)
+            result = run_moltke(root, "--stop", stdin="{}")
+            self.assertEqual(len(stamp_complaints(result)), 1, result.stderr)
+            self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+
+    def test_the_stamp_gate_is_not_simply_always_on(self):
+        # The other half of non-vacuity: a stamp naming both files clears it, so
+        # the complaints counted above are the gate deciding, not firing blindly.
+        def plain_mv(root, src, dst):
+            src.rename(dst)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._completed_by_hand(tmp, plain_mv,
+                                           stamp="2026-08-07 suite green; README and MANUAL "
+                                                 "checked, no change needed")
+            result = run_moltke(root, "--stop", stdin="{}")
+            self.assertEqual(stamp_complaints(result), [], result.stderr)
+
+    def test_the_stamp_gate_fires_on_git_mv(self):
+        # S050: `git mv` is the command AGENTS.md section 4 and the pre-write
+        # hook both name, and it produces one porcelain line, `R  old -> new`.
+        # The status code is neither "??" nor "A ", and line[3:] is the *old*
+        # path, so the gate saw nothing at all.
+        def git_mv(root, src, dst):
+            git(root, "mv", str(src.relative_to(root)), str(dst.relative_to(root)))
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._completed_by_hand(tmp, git_mv)
+            porcelain = git(root, "status", "--porcelain").stdout
+            self.assertIn(" -> ", porcelain, "precondition: git recorded this as a rename")
+            result = run_moltke(root, "--stop", stdin="{}")
+            self.assertEqual(len(stamp_complaints(result)), 1, result.stderr)
+            self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+
+    def test_the_stamp_gate_fires_on_mv_then_git_add(self):
+        # The same porcelain line by the other route: every commit passes through
+        # `git add -A`, so a hand-completed step reaches this state either way.
+        def mv_then_add(root, src, dst):
+            src.rename(dst)
+            git(root, "add", "-A")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._completed_by_hand(tmp, mv_then_add)
+            porcelain = git(root, "status", "--porcelain").stdout
+            self.assertIn(" -> ", porcelain, "precondition: git recorded this as a rename")
+            result = run_moltke(root, "--stop", stdin="{}")
+            self.assertEqual(len(stamp_complaints(result)), 1, result.stderr)
+            self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+
+    def test_a_rename_between_documentation_and_source_counts_as_source(self):
+        # S050: the recap gate tested RECAP_EXEMPT against line[3:], the old
+        # path, so a file promoted out of adocs/ in one `git mv` read as exempt.
+        # Both directions are a source change: one adds a source file, the other
+        # removes one.
+        cases = [("adocs/notes.md", "src_notes.py"), ("src_notes.py", "adocs/notes.md")]
+        for src_rel, dst_rel in cases:
+            with self.subTest(move=f"{src_rel} -> {dst_rel}"), \
+                    tempfile.TemporaryDirectory() as tmp:
+                root = workflow_repo(tmp)
+                (root / src_rel).write_text("x\n", encoding="utf-8")
+                git_baseline(root)
+                log_prompt(root)
+                git(root, "mv", src_rel, dst_rel)
+                self.assertIn(" -> ", git(root, "status", "--porcelain").stdout,
+                              "precondition: git recorded this as a rename")
+                result = run_moltke(root, "--stop", stdin="{}")
+                self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+                self.assertIn("recap", result.stderr)
+
+    def test_a_rename_inside_adocs_is_still_exempt(self):
+        # Non-vacuity for the pair above: judging both sides must not make every
+        # rename a source change, or the recap gate fires on ordinary plan moves.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            (root / "adocs" / "notes.md").write_text("x\n", encoding="utf-8")
+            git_baseline(root)
+            log_prompt(root)
+            git(root, "mv", "adocs/notes.md", "adocs/notes_renamed.md")
+            result = run_moltke(root, "--stop", stdin="{}")
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
     def test_recap_gate_abstains_before_the_first_commit(self):
         # A repo with no HEAD has no history a recap would sit alongside, so a
