@@ -1662,3 +1662,11 @@ silently. That is audit finding F14, reproduced and planned as S014.
 ## 2026-08-08T16:24+02:00 prompt
 
 > the recap that i mention in the last rule should be short, like a couple of sentences. Just to get an idea of what was done. Plus i want to add some visual representation where we are on the roadmap. Something simple not like tables but like or a gant that can be printed in console jsut ot get an idea what's next and what was done
+
+## 2026-08-08T16:35+02:00 prompt
+
+> wher we are in the plan?
+
+## 2026-08-08T16:37+02:00 prompt
+
+> ok execute all the remainning steps then run an audit

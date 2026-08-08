@@ -867,6 +867,26 @@ def planning_pending(root):
 
 
 def mode_session_start(root, config):
+    # The envelope is printed whatever happens (S068, .2-F02). Everything below
+    # was built before the single print, so one unreadable path lost the whole
+    # payload: exit 0 with empty stdout, the one combination a zero-exit hook
+    # cannot recover from, since its stderr reaches nobody. That is why S014 put
+    # the prompt-failure breadcrumb on this channel — and a session with this
+    # problem is exactly the session that would not hear about it.
+    lines = []
+    try:
+        lines = session_context_lines(root, config)
+    except OSError as exc:
+        lines.append(f"moltke: could not read the repository ({exc}). Nothing below is "
+                     f"reliable until that path is fixed; run bin/moltke.py --validate.")
+    print(json.dumps({"hookSpecificOutput": {
+        "hookEventName": "SessionStart",
+        "additionalContext": "\n".join(lines),
+    }}))
+    return EXIT_OK
+
+
+def session_context_lines(root, config):
     lines = []
     current = plan_steps(root)["plan_current"]
     if current:
@@ -897,11 +917,7 @@ def mode_session_start(root, config):
     lost = take_log_failure(root)
     if lost:
         lines.append(lost)
-    print(json.dumps({"hookSpecificOutput": {
-        "hookEventName": "SessionStart",
-        "additionalContext": "\n".join(lines),
-    }}))
-    return EXIT_OK
+    return lines
 
 
 def git_dir(root):

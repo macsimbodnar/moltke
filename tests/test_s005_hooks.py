@@ -848,3 +848,31 @@ class TestStopNeverWedges(unittest.TestCase):
             self.assertNotIn("could not read the repository", result.stdout + result.stderr)
             self.assertNotIn("Traceback", result.stderr)
             self.assertIn("INV-3", result.stdout, "the non-git violation is still reported")
+
+
+class TestSessionStartAlwaysSpeaks(unittest.TestCase):
+    """S068 (2026-08-08_adversarial.2-F02): the whole payload was built before
+    the single print, so a read failure anywhere in it lost the lot — exit 0
+    with empty stdout, the one combination where nothing can be seen. A
+    zero-exit hook's stderr reaches nobody, which is why S014 put the
+    prompt-failure breadcrumb on this channel in the first place."""
+
+    def test_a_broken_path_still_produces_the_json_envelope(self):
+        for name, make in (("directory", lambda p: p.mkdir()),
+                           ("broken symlink", lambda p: p.symlink_to("nowhere.md"))):
+            with self.subTest(shape=name), tempfile.TemporaryDirectory() as tmp:
+                root = workflow_repo(tmp)
+                make(root / "adocs" / "plan_todo" / "S050_thing.md")
+                result = run_moltke(root, "--session-start")
+                self.assertEqual(result.returncode, 0, result.stderr)
+                payload = json.loads(result.stdout)      # must parse at all
+                context = payload["hookSpecificOutput"]["additionalContext"]
+                self.assertIn("S050_thing.md", context,
+                              "the agent has to be told what it cannot see")
+
+    def test_a_healthy_repository_is_unchanged(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            context = session_context(root)
+            self.assertIn("S003", context)
+            self.assertNotIn("could not", context)

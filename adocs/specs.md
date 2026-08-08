@@ -57,6 +57,17 @@ a `Status: <value>` line in its section; the S008 report template must conform.
 check abstains. INV-3 additionally treats a missing `plan.md` in an enabled
 repo as a violation.
 
+2026-08-08 (S068): `--session-start` prints its JSON envelope on every path,
+with a read failure carried inside `additionalContext` rather than on stderr.
+The whole payload was built before the single print, so one unreadable path lost
+all of it and the hook exited 0 with empty stdout — the one combination that
+cannot be seen, because a zero-exit hook's stderr reaches nobody, which is why
+S014 put the prompt-failure breadcrumb on this channel at all. A session with
+that problem was exactly the session that would not hear about it (finding
+2026-08-08_adversarial.2-F02). `session_context_lines` builds the payload and
+`mode_session_start` owns the envelope, so the mode's output contract is kept by
+the mode rather than by a backstop that cannot know what it is.
+
 2026-08-08 (S067): `--stop` reports and counts on every path. S060 removed the
 traceback and put `main`'s backstop behind it, which returns before the retry
 counter `mode_stop` writes at the end — so an `OSError` from `status_disagreements`,
