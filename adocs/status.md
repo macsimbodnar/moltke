@@ -3,11 +3,11 @@
 Convenience view, rewritten at the end of every work turn. The filesystem beats
 this file: on disagreement, `plan_current/` wins.
 
-Updated: 2026-08-08 by `moltke --step status`.
+Updated: 2026-08-09 by `moltke --step status`.
 
 - Last done: S087
 - In progress: none
-- Next: S059
+- Next: S088
 - Blocked: none
 - Parked:
   - `2026-08-06_adversarial-F02`, the reviewer write fence, is the one finding of

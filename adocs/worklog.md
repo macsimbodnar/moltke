@@ -1678,3 +1678,29 @@ silently. That is audit finding F14, reproduced and planned as S014.
 ## 2026-08-08T22:24+02:00 prompt
 
 > execute all of them one after the other without interruption
+
+## 2026-08-08T23:38+02:00 prompt
+
+> perform an adversarial check of the latest development
+
+### recap 2026-08-09  audit run 4 and triage
+
+Fourth adversarial run, spawned clean per DEC-036 with only the report path, the
+commit 2b8bfac, the type, and the scope boundary.
+
+- Report: adocs/audit/2026-08-08_adversarial.4.md, seven findings, one high,
+  four medium, two low. Baseline before any of them: 376 tests OK, --validate
+  all checks pass.
+- The eight findings of 2026-08-08_adversarial.3 no longer reproduce and moved
+  to closed. The reviewer also reverted twelve S050..S087 behaviours one line at
+  a time and ran the suite against each; all twelve were caught, so none of
+  those tests is vacuous.
+- Seven steps created, one per finding: S088 closes .4-F01, S089 F02, S090 F03,
+  S091 F04, S092 F05, S093 F06, S094 F07. The seven findings moved to planned.
+- plan.md reordered: the seven correctness steps go ahead of S059, which is
+  release verification and now runs last.
+- DEC-035's stopping rule does not fire: one high and four medium.
+- Files: adocs/audit/2026-08-08_adversarial.4.md (new),
+  adocs/audit/2026-08-08_adversarial.3.md (statuses), adocs/plan.md,
+  adocs/plan_todo/S088..S094 (new), adocs/status.md.
+- No tests added; no code changed. Suite green at 376 tests.

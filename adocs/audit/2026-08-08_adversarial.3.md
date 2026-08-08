@@ -45,7 +45,7 @@ than as a finding. Nothing in this repository was modified.
 
 ### 2026-08-08_adversarial.3-F01  high  `--stop` blocks forever when its own state file cannot be written: the one unguarded write in `mode_stop` escapes past the counter, so the cap never advances and no problem is printed
 
-Status: open
+Status: closed
 
 **Evidence.** `bin/moltke.py:1403` is the only write in `mode_stop` outside a
 `try`:
@@ -129,7 +129,7 @@ problem is still printed on each. Separately, the backstop at 2414 should not sa
 
 ### 2026-08-08_adversarial.3-F02  high  a marked root below the git top level silently switches INV-8 off, makes INV-7 permanently false, and makes `--audit check` blame its own report
 
-Status: open
+Status: closed
 
 **Evidence.** Every git call is `git -C <marked root>`, but `git status
 --porcelain` and `git log --name-status` print paths relative to the *repository*
@@ -230,7 +230,7 @@ test has a marked root that is not also the git root.
 
 ### 2026-08-08_adversarial.3-F03  medium  `--step block` on a parent that is already paused takes a green repository to an INV-1 violation and silently overwrites the pause
 
-Status: open
+Status: closed
 
 **Evidence.** `step_block` (`bin/moltke.py:1664-1685`) requires only that the
 parent is in `plan_current/` (`1666`). It never asks whether the parent is
@@ -281,7 +281,7 @@ exit 0, and assert the first child's pause is intact.
 
 ### 2026-08-08_adversarial.3-F04  medium  `--step new` and `--step block` write the step file before the plan entry, so a refusal leaves an unlisted step and an INV-3 violation
 
-Status: open
+Status: closed
 
 **Evidence.** `step_new` writes the file at `bin/moltke.py:1635` and lists it at
 `1636`; `step_block` writes the child at `1679`, lists it at `1680`, and pauses the
@@ -335,7 +335,7 @@ mirroring `TestARefusedCompletionChangesNothing` for both operations.
 
 ### 2026-08-08_adversarial.3-F05  medium  INV-7's remedy for a rename inside `plan_done/` is a no-op, and following both printed remedies leaves the tree worse than it started
 
-Status: open
+Status: closed
 
 **Evidence.** S071 removed the shell redirection from this message
 (`.2-F05`). What is printed now is safe but does not clear the violation:
@@ -387,7 +387,7 @@ printed command verbatim, assert `--validate` exits 0.
 
 ### 2026-08-08_adversarial.3-F06  medium  `testing.md` is the one scanner input still read raw, so a fenced example row satisfies INV-5 and the `--step done` gate
 
-Status: open
+Status: closed
 
 **Evidence.** `inv_5_done_evidence` reads the ledger with `read_file`
 (`bin/moltke.py:292`) and `step_done` does the same at `bin/moltke.py:1754`;
@@ -432,7 +432,7 @@ does not discharge INV-5 and `--step done` refuses; the same row unfenced does.
 
 ### 2026-08-08_adversarial.3-F07  low  `--roadmap` exits 2 on an unreadable path, where the specs table and both exit-code tables say it exits 0
 
-Status: open
+Status: closed
 
 **Evidence.** `adocs/specs.md:637` for `--roadmap`: "Exit 0 always".
 `README.md:76` assigns exit `2` to `mode_pre_write`, `mode_stop`,
@@ -465,7 +465,7 @@ edited together.
 
 ### 2026-08-08_adversarial.3-F08  low  a hook payload whose nested types differ from the expected ones still ends in a traceback, and in `--pre-write` that fails the reviewer fence open
 
-Status: open
+Status: closed
 
 **Evidence.** MANUAL.md: "Since 0.6.0 no mode ends in a Python traceback."
 `hook_input` (`bin/moltke.py:791-799`) validates only that the top level is a

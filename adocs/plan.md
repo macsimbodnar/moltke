@@ -100,4 +100,11 @@ step instead.
 82. S085  testing.md is read through strip_guidance like every other scanner input
 83. S086  --roadmap exits as its documentation says
 84. S087  a malformed hook payload refuses instead of raising
-85. S059  verify the installed release in a live session, after reinstall
+85. S088  --step new and --step block refuse a name outside [A-Za-z0-9_]+
+86. S089  --step done and --step start refuse when the destination file already exists
+87. S090  a paused_by naming no step file is reported and clearable
+88. S091  --scaffold and --decline refuse instead of tracebacking, and leave no half-applied marker
+89. S092  git_prefix is computed once per root, not once per path
+90. S093  INV-8's high-water-mark remedy prints the git blob spec, not the root-relative path
+91. S094  --step status carries an unindented Parked list through, or refuses
+92. S059  verify the installed release in a live session, after reinstall
