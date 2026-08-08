@@ -919,3 +919,31 @@ class TestTheStampGateJudgesStepFiles(unittest.TestCase):
             root = TestStop._completed_by_hand(TestStop(), tmp, git_mv)
             result = run_moltke(root, "--stop", stdin="{}")
             self.assertEqual(len(stamp_complaints(result)), 1, result.stderr)
+
+
+class TestTheStampGateSeesInsideAnUntrackedPlanDone(unittest.TestCase):
+    """S073 (2026-08-08_adversarial.2-F07): plain porcelain collapses a wholly
+    untracked directory into one entry, so the gate saw `?? adocs/plan_done/`
+    and nothing inside it. S060 passed -uall for that reason and no test held
+    the flag in place — reverting it left all 308 green, and this gate plus
+    worktree_state are the only -uall readers, so a later tidy-up would restore
+    the blind spot silently."""
+
+    def test_a_step_inside_a_wholly_untracked_plan_done_still_reaches_the_gate(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            done = root / "adocs" / "plan_done"
+            kept = (done / "S001_base.md").read_text(encoding="utf-8")
+            for entry in done.iterdir():
+                entry.unlink()
+            done.rmdir()
+            git_baseline(root)                      # commit without plan_done/
+            done.mkdir()
+            (done / "S001_base.md").write_text(kept, encoding="utf-8")
+            log_prompt(root)
+            plain = git(root, "status", "--porcelain").stdout
+            self.assertIn("?? adocs/plan_done/\n", plain,
+                          "precondition: plain porcelain collapses the directory")
+            result = run_moltke(root, "--stop", stdin="{}")
+            self.assertEqual(len(stamp_complaints(result)), 1,
+                             f"the step inside it must be judged: {result.stderr}")
