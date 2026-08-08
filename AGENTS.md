@@ -178,12 +178,15 @@ Ids are referenced from step files, commit messages, code comments, and `specs.m
 - Work turns additionally get a recap: step id, what changed, files touched, tests added, commit sha.
 - Pure questions and discussion need no recap.
 
+**Every completed unit of work also ends with a short console recap**: what was done, what changed, what proves it, the commit sha. A handful of lines, not a report. This is additional to the worklog recap and applies to work that is not a step completion too — a planning session, an audit run. The worklog is forensic and nobody reads it live; the console is where the user finds out what happened.
+
 **The worklog is not a context source.** It is forensic history for humans, and it grows without bound. Never read it to work out what to do or why something is the way it is; that is what `status.md`, `plan.md`, `specs.md`, and `decisions.md` are for. If something in the worklog turns out to matter, promote it into one of those files. An agent that starts a session by reading the worklog is doing it wrong.
 
 ## 10. Audit
 
 `adocs/audit/` holds reports from adversarial verification, security audits, and bug hunts. One file per run, named `YYYY-MM-DD_type.md`, and a re-run on the same day takes a sequence suffix: `YYYY-MM-DD_type.2.md`. A report is never overwritten, so closing a finding on the day it was found is a normal re-run rather than a wait.
 
+- The auditor runs on a **clean context** and learns the repository only from the repository. The prompt that spawns it carries the report path, the commit, the audit type, and the scope boundary — never what changed, what the spawning session believes, what to prioritise, or which findings it expects. Red team and blue team: the blue team does not brief the red team. A run is always a fresh spawn, never a continuation of an earlier reviewer.
 - The report is written **before** any fix. A report edited while fixing stops being evidence of what was found.
 - Every finding gets an id `YYYY-MM-DD_type-F<nn>`, a severity, and a status of `open`, `planned`, `closed`, or `accepted`.
 - Every finding ends in one of two places: a plan step whose `closes:` field names it, or a `decisions.md` entry stating why it will not be acted on, which moves it to `accepted`.

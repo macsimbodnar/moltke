@@ -20,10 +20,36 @@ It creates `adocs/audit/YYYY-MM-DD_<type>.md` and never overwrites an existing
 report, because a report is evidence of one run. A second run on the same day
 becomes `YYYY-MM-DD_<type>.2.md`, and its findings are numbered from that name.
 
-## 2. Run the reviewer
+## 2. Run the reviewer, on a clean context
 
-Spawn the `adversarial_reviewer` subagent. Tell it the report path, the scope,
-and the commit. It can read anything, and a hook blocks its `Write` and `Edit`
+Spawn the `adversarial_reviewer` subagent, fresh. Never continue an earlier
+reviewer with more context: a run is one spawn, and a spawn starts empty.
+
+**Tell it four things and nothing else** (DEC-036):
+
+- the repository path and the commit it is auditing
+- the report path `--audit new` just created, and the finding id prefix
+- the type of audit, and the scope boundary if the scope is narrower than
+  everything
+- that verdicts on prior findings are in scope, which it will find in the
+  tracked reports under `adocs/audit/` by reading them
+
+**Do not tell it** what changed since the last run, which steps landed, what you
+think is fragile, what to prioritise, what the recurring defect shape has been,
+or which findings you expect it to confirm. All of that is your model of the
+code, blind spots included, and an auditor handed it inherits them: one told
+where to look looks there, and one told what the last batch fixed is primed to
+agree that it is fixed. It reads `git log`, `adocs/`, and the code, exactly as a
+reviewer arriving cold would.
+
+Red team and blue team. The blue team does not brief the red team.
+
+Nothing enforces this — the spawn prompt is yours to write, like the reviewer's
+`Bash` limit is its own to keep. The cost is real and accepted: runs are slower
+and less targeted, and a first run under this rule may re-derive what the last
+one knew.
+
+It can read anything, and a hook blocks its `Write` and `Edit`
 outside `adocs/audit/` and new files under `tests/`. That fence is not the
 guarantee: the reviewer also holds `Bash`, which no hook matcher sees, so
 mutation is possible by design (DEC-022) and is reconciled in step 3 instead.

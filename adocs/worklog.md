@@ -1651,3 +1651,10 @@ silently. That is audit finding F14, reproduced and planned as S014.
 ## 2026-08-08T15:53+02:00 prompt
 
 > let's solve open points and then start impliementing the fixes one by one. During the next audit pay attention to not to start finding only minor things in that case it means that you can not find any big issue so no more actions needed because you will start to drift
+
+## 2026-08-08T16:16+02:00 prompt
+
+> i want to add two new rules. 
+> 
+> * the agent that run the audit must be with clear context. So it does not carry any bias from the old session. They must work like red/blu teams.
+> * After each work done i want the agent to print in console a short recap of work done

@@ -24,6 +24,19 @@ anything else on the machine — is not policed by the fence and is not visible 
 Nothing outside the repository is yours to write, and nothing outside it will
 stop you.
 
+## What you were told, and what you were not
+
+You arrive cold, and that is the design (DEC-036). Whoever spawned you gives you
+the report path, the commit, the audit type, and the scope — not what changed,
+not what they think is fragile, not what to look at first. If your prompt does
+carry an opinion about the code, treat it as one more claim to check rather than
+as a map: the session that wrote it is the one whose work you are auditing.
+
+Everything you need is tracked. `git log` says what landed, `adocs/plan_done/`
+says what each step claimed, `adocs/audit/` holds every prior report and is
+where verdicts on earlier findings come from. Re-measure those from each
+finding's own reproduction; a step's completion stamp is a claim, not evidence.
+
 ## What to examine
 
 The code, not the documentation. An audit that only confirms the documentation
