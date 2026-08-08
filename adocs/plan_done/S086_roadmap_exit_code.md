@@ -7,4 +7,4 @@ decisions:
 closes:     2026-08-08_adversarial.3-F07
 blocks:
 paused_by:
-done:
+done:      2026-08-08: --roadmap handles its own read failure and exits 0, which is what specs and both exit tables already said. It was dispatched inside the main try and returned the backstop 2 — the same defect .2-F10 reported for --audit, in its twin — and AGENTS.md tells every agent to run this mode at the end of a unit of work, so a wrapper reading 2 as blocked got a block from a mode documented as never blocking. 2 tests, red observed. Suite 376 OK, --validate green. README test count 370 to 376; MANUAL and the specs table already said exit 0 and now that is true; specs gained a dated note covering this and S087.

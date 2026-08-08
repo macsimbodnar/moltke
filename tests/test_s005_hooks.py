@@ -1002,5 +1002,53 @@ class TestTheStopStateWriteNeverWedges(unittest.TestCase):
                             "the state file this test is about must exist by name")
 
 
+class TestMalformedHookPayloads(unittest.TestCase):
+    """S087 (2026-08-08_adversarial.3-F08): hook_input validated that the top
+    level was a dict and the three consumers assumed the nested types. A
+    PreToolUse hook that dies with exit 1 is non-blocking, so the write it was
+    judging proceeded — the reviewer fence and the plan_done/ refusal both
+    failing open, which S016 named as the wrong direction. Whether Claude Code
+    ever sends these shapes is not established; the fence must not depend on it.
+    """
+
+    def test_pre_write_still_blocks_when_tool_input_is_not_a_mapping(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            payload = json.dumps({"tool_input": "adocs/plan_done/S001_base.md"})
+            result = run_moltke(root, "--pre-write", "adocs/plan_done/S001_base.md",
+                                stdin=payload)
+            self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+            self.assertNotIn("Traceback", result.stderr)
+
+    def test_pre_write_does_not_raise_on_odd_nested_types(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            for payload in (json.dumps({"tool_input": "a string"}),
+                            json.dumps({"agent_type": ["moltke:adversarial_reviewer"],
+                                        "tool_input": {"file_path": "bin/moltke.py"}}),
+                            json.dumps({"tool_input": {"file_path": 12345}})):
+                with self.subTest(payload=payload):
+                    result = run_moltke(root, "--pre-write", stdin=payload)
+                    self.assertNotIn("Traceback", result.stderr)
+                    self.assertIn(result.returncode, (0, 2), result.stderr)
+
+    def test_log_prompt_never_loses_a_prompt_to_a_type(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            result = run_moltke(root, "--log-prompt", stdin=json.dumps({"prompt": 12345}))
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertNotIn("Traceback", result.stderr)
+            self.assertIn("12345", (root / "adocs" / "worklog.md").read_text(encoding="utf-8"))
+
+    def test_the_reviewer_fence_still_matches_a_well_formed_payload(self):
+        # Non-vacuity: tolerating odd types must not stop the fence working.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            payload = json.dumps({"agent_type": "moltke:adversarial_reviewer",
+                                  "tool_input": {"file_path": "bin/moltke.py"}})
+            result = run_moltke(root, "--pre-write", stdin=payload)
+            self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -57,6 +57,23 @@ a `Status: <value>` line in its section; the S008 report template must conform.
 check abstains. INV-3 additionally treats a missing `plan.md` in an enabled
 repo as a violation.
 
+2026-08-08 (S086, S087): `--roadmap` handles its own read failure and exits 0,
+which is what specs and both exit tables already said and what a mode AGENTS.md
+tells every agent to run at the end of a unit of work has to do; it was
+dispatched inside `main`'s try and returned the backstop's 2, the same defect
+`.2-F10` reported for `--audit` (finding 2026-08-08_adversarial.3-F07).
+
+Nested hook payload fields are read through `payload_str`, which returns "" for
+anything that is not a string. Only the top level was checked and every consumer
+assumed the rest, so a `tool_input` that is a string, or an `agent_type` that is
+a list, killed `--pre-write` — and a `PreToolUse` hook that dies exits 1, which
+is non-blocking, so the write it was judging proceeded: the reviewer fence and
+the `plan_done/` refusal failing open, the direction S016 named as wrong. A
+prompt of the wrong type is coerced rather than dropped, because logging must
+never lose what the user typed. Whether Claude Code sends these shapes is not
+established, and the fence does not depend on it (finding
+2026-08-08_adversarial.3-F08).
+
 2026-08-08 (S085): `adocs/testing.md` is read through `read_stripped` by INV-5
 and by `--step done`, and joins `stripped_files` and therefore INV-13's scan. It
 was the last scanner input read raw, so a row inside a code fence — guidance by

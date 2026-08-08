@@ -825,6 +825,24 @@ def hook_input():
         return {}
 
 
+def payload_str(payload, *keys):
+    """A nested payload field as a string, or "" when it is anything else.
+
+    Only the top level was checked and every consumer assumed the nested types
+    (S087, .3-F08). A `PreToolUse` hook that dies exits 1, which is
+    non-blocking, so the write it was judging went ahead: the reviewer fence and
+    the plan_done/ refusal failing open, the direction S016 named as the wrong
+    one. Nothing establishes that Claude Code sends these shapes; the fence must
+    not depend on that.
+    """
+    value = payload
+    for key in keys:
+        if not isinstance(value, dict):
+            return ""
+        value = value.get(key)
+    return value if isinstance(value, str) else ""
+
+
 def plan_text(root):
     """plan.md with comments and fenced blocks stripped: commented-out
     example steps are not the plan."""
@@ -1067,7 +1085,10 @@ def take_log_failure(root):
 def mode_log_prompt(root, config):
     # UserPromptSubmit exit 2 erases the user's prompt (live docs 2026-08-01):
     # logging must fail open, always exit 0.
-    prompt = hook_input().get("prompt", "")
+    # str() rather than payload_str: a prompt of the wrong type is still
+    # something the user typed, and logging must never lose it (S087).
+    raw = hook_input().get("prompt", "")
+    prompt = raw if isinstance(raw, str) else str(raw)
     if not prompt:
         return EXIT_OK
     stamp = datetime.datetime.now().astimezone().isoformat(timespec="minutes")
@@ -1100,7 +1121,7 @@ def reviewer_may_write(root, rel):
 
 def mode_pre_write(root, config, path_arg):
     payload = hook_input()
-    path = path_arg or payload.get("tool_input", {}).get("file_path", "")
+    path = path_arg or payload_str(payload, "tool_input", "file_path")
     if not path:
         return EXIT_OK
     # Resolve first, always (S041). pathlib does not normalise `..`, so a
@@ -1122,7 +1143,7 @@ def mode_pre_write(root, config, path_arg):
     # Suffix match rather than an exact pair, so renaming the plugin cannot
     # silently reopen it; the cost is fencing another plugin's agent of the same
     # name, which at least blocks loudly instead of failing open.
-    agent = (payload.get("agent_type") or "").split(":")[-1]
+    agent = payload_str(payload, "agent_type").split(":")[-1]
     if agent == REVIEWER_AGENT and not reviewer_may_write(root, rel):
         print(f"moltke: the {REVIEWER_AGENT} may write under {DOCS}/audit/, and may create new "
               f"files under tests/, and {rel} is neither. Record what you found as a finding in "
@@ -2411,12 +2432,27 @@ def roadmap_cells(order, done, current, width=STRIP_WIDTH):
 
 
 def mode_roadmap(root, config):
-    """Where the plan is, as one timeline strip.
+    """Where the plan is, as one timeline strip, and never a blocking exit.
+
+    Exit 0 always, which is what specs and both exit tables say and what a mode
+    AGENTS.md tells every agent to run at the end of a unit of work has to do.
+    It was dispatched inside main's try, so an unreadable path returned the
+    backstop's 2 — the same defect .2-F10 reported for --audit, in its twin
+    (S086, .3-F07).
 
     Derived from `plan.md` order and the three plan directories, like every
     other check, so it cannot report something the repository does not say
     (DEC-038). `status.md` is not read at all.
     """
+    try:
+        return _mode_roadmap(root, config)
+    except OSError as exc:
+        print(f"moltke: the plan could not be read ({exc}), so there is no roadmap to draw; "
+              f"run bin/moltke.py --validate for what else that path breaks.", file=sys.stderr)
+        return EXIT_OK
+
+
+def _mode_roadmap(root, config):
     order = plan_order(root) or []
     if not order:
         print(f"moltke: no steps planned yet. {DOCS}/plan.md holds the ordered list, "

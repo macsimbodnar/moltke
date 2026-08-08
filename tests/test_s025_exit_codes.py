@@ -184,5 +184,33 @@ class TestAuditFollowsTheDocumentedTable(unittest.TestCase):
             self.assertEqual(run_moltke(root, "--audit", "list").returncode, 0)
 
 
+class TestRoadmapExitsAsDocumented(unittest.TestCase):
+    """S086 (2026-08-08_adversarial.3-F07): specs says "Exit 0 always" for
+    --roadmap and both exit tables reserve 2 for the three hook modes, while an
+    unreadable path returned the backstop's 2. .2-F10 was the same defect for
+    --audit; this is its twin, and AGENTS.md tells every agent to end a unit of
+    work by running this mode."""
+
+    def test_an_unreadable_plan_does_not_block(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            plan = root / "adocs" / "plan.md"
+            plan.chmod(0o000)
+            try:
+                result = run_moltke(root, "--roadmap")
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                self.assertNotIn("Traceback", result.stderr)
+                self.assertIn("plan.md", result.stdout + result.stderr)
+            finally:
+                plan.chmod(0o644)
+
+    def test_the_ordinary_roadmap_is_unchanged(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            result = run_moltke(root, "--roadmap")
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertIn("S001", result.stdout)
+
+
 if __name__ == "__main__":
     unittest.main()
