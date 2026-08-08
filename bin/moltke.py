@@ -386,7 +386,9 @@ def inv_7_done_immutable(root, config):
             # truncates the renamed file — the only remaining content of that
             # step, printed by the one invariant whose subject is immutable
             # history, and repeated to --stop as an actionable instruction.
-            paths = porcelain_paths(line)
+            paths = [from_git_path(root, path) for path in porcelain_paths(line)]
+            if any(path is None for path in paths):
+                continue    # another package in the same repository (S081)
             entry = paths[-1]
             moved = f" (renamed from {paths[0]})" if len(paths) > 1 else ""
             violations.append(f"INV-7: {entry} changed under plan_done/{moved}; history is "
@@ -400,11 +402,18 @@ def inv_7_done_immutable(root, config):
     for sha, details in history_blocks(root, "--name-status", "--", f"{DOCS}/plan_done") or []:
         for detail in details:
             status, entry = detail.split("\t")[0], detail.split("\t")[-1]
+            entry = from_git_path(root, entry)
+            if entry is None:
+                continue    # another package in the same repository (S081)
             if status.startswith("A") and entry not in landed:
                 landed[entry] = sha
-    blobs = git_blobs(root, [f"{sha}:{entry}" for entry, sha in landed.items()])
+    # The blob spec is a path from the git top level; everything moltke prints
+    # is a path from the marked root, and they differ whenever the two are not
+    # the same directory (S081).
+    blobs = git_blobs(root, [f"{sha}:{to_git_path(root, entry)}"
+                             for entry, sha in landed.items()])
     for entry, sha in sorted(landed.items()):
-        original = blobs.get(f"{sha}:{entry}")
+        original = blobs.get(f"{sha}:{to_git_path(root, entry)}")
         if original is None:
             continue  # nothing to compare against; abstain rather than guess
         path = root / entry
@@ -412,12 +421,13 @@ def inv_7_done_immutable(root, config):
             violations.append(
                 f"INV-7: {entry} landed in plan_done/ at commit {sha[:8]} and is gone; "
                 f"completed history is never removed. Restore it in a new commit: "
-                f"git show {sha[:8]}:{entry} > {entry}")
+                f"git show {sha[:8]}:{to_git_path(root, entry)} > {entry}")
         elif path.read_bytes() != original:
             violations.append(
                 f"INV-7: {entry} no longer matches the version that landed at commit "
                 f"{sha[:8]}; plan_done/ is append by move only. Restore those bytes in a new "
-                f"commit and this clears: git show {sha[:8]}:{entry} > {entry}. Never rewrite "
+                f"commit and this clears: git show {sha[:8]}:{to_git_path(root, entry)} > "
+                f"{entry}. Never rewrite "
                 f"the history that recorded the change")
     return violations
 
@@ -448,12 +458,13 @@ def inv_8_append_only(root, config):
         shas = [sha for sha, _details in history_blocks(root, "--", rel) or []]
         if not shas:
             continue
-        blobs = git_blobs(root, [f"{sha}:{rel}" for sha in shas])
+        spec = to_git_path(root, rel)   # git names it from the top level (S081)
+        blobs = git_blobs(root, [f"{sha}:{spec}" for sha in shas])
         path = root / rel
         if not path.is_file():
             violations.append(f"INV-8: {rel} has {len(shas)} commit(s) of history and is gone; "
                               f"it is append-only and never removed: restore it in a new commit, "
-                              f"git show {shas[-1][:8]}:{rel} > {rel}")
+                              f"git show {shas[-1][:8]}:{spec} > {rel}")
             continue
         # The high-water mark of content that was ever legitimately in the file
         # (S046). Walk the versions oldest first: one that still contains
@@ -471,7 +482,7 @@ def inv_8_append_only(root, config):
         # caught, because in each case a required line is no longer in order.
         required, required_sha = None, shas[0]
         for sha in shas:
-            past = blobs.get(f"{sha}:{rel}")
+            past = blobs.get(f"{sha}:{spec}")
             if past is None:
                 continue
             lines = past.splitlines()
@@ -486,7 +497,7 @@ def inv_8_append_only(root, config):
                 f"clears: git show {required_sha[:8]}:{rel}. A reversal is a new entry marking "
                 f"the old one VOID, never an edit")
     for rel in APPEND_ONLY_FILES:
-        shown = _git_run(["git", "-C", str(root), "show", f"HEAD:{rel}"])
+        shown = _git_run(["git", "-C", str(root), "show", f"HEAD:{to_git_path(root, rel)}"])
         if shown is None or shown.returncode != 0:
             continue
         path = root / rel
@@ -1265,6 +1276,39 @@ def recap_pending(root):
 RECAP_EXEMPT = (f"{DOCS}/", ".claude/")
 
 
+def git_prefix(root):
+    """Where the marked root sits inside the git repository, as `packages/foo/`.
+
+    Empty when the two are the same directory, which is the ordinary case.
+    Every git call is `git -C <marked root>`, but porcelain, log and show all
+    speak in paths relative to the *top level*, and nothing checked the two
+    agreed (S081, 2026-08-08_adversarial.3-F02): a project vendored into a
+    monorepo had INV-7 calling a present file gone with a remedy that could not
+    run, INV-8 abstaining on real tampering because `HEAD:adocs/decisions.md`
+    does not resolve from the top level, and both `Stop` gates reading every
+    path wrongly.
+    """
+    result = _git_run(["git", "-C", str(root), "rev-parse", "--show-prefix"], text=True)
+    if result is None or result.returncode != 0:
+        return ""
+    return result.stdout.strip()
+
+
+def from_git_path(root, rel):
+    """A git-reported path as this repository sees it, or None if it is outside.
+
+    A sibling package's file is git's business and not ours."""
+    prefix = git_prefix(root)
+    if not prefix:
+        return rel
+    return rel[len(prefix):] if rel.startswith(prefix) else None
+
+
+def to_git_path(root, rel):
+    """A repository-relative path as git names it, for `show` and `cat-file`."""
+    return f"{git_prefix(root)}{rel}"
+
+
 def porcelain_paths(line):
     """Every path a `git status --porcelain` line refers to.
 
@@ -1313,8 +1357,9 @@ def porcelain_problems(root, porcelain):
     # source file and a file moved into adocs/ removes one, and judging the
     # line by its old path alone made the first read as exempt.
     changed_source = [line for line in porcelain
-                      if any(not path.startswith(RECAP_EXEMPT)
-                             for path in porcelain_paths(line))]
+                      if any(path is not None and not path.startswith(RECAP_EXEMPT)
+                             for path in (from_git_path(root, entry)
+                                          for entry in porcelain_paths(line)))]
     # No commit yet means no history a recap would sit alongside, and the
     # scaffold's own files are not work: abstain, as INV-7 and INV-8 do.
     committed = _git_lines(root, "rev-parse", "HEAD") is not None
@@ -1327,7 +1372,9 @@ def porcelain_problems(root, porcelain):
         # Before the first commit every file is an arrival, including the
         # scaffold's own, which is why the recap gate abstains there too.
         # With -uall those now reach this gate individually (S060).
-        entry = porcelain_paths(line)[-1]
+        entry = from_git_path(root, porcelain_paths(line)[-1])
+        if entry is None:
+            continue
         if _arrives_here(line[:2]) and entry.startswith(f"{DOCS}/plan_done/"):
             # The index can name a path the worktree no longer has — `AD`,
             # `RD` — and `RD` is what following this gate's own remedy
@@ -1922,7 +1969,9 @@ def worktree_state(root):
     for line in lines:
         # The new name is what exists now. One definition of that, shared with
         # both Stop gates since S050.
-        entry = porcelain_paths(line)[-1]
+        entry = from_git_path(root, porcelain_paths(line)[-1])
+        if entry is None:
+            continue
         state[entry] = [line[:2], _content_hash(root / entry)]
     return state
 
@@ -2116,6 +2165,9 @@ def audit_check(root, config):
                 if "\t" not in line:
                     continue
                 status, entry = line.split("\t")[0], line.split("\t")[-1]
+                entry = from_git_path(root, entry)
+                if entry is None:
+                    continue        # another package in the same repository (S081)
                 classify(entry, f"{entry}: {status} in a commit made during this run",
                          status.startswith("A"))
     elif saved.get("head", "missing") is None:

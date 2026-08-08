@@ -441,6 +441,16 @@ since when, and the error, then stops repeating it. Outside a git repository
 there is no breadcrumb to leave, so the failure only reaches stderr, which a
 zero-exit `UserPromptSubmit` hook does not surface.
 
+**A marked project can sit below the git top level.** Vendoring a moltke project
+into a monorepo, or having any ancestor directory be a git repository, used to
+break every git-derived check at once: INV-7 called a present file gone with a
+remedy that could not run, INV-8 said nothing about real tampering, `--audit
+check` reported its own report as unexpected, and the recap gate treated
+`adocs/` as source. moltke now translates between the two directories. One place
+the difference shows: the `git show <sha>:<path>` half of a printed remedy keeps
+the path from the top level, because that is what `git show` resolves — the file
+it names and the destination it writes are yours.
+
 **Linked worktrees and submodules work.** moltke keeps three small state files
 next to your git data — the prompt-failure breadcrumb, the `Stop` block counter
 that guarantees a session can never be wedged, and the `--audit new` baseline.

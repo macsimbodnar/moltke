@@ -57,6 +57,23 @@ a `Status: <value>` line in its section; the S008 report template must conform.
 check abstains. INV-3 additionally treats a missing `plan.md` in an enabled
 repo as a violation.
 
+2026-08-08 (S081): the marked root and the git top level are allowed to differ,
+and every git-derived check translates between them through one `git_prefix`.
+Every git call is `git -C <marked root>`, but porcelain, log and show all speak
+in paths relative to the top level, and nothing checked the two agreed. A project
+vendored into a monorepo — or any project directory under an ancestor that
+happens to be a git repository — therefore had INV-7 calling a present file gone
+with a remedy that could not run, INV-8 abstaining on real tampering because
+`HEAD:adocs/decisions.md` does not resolve from the top level, `--audit check`
+listing its own report as unexpected, and both `Stop` gates reading every path
+wrongly (finding 2026-08-08_adversarial.3-F02). `from_git_path` returns `None`
+for a sibling package's file, which is git's business and not ours;
+`to_git_path` builds the blob spec `show` and `cat-file` need. The one place the
+prefix stays visible is the `git show <sha>:<path>` half of a printed remedy,
+because that path resolves from the top level whatever the working directory —
+the file named and the redirection target are the marked root's, and a test runs
+the printed command to prove the pairing restores the file.
+
 2026-08-08 (S080, DEC-039): `mode_stop` prints before it persists, and nothing
 in it raises. The retry state write was the one unguarded write left after S067
 guarded every read, so an unwritable `.git` escaped to `main`'s backstop — which

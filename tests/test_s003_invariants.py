@@ -367,7 +367,88 @@ class TestInv7NamesTheRenamedFile(unittest.TestCase):
             self.assertEqual(run_validate(root).returncode, 1)
 
 
+class TestAMarkedRootBelowTheGitTopLevel(unittest.TestCase):
+    """S081 (2026-08-08_adversarial.3-F02): every git call is `git -C <marked
+    root>`, but porcelain, log and show all speak in paths relative to the
+    repository top level, and nothing checked the two directories agree. A
+    project vendored into a monorepo therefore had INV-7 calling a present file
+    gone with a remedy that cannot run, INV-8 abstaining on real tampering, and
+    the recap and stamp gates reading every path wrongly."""
 
+    def vendored(self, tmp):
+        """A git repository with a marked project at packages/foo."""
+        mono = Path(tmp) / "mono"
+        (mono / "packages" / "foo").mkdir(parents=True)
+        git(mono, "init", "-q")
+        root = workflow_repo(mono / "packages" / "foo")
+        git(mono, "add", "-A")
+        git(mono, "commit", "-qm", "vendored project")
+        return mono, root
+
+    def test_a_clean_vendored_project_validates_clean(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            _mono, root = self.vendored(tmp)
+            result = run_validate(root)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_inv8_still_sees_tampering_there(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            _mono, root = self.vendored(tmp)
+            decisions = root / "adocs" / "decisions.md"
+            kept = [l for l in decisions.read_text(encoding="utf-8").splitlines()
+                    if "base decision" not in l]
+            decisions.write_text("\n".join(kept) + "\n", encoding="utf-8")
+            result = run_validate(root)
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn("INV-8", result.stdout)
+
+    def test_inv7_still_sees_a_removal_there(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            _mono, root = self.vendored(tmp)
+            (root / "adocs" / "plan_done" / "S001_base.md").unlink()
+            result = run_validate(root)
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn("INV-7", result.stdout)
+
+    def test_the_remedy_it_prints_is_runnable_from_the_marked_root(self):
+        # `git show <sha>:<path>` resolves from the top level whatever the cwd,
+        # so that half keeps the prefix; the file it names and the destination
+        # it redirects to are the marked root's, because that is where the
+        # command is run. Both halves are asserted, since only their pairing is
+        # correct.
+        with tempfile.TemporaryDirectory() as tmp:
+            _mono, root = self.vendored(tmp)
+            done = root / "adocs" / "plan_done" / "S001_base.md"
+            done.write_text(done.read_text(encoding="utf-8") + "tampered\n", encoding="utf-8")
+            inv7 = [line for line in run_validate(root).stdout.splitlines() if "INV-7" in line]
+            self.assertTrue(inv7)
+            for line in inv7:
+                subject = line.split("INV-7: ", 1)[1].split(" ", 1)[0]
+                self.assertFalse(subject.startswith("packages/foo/"),
+                                 f"the file it names must be the marked root's: {subject}")
+                if "git show" not in line:
+                    continue
+                spec, destination = line.split("git show ", 1)[1].split(" > ", 1)
+                self.assertIn("packages/foo/", spec,
+                              "git show resolves from the top level, so the spec keeps it")
+                self.assertFalse(destination.split(".")[0].startswith("packages/foo/"),
+                                 f"the destination is written from the marked root: {destination}")
+
+    def test_the_remedy_actually_restores_the_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            _mono, root = self.vendored(tmp)
+            done = root / "adocs" / "plan_done" / "S001_base.md"
+            original = done.read_text(encoding="utf-8")
+            done.write_text(original + "tampered\n", encoding="utf-8")
+            line = next(l for l in run_validate(root).stdout.splitlines()
+                        if "INV-7" in l and "git show" in l)
+            command = "git show " + line.split("git show ", 1)[1].rstrip(". ")
+            command = command.split(". Never rewrite")[0]
+            subprocess.run(command, shell=True, cwd=str(root), check=True,
+                           stdout=subprocess.DEVNULL)
+            self.assertEqual(done.read_text(encoding="utf-8"), original,
+                             "following the printed remedy must restore the file")
+            self.assertEqual(run_validate(root).returncode, 0)
 
 
 if __name__ == "__main__":

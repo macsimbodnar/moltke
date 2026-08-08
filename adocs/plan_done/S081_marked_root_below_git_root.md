@@ -1,0 +1,10 @@
+id:         S081
+goal:       every git-derived check works when the marked root is below the git top level
+accepts:    a marked repository whose root is below the git top level is either supported or refused, not silently broken: git prints top-level-relative paths and nothing checks the two roots agree, so INV-8 abstains on real tampering, INV-7 reports a present file as gone with a remedy that cannot run, --audit check lists its own report as unexpected, the recap gate treats adocs/ as source, and the stamp gate can never fire; whichever is chosen is stated in specs with the case it does not cover; red observed with a marked directory inside a git repository whose root is above it
+touches:    bin/moltke.py find_root, git_dir, and every relative-path comparison against git output; tests
+excludes:   supporting several marked repositories inside one git repository, which is a different feature
+decisions:  
+closes:     2026-08-08_adversarial.3-F02
+blocks:
+paused_by:
+done:      2026-08-08: the marked root and the git top level may differ, and every git-derived check translates between them through one git_prefix. Every git call is git -C the marked root, but porcelain, log and show speak in top-level paths, and nothing checked the two agreed: a project vendored into a monorepo had INV-7 calling a present file gone with a remedy that could not run, INV-8 abstaining on real tampering, --audit check listing its own report as unexpected, and both Stop gates reading every path wrongly. from_git_path returns None for a sibling package, which is git business and not ours; to_git_path builds the blob spec show and cat-file need. The prefix stays visible in one place, the git show half of a remedy, because that path resolves from the top level whatever the cwd — and a test runs the printed command to prove the pairing restores the file. 6 tests, red observed on all three symptoms. Suite 359 OK, --validate green. README test count 354 to 359; MANUAL gained an entry; specs gained a dated note.
