@@ -1,0 +1,10 @@
+id:         S061
+goal:       the Stop waiver clock does not freeze when prompt logging fails
+accepts:    a --log-prompt failure, which S014 already detects and records a breadcrumb for, no longer freezes stop_turn_key's turn counter into the .2-F01 off switch: eight distinct turns with a failing append and a standing violation each block rather than reading 2 2 2 0 0 0 0 0; whatever replaces or corroborates the worklog heading count is stated in specs alongside what it still cannot distinguish; the DEC-029 property S047 restored is re-measured and unchanged for the ordinary path, where eight real turns read 2 2 2 2 2 2 2 2 and eight retries inside one turn read 2 2 2 0 0 0 0 0; red observed with the failing-append fixture
+touches:    bin/moltke.py stop_turn_key and the log-failure breadcrumb; tests/test_s005_hooks.py; adocs/specs.md
+excludes:   making --log-prompt blocking, which would erase the user's prompt; reverting S047
+decisions:  DEC-029
+closes:     2026-08-08_adversarial-F02
+blocks:
+paused_by:
+done:      2026-08-08: the Stop turn key folds in the prompt-log failure breadcrumb, so it keeps moving on the one path where the worklog cannot. S047 made the key the worklog's prompt-heading count, true only while the append succeeds, and --log-prompt swallows an OSError by contract because blocking there erases the prompt — so a read-only worklog froze the clock, every turn read as a retry, and the .2-F01 off switch came back by a different route. The breadcrumb S014 already writes for that failure carries since and count, both of which advance on a failing turn, and _peek_log_failure reads it without consuming what SessionStart reports once. What it still cannot distinguish is a turn with no logged prompt and no failure, which reads as a retry as before; stated in specs and MANUAL rather than implied. 2 tests, red observed with the finding's own sequence. Suite 293 OK, --validate green. README test count 291 to 293; MANUAL's waiver paragraph names the clock and its condition; specs gained a dated note.

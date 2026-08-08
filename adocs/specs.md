@@ -56,6 +56,21 @@ a `Status: <value>` line in its section; the S008 report template must conform.
 check abstains. INV-3 additionally treats a missing `plan.md` in an enabled
 repo as a violation.
 
+2026-08-08 (S061): the `Stop` turn key folds in the prompt-log failure
+breadcrumb, so it keeps moving on the one path where the worklog cannot. S047
+made the key the worklog's prompt-heading count because `UserPromptSubmit`
+advances it once per turn — true only while the append succeeds, and
+`--log-prompt` swallows an `OSError` by contract, since blocking there erases the
+prompt. A worklog that cannot be written therefore froze the clock, every turn
+read as a retry of the same one, and from the fourth the waiver switched
+enforcement off and left it off: the `.2-F01` failure, reached by a different
+route (finding 2026-08-08_adversarial-F02). The breadcrumb S014 already writes
+for that exact failure carries `since` and `count`, both of which advance on a
+failing turn, so it is what the key uses. What this still cannot distinguish is a
+turn in which no prompt was logged at all and nothing failed — there is no event
+to count — and that case is a retry as far as the cap is concerned, which is what
+it was before.
+
 2026-08-08 (S060): no mode ends in a traceback. Every invariant runs through one
 `run_checks`, which turns an `OSError` into a violation naming the check, and
 `main` carries a backstop for everything else a broken tree reaches — status

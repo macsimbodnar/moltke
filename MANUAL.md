@@ -405,6 +405,12 @@ spend attempts. The waived turn still prints everything that was wrong. Before
 missing the counter was global and stored on disk, so from the fourth blocked
 turn onward every Stop check was skipped — and stayed skipped across sessions.
 
+What tells one turn from the next is the worklog's prompt count, plus the
+prompt-failure breadcrumb below when the worklog cannot be written — up to and
+including 0.5.0 a failing append froze that count and brought the old off switch
+back. A turn in which no prompt was logged and nothing failed still reads as a
+retry: there is no event to count.
+
 "Source" means everything except two directories: `adocs/`, which is the
 workflow's own state, and `.claude/`, which is your local tooling config. Both
 are matched with their trailing separator. Before 0.4.0 the second was a bare

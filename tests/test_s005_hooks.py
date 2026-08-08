@@ -608,6 +608,59 @@ class TestStop(unittest.TestCase):
             result = run_moltke(root, "--stop", stdin="{}")
             self.assertEqual(len(stamp_complaints(result)), 1, result.stderr)
 
+    def _turn_exits(self, root, turns, payload="{}"):
+        """--log-prompt then --stop, `turns` times: the shape of a real session."""
+        exits = []
+        for number in range(turns):
+            run_moltke(root, "--log-prompt",
+                       stdin=json.dumps({"prompt": f"turn {number}"}))
+            exits.append(run_moltke(root, "--stop", stdin=payload).returncode)
+        return exits
+
+    def _violating_repo(self, tmp):
+        root = workflow_repo(tmp)
+        (root / "adocs" / "plan.md").write_text(
+            "# Plan\n\n1. S001 base\n2. S002 pending\n3. S003 active\n4. S099 phantom\n",
+            encoding="utf-8")
+        git_baseline(root)
+        return root
+
+    def test_the_waiver_stays_scoped_when_the_prompt_append_fails(self):
+        # S061 (2026-08-08_adversarial-F02): the turn clock is the worklog's
+        # prompt-heading count, and --log-prompt swallows an OSError by contract
+        # because blocking there would erase the prompt. So a worklog that
+        # cannot be written freezes the clock, the key stops moving, and the
+        # waiver becomes the off switch .2-F01 was about — silently, three turns
+        # after a failure whose only other signal is reported once and deleted.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._violating_repo(tmp)
+            worklog = root / "adocs" / "worklog.md"
+            worklog.chmod(0o444)
+            try:
+                failed = run_moltke(root, "--log-prompt", stdin=json.dumps({"prompt": "x"}))
+                self.assertEqual(failed.returncode, 0, "logging must never block")
+                self.assertIn("moltke --log-prompt", failed.stderr,
+                              "precondition: the append really failed")
+                exits = self._turn_exits(root, 8, payload=json.dumps({"session_id": "s1"}))
+            finally:
+                worklog.chmod(0o644)
+            self.assertEqual(exits, [2] * 8,
+                             "the violation stood throughout; enforcement must not switch off")
+
+    def test_the_ordinary_per_turn_scoping_is_unchanged(self):
+        # The DEC-029 property S047 restored, re-measured: eight real turns each
+        # block, and eight retries inside one turn spend the cap and waive.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._violating_repo(tmp)
+            self.assertEqual(self._turn_exits(root, 8, payload=json.dumps({"session_id": "s1"})),
+                             [2] * 8)
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._violating_repo(tmp)
+            run_moltke(root, "--log-prompt", stdin=json.dumps({"prompt": "one turn"}))
+            retries = [run_moltke(root, "--stop", stdin="{}").returncode for _ in range(8)]
+            self.assertEqual(retries, [2, 2, 2, 0, 0, 0, 0, 0],
+                             "the cap must still fire within one turn, which is why it exists")
+
     def test_recap_gate_abstains_before_the_first_commit(self):
         # A repo with no HEAD has no history a recap would sit alongside, so a
         # fresh scaffold must not block. Precondition first: the same tree with

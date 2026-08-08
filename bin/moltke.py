@@ -868,6 +868,19 @@ def record_log_failure(root, stamp, exc):
         pass
 
 
+def _peek_log_failure(root):
+    """The breadcrumb without consuming it, or None. `take_log_failure` reports
+    once and deletes; the Stop turn key has to be able to look every turn."""
+    path = _log_failure_path(root)
+    if path is None or not path.is_file():
+        return None
+    try:
+        state = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    return state if isinstance(state, dict) else None
+
+
 def take_log_failure(root):
     """Report a swallowed prompt append once, then drop the breadcrumb: a
     failure that persists rewrites it on the next prompt, one that is fixed
@@ -1042,6 +1055,16 @@ def stop_turn_key(root, payload):
             if not RECAP_HEADING.search(line) and PROMPT_HEADING.search(line):
                 prompts += 1
     parts.append(str(prompts))
+    # S061 (2026-08-08_adversarial-F02): the heading count advances once per turn
+    # only while the worklog is being written. --log-prompt swallows an OSError
+    # by contract, because blocking there erases the prompt, so a worklog that
+    # cannot be appended to freezes the clock — and a frozen clock makes every
+    # turn look like a retry, which is the .2-F01 off switch coming back. The
+    # breadcrumb S014 already writes for exactly that failure advances instead,
+    # so the key keeps moving on the one path where the worklog cannot.
+    failure = _peek_log_failure(root)
+    if failure:
+        parts.append(f"{failure.get('since')}#{failure.get('count')}")
     return "|".join(parts)
 
 
