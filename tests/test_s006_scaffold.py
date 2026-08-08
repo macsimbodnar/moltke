@@ -187,6 +187,111 @@ class TestInitSkill(unittest.TestCase):
         self.assertIn("name: init", frontmatter)
         self.assertRegex(frontmatter, r"description:\s*\S")
 
+    def test_the_planning_phase_uses_the_tool_rather_than_hand_copied_files(self):
+        # S028: a scaffold leaves specs.md and plan.md as comments, and the step
+        # after it was "seed plan.md and one step file per planned step, using
+        # templates/step_template.md" — hand-copying into the one directory
+        # --pre-write refuses. The skill drives the tool instead.
+        text = (REPO / "skills" / "init" / "SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("--step new", text,
+                      "step files are created by the tool, not by copying a template")
+        self.assertNotRegex(text, r"step_template\.md",
+                            "the skill still points at hand-copying the step template")
+        for expected in ("prime directive", "decisions.md", "--step status", "commit"):
+            self.assertIn(expected, text, f"the planning phase does not mention {expected!r}")
+
+
+class TestPlanningPhaseNudge(unittest.TestCase):
+    """S028: the scaffold writes files whose content is a comment, and nothing
+    said so. A repository can sit for weeks with an empty prime directive and an
+    empty plan while every check reports green — which is honest, since both are
+    the user's to write, and useless. `--session-start` says it is pending. It is
+    a nudge in additionalContext and never an exit: DEC-006 and INV-12 make
+    no-deadlock a property, and this is a file only a human can fill."""
+
+    def scaffolded(self, tmp):
+        root = Path(tmp)
+        result = run_moltke(root, "--scaffold")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        return root
+
+    def context(self, root):
+        result = run_moltke(root, "--session-start")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        return json.loads(result.stdout)["hookSpecificOutput"]["additionalContext"]
+
+    def fill_specs(self, root):
+        specs = root / "adocs" / "specs.md"
+        specs.write_text(specs.read_text(encoding="utf-8").replace(
+            "<!-- The single property this project must never violate. One sentence. -->",
+            "Every request is answered from committed state alone."), encoding="utf-8")
+
+    def fill_plan(self, root):
+        run_moltke(root, "--step", "new", "first_thing", "--goal", "do the first thing")
+
+    def test_a_fresh_scaffold_says_the_planning_phase_is_pending(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.scaffolded(tmp)
+            context = self.context(root)
+            self.assertIn("planning", context.lower())
+            self.assertIn("adocs/specs.md", context)
+            self.assertIn("adocs/plan.md", context)
+
+    def test_the_nudge_never_blocks(self):
+        # It rides in additionalContext on an exit 0, and --stop does not gain a
+        # new reason to refuse: an unfilled specs.md is not a violation.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.scaffolded(tmp)
+            self.assertEqual(run_moltke(root, "--session-start").returncode, 0)
+            self.assertEqual(run_moltke(root, "--validate").returncode, 0)
+            stop = subprocess.run([sys.executable, str(MOLTKE), "--stop"], cwd=root,
+                                  capture_output=True, text=True, input="{}")
+            self.assertNotIn("planning", stop.stderr.lower())
+
+    def test_only_the_prime_directive_missing_still_nudges_and_names_only_it(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.scaffolded(tmp)
+            self.fill_plan(root)
+            context = self.context(root)
+            self.assertIn("adocs/specs.md", context)
+            self.assertNotIn("adocs/plan.md", context)
+
+    def test_only_the_plan_empty_still_nudges_and_names_only_it(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.scaffolded(tmp)
+            self.fill_specs(root)
+            context = self.context(root)
+            self.assertIn("adocs/plan.md", context)
+            self.assertNotIn("adocs/specs.md", context)
+
+    def test_the_nudge_disappears_once_both_are_filled(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.scaffolded(tmp)
+            self.fill_specs(root)
+            self.fill_plan(root)
+            context = self.context(root)
+            self.assertNotIn("planning", context.lower())
+
+    def test_a_prime_directive_written_only_inside_guidance_does_not_count(self):
+        # The template's own comment is guidance, and so is a fenced example: the
+        # check reads the section through strip_guidance like everything else.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.scaffolded(tmp)
+            specs = root / "adocs" / "specs.md"
+            specs.write_text(specs.read_text(encoding="utf-8").replace(
+                "<!-- The single property this project must never violate. One sentence. -->",
+                "```\nnever lose a write\n```"), encoding="utf-8")
+            self.assertIn("adocs/specs.md", self.context(root))
+
+    def test_an_unscaffolded_repository_says_nothing_about_planning(self):
+        # Non-vacuity in the other direction: no marker means moltke is silent,
+        # which INV-11 requires.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            result = run_moltke(root, "--session-start")
+            self.assertEqual(result.returncode, 0)
+            self.assertNotIn("planning", result.stdout.lower())
+
 
 if __name__ == "__main__":
     unittest.main()

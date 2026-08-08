@@ -7,4 +7,4 @@ decisions:
 closes:
 blocks:
 paused_by:
-done:
+done:      2026-08-08: --session-start reports the planning phase as pending while adocs/specs.md has no prime directive or adocs/plan.md lists no steps, naming only the unfilled file, read through strip_guidance so the template comment and a fenced example stay guidance. A nudge in additionalContext on exit 0, never a refusal: blocking on a file only a human can fill is the deadlock DEC-006 and INV-12 prevent. The init skill's post-scaffold sequence became the planning phase: elicit directive and invariants, discuss the order before writing it, create every step with --step new instead of copying the template, record the session's choices as DEC entries, regenerate status.md, commit. 8 tests, red observed on all four nudge behaviours and on the skill. Suite 274 OK, --validate green. README test count 266 to 274; MANUAL's setup section describes the phase and the nudge; specs gained a dated note.

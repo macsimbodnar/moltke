@@ -675,6 +675,36 @@ def status_disagreements(root):
             for field, value in derived.items() if stated.get(field) != value]
 
 
+def prime_directive(root):
+    """The prime directive as written, or "" while it is still the template's
+    comment. Read through strip_guidance like every other scanner, so a comment
+    or a fenced example is guidance rather than an answer."""
+    specs = root / DOCS / "specs.md"
+    if not specs.is_file():
+        return ""
+    text = strip_guidance(specs.read_text(encoding="utf-8", errors="replace"))
+    match = re.search(r"^##\s+Prime directive\s*$(.*?)(?=^##\s|\Z)", text, re.M | re.S)
+    return match.group(1).strip() if match else ""
+
+
+def planning_pending(root):
+    """Which of the two files the planning phase has not filled yet (S028).
+
+    `--scaffold` writes both with their content as a comment, because the prime
+    directive and the plan are the two things the workflow cannot write for the
+    user. Nothing said so: every check reported green on a repository that had
+    adopted the workflow and not yet used it.
+    """
+    if not (root / DOCS).is_dir():
+        return []   # not scaffolded at all; --scaffold is the advice, not this
+    pending = []
+    if not prime_directive(root):
+        pending.append(f"{DOCS}/specs.md has no prime directive yet")
+    if not plan_order(root):
+        pending.append(f"{DOCS}/plan.md lists no steps yet")
+    return pending
+
+
 def mode_session_start(root, config):
     lines = []
     current = plan_steps(root)["plan_current"]
@@ -695,6 +725,14 @@ def mode_session_start(root, config):
                                   for field, said, real in stale)
         lines.append(f"status.md is stale ({disagreements}); {_stale_remedy(root)} "
                      f"before working.")
+    pending = planning_pending(root)
+    if pending:
+        # A nudge, never an exit (S028). Both files are the user's to write, and
+        # DEC-006 makes no-deadlock a property: blocking a turn on a file only a
+        # human can fill is the deadlock INV-12 exists to prevent.
+        lines.append(f"Planning phase pending: {'; '.join(pending)}. The init skill drives it: "
+                     f"the prime directive and the invariants first, then one --step new per "
+                     f"planned step. Nothing blocks on this.")
     lost = take_log_failure(root)
     if lost:
         lines.append(lost)

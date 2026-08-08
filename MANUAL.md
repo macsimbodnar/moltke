@@ -58,8 +58,13 @@ It asks once. Yes scaffolds `AGENTS.md`, `CLAUDE.md`, `.cursor/rules/moltke.mdc`
 never asks again. Nothing existing is ever overwritten: a repository that
 already has an `AGENTS.md` keeps it, and moltke reports what it left alone.
 
-Then fill in `adocs/specs.md`, the one file moltke cannot write for you: the
-prime directive, and the invariants as numbered testable properties.
+The same turn continues into a planning phase: the prime directive and the
+invariants into `adocs/specs.md`, an ordered first plan into `adocs/plan.md` with
+one `--step new` per step, the session's choices into `adocs/decisions.md`, and a
+commit. Those two files are what moltke cannot write for you, and until they are
+filled every session says the planning phase is pending, naming the file that is
+still empty. It is a note in the session context, never a refusal: a gate on a
+file only you can write would be a deadlock.
 
 `.moltke.json` controls everything:
 

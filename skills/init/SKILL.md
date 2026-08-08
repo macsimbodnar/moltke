@@ -30,7 +30,7 @@ Ask whether to set up the workflow here. State plainly what it does:
   invariant violation, or source changes with no worklog recap
 - costs nothing in repositories without the marker
 
-If the answer is no, run `--decline` (step 4) and stop.
+If the answer is no, run `--decline` (step 5) and stop.
 
 ## 3. Scaffold
 
@@ -43,24 +43,77 @@ It never overwrites an existing file. Anything already present is reported as
 files were left alone and ask whether to merge the template in by hand; do not
 merge without being asked.
 
-Then, in the same turn:
+Then set the marker's two remaining keys, in the same turn:
 
-1. Set `surface_guard` in `.moltke.json` to `cli`, `api`, `both`, or `none`
-   depending on what this project actually exposes. `none` is only valid with a
-   `decisions.md` entry stating why the project has no checkable surface. Ask for
-   the project's test command and set `test_command` in the same file, so
-   `--step done` enforces a green suite instead of trusting one; omit the key if
-   the project has no suite yet, and say plainly that completion will then be
-   unenforced.
-2. Fill `adocs/specs.md`: the prime directive, then numbered invariants. This
-   is the one file the workflow cannot write for the user. Ask for the prime
-   directive if it is not obvious from the repository.
-3. Seed `adocs/plan.md` and one step file per planned step, using
-   `${CLAUDE_PLUGIN_ROOT}/templates/step_template.md`.
-4. Verify: `python3 ${CLAUDE_PLUGIN_ROOT}/bin/moltke.py --validate` must exit 0.
-5. Commit. The agent commits; the user pushes.
+- `surface_guard`: `cli`, `api`, `both`, or `none`, depending on what this
+  project actually exposes. `none` is only valid with a `decisions.md` entry
+  stating why the project has no checkable surface.
+- `test_command`: the project's real suite command, so `--step done` enforces a
+  green suite instead of trusting one. Ask for it. Omit the key if there is no
+  suite yet, and say plainly that completion is then unenforced.
 
-## 4. Decline
+## 4. Planning phase
+
+The scaffold leaves `adocs/specs.md` and `adocs/plan.md` holding comments. They
+are the two things the workflow cannot write for the user, and until they are
+filled every check reports green on a repository that has adopted the workflow
+and not yet used it. `--session-start` says so on every session until both are
+filled. Do this now, in the same turn as the scaffold, unless the user asks to
+stop.
+
+**1. Elicit the prime directive.** One sentence: the single property this
+project must never violate. Propose one from what the repository already does
+and let the user correct it — a wrong proposal is easier to fix than a blank
+page. Write it into the `## Prime directive` section of `adocs/specs.md`,
+replacing the comment.
+
+**2. Elicit the invariants.** Numbered `INV-1`, `INV-2`, ..., each stated as a
+testable property, not an aspiration. Three to seven is a normal first set. Each
+one earns a test and a `testing.md` row later; an invariant nothing can check is
+a wish, so say so and reword it. Replace the placeholder list.
+
+**3. Propose an ordered first plan.** Discuss it before writing anything: what
+is being built, in what order, and why that order. Correctness and the things
+everything else rests on come first. Then write the description paragraph at the
+top of `adocs/plan.md`.
+
+**4. Create the steps with the tool, one per planned step.**
+
+```
+python3 ${CLAUDE_PLUGIN_ROOT}/bin/moltke.py --step new <short_name> --goal "one line"
+```
+
+It allocates the next free id, writes the step file, and lists it in `plan.md`
+in one move. Do not copy the step template by hand: hand-written step files drift
+from the format the checks read, ids get reused, and `plan.md` and the
+directories fall out of step, which is INV-3. Fill in `accepts`, `touches`, and
+`excludes` in each file afterwards — `accepts` is the one that matters, because
+it is what `--step done` is judged against. Reorder by editing the list in
+`plan.md`; ids never move.
+
+**5. Record what was decided.** Every choice made during this session that a
+future reader would otherwise re-derive goes into `adocs/decisions.md` as a
+`DEC-<nnn>` entry, with its rejected options and the reason each was rejected.
+The scope, the order of the first plan, and the `surface_guard` and
+`test_command` values are the usual ones. Decisions belong to the user: propose,
+and record that the analysis was yours.
+
+**6. Regenerate and verify.**
+
+```
+python3 ${CLAUDE_PLUGIN_ROOT}/bin/moltke.py --step status
+python3 ${CLAUDE_PLUGIN_ROOT}/bin/moltke.py --validate
+```
+
+`--validate` must exit 0.
+
+**7. Commit.** A planning session ends in a commit exactly like a coding session
+(AGENTS.md §4). Do not hold the plan open uncommitted for review; commit it,
+then present it. The agent commits; the user pushes.
+
+Starting work is a separate turn: `--step start <id>` on the first step.
+
+## 5. Decline
 
 ```
 python3 ${CLAUDE_PLUGIN_ROOT}/bin/moltke.py --decline
@@ -73,6 +126,7 @@ and will not be asked again.
 ## Notes
 
 - Adopting a repository that already has work in flight is a manual exercise:
-  scaffold, then move existing plans into the `adocs/` files by hand.
+  scaffold, then move existing plans into the `adocs/` files by hand. The
+  planning phase above assumes a project whose plan is still to be written.
 - An existing `AGENTS.md` is never touched. That is deliberate: it may be
   another tool's ruleset or a house standard.

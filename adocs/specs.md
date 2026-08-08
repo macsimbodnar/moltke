@@ -55,6 +55,21 @@ a `Status: <value>` line in its section; the S008 report template must conform.
 check abstains. INV-3 additionally treats a missing `plan.md` in an enabled
 repo as a violation.
 
+2026-08-08 (S028): `--session-start` reports the planning phase as pending while
+`adocs/specs.md` has no prime directive or `adocs/plan.md` lists no steps, naming
+only the file that is unfilled. `--scaffold` writes both with their content as a
+comment, because they are the two things the workflow cannot write for the user,
+and nothing said so: every check reported green on a repository that had adopted
+the workflow and never used it. The prime directive is read through
+`strip_guidance`, so the template's own comment and a fenced example are guidance
+rather than an answer. It is a nudge in `additionalContext` on an exit 0 and
+never a refusal — blocking a turn on a file only a human can fill is the deadlock
+DEC-006 and INV-12 exist to prevent — and it disappears when both are filled. The
+`init` skill's post-scaffold sequence is the other half: it elicits the directive
+and the invariants, discusses the order before writing it, creates every step
+with `--step new` rather than by copying the template, records the session's
+choices as `DEC` entries, regenerates `status.md`, and ends in a commit.
+
 2026-08-08 (S056): `--audit check` reads the worklog append rather than only
 testing its shape. `--log-prompt` writes a `## <stamp> prompt` heading and the
 prompt quoted line by line, so an appended region containing anything else — a
