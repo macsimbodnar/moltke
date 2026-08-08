@@ -57,6 +57,15 @@ a `Status: <value>` line in its section; the S008 report template must conform.
 check abstains. INV-3 additionally treats a missing `plan.md` in an enabled
 repo as a violation.
 
+2026-08-08 (S082): `--step block` refuses when the parent is already paused. It
+asked only that the parent was in `plan_current/` and then overwrote its
+`paused_by`, so a second blocking child reported success while taking the
+repository from all checks pass to an INV-1 violation: the first child's pause
+vanished from the file, the parent unpaused itself, and both children counted as
+active (finding 2026-08-08_adversarial.3-F03). A step is blocked by one child at
+a time; blocking that child instead is how work discovered inside blocking work
+is recorded, and the refusal says so.
+
 2026-08-08 (S081): the marked root and the git top level are allowed to differ,
 and every git-derived check translates between them through one `git_prefix`.
 Every git call is `git -C <marked root>`, but porcelain, log and show all speak

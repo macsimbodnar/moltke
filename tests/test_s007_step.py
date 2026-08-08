@@ -639,7 +639,44 @@ class TestNoDeadEndCompletion(unittest.TestCase):
             self.assertIn("paused by S004", result.stderr)
 
 
+class TestBlockOnAnAlreadyPausedParent(unittest.TestCase):
+    """S082 (2026-08-08_adversarial.3-F03): step_block asked only that the
+    parent was in plan_current/, never whether it was already paused, and then
+    overwrote its paused_by. The second child reported success while taking the
+    repository from all checks pass to an INV-1 violation, and the first child's
+    pause vanished from the file."""
 
+    def test_a_second_blocking_child_is_refused(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            run_moltke(root, "--step", "block", "S003", "first_child")
+            self.assertEqual(validate(root).returncode, 0, validate(root).stdout)
+            result = run_moltke(root, "--step", "block", "S003", "second_child")
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn("S004", result.stderr, "it should name the child already blocking it")
+            self.assertEqual(validate(root).returncode, 0,
+                             "a refusal must leave the tree as it was")
+
+    def test_the_first_childs_pause_survives_the_refusal(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            run_moltke(root, "--step", "block", "S003", "first_child")
+            run_moltke(root, "--step", "block", "S003", "second_child")
+            parent = (root / "adocs" / "plan_current" / "S003_active.md").read_text(
+                encoding="utf-8")
+            self.assertRegex(parent, r"paused_by:\s*S004")
+            self.assertFalse((root / "adocs" / "plan_current" / "S005_second_child.md").exists(),
+                             "the refused child must not have been created")
+
+    def test_blocking_the_child_itself_still_works(self):
+        # Non-vacuity: the stack is legal, and deepening it is how blocking work
+        # discovered inside blocking work is meant to be recorded.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            run_moltke(root, "--step", "block", "S003", "first_child")
+            result = run_moltke(root, "--step", "block", "S004", "grandchild")
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertEqual(validate(root).returncode, 0)
 
 
 if __name__ == "__main__":

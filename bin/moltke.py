@@ -1727,11 +1727,22 @@ def step_start(root, config, step_id):
 
 
 def step_block(root, config, parent_id, name):
-    dirname, parent_path, _fields = locate_step(root, parent_id)
+    dirname, parent_path, fields = locate_step(root, parent_id)
     if dirname != "plan_current":
         where = dirname or "nowhere"
         return refuse(f"{parent_id} is in {where}, not plan_current/; only an in-progress "
                       f"step can be paused by a blocking child")
+    # A step can be paused by one child at a time (S082, .3-F03). This asked
+    # only that the parent was in plan_current/ and then overwrote its
+    # paused_by, so a second child reported success while taking the repository
+    # from all checks pass to an INV-1 violation and erasing the first child's
+    # pause — the parent unpaused itself while both children counted as active.
+    paused_by = re.search(r"S\d{3}", field_value(fields, "paused_by"))
+    if paused_by:
+        return refuse(f"{parent_id} is already paused by {paused_by.group(0)}; a step is "
+                      f"blocked by one child at a time. Complete {paused_by.group(0)}, which "
+                      f"unpauses {parent_id}, or block {paused_by.group(0)} itself if this new "
+                      f"work is what is stopping it")
     current = plan_steps(root)["plan_current"]
     limit = _limit(config, "plan_stack_max", 3)
     if len(current) + 1 > limit:
