@@ -57,6 +57,15 @@ a `Status: <value>` line in its section; the S008 report template must conform.
 check abstains. INV-3 additionally treats a missing `plan.md` in an enabled
 repo as a violation.
 
+2026-08-08 (S084): INV-7 names `git mv` for a rename inside `plan_done/`, which
+undoes it, rather than `git checkout` on the new path, which restores it from an
+index that already holds the rename and therefore changes nothing. S071 made this
+message safe to paste and left it a no-op, and following it together with the
+deletion message wrote the old name back beside the new one — an INV-6 duplicate
+id, a repository further from green than before (finding
+2026-08-08_adversarial.3-F05). A rename now reports once, as a rename, and the
+printed command is run by a test that asserts the tree ends green.
+
 2026-08-08 (S083): `--step new` and `--step block` write the plan entry first
 and the step file second, so a failure leaves nothing behind. Written the other
 way round, a failing append to `plan.md` left a step file no list entry names,

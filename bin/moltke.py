@@ -390,8 +390,19 @@ def inv_7_done_immutable(root, config):
             if any(path is None for path in paths):
                 continue    # another package in the same repository (S081)
             entry = paths[-1]
-            moved = f" (renamed from {paths[0]})" if len(paths) > 1 else ""
-            violations.append(f"INV-7: {entry} changed under plan_done/{moved}; history is "
+            if len(paths) > 1:
+                # A rename needs undoing, not restoring (S084, .3-F05): S071
+                # made this message safe to paste and left it a no-op, because
+                # `git checkout -- <new path>` restores the new path from an
+                # index that already holds the rename. Following it and the
+                # deletion message together wrote the old name back beside the
+                # new one, which is an INV-6 duplicate id.
+                violations.append(
+                    f"INV-7: {entry} is {paths[0]} renamed, and plan_done/ is immutable "
+                    f"history: file names there are cited from commits and reports. Undo it "
+                    f"with git mv {entry} {paths[0]}")
+                continue
+            violations.append(f"INV-7: {entry} changed under plan_done/; history is "
                               f"immutable: restore it with git checkout -- {entry}")
 
     # DEC-026: judge the content, not the existence of a bad commit. A file is

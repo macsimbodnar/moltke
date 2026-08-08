@@ -451,5 +451,48 @@ class TestAMarkedRootBelowTheGitTopLevel(unittest.TestCase):
             self.assertEqual(run_validate(root).returncode, 0)
 
 
+class TestInv7RenameRemedyRestores(unittest.TestCase):
+    """S084 (2026-08-08_adversarial.3-F05): S071 made the rename message safe to
+    paste and left it a no-op. `git checkout -- <new path>` restores the new
+    path from the index, which already holds the rename, so nothing changes; and
+    following the second message as well writes the old name back beside the new
+    one, which is an INV-6 duplicate id. A remedy INV-12 calls actionable has to
+    end somewhere green."""
+
+    def renamed(self, tmp):
+        root = workflow_repo(tmp)
+        git_baseline(root)
+        git(root, "mv", "adocs/plan_done/S001_base.md", "adocs/plan_done/S001_renamed.md")
+        return root
+
+    def test_following_the_printed_remedy_clears_the_violation(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.renamed(tmp)
+            before = run_validate(root)
+            self.assertEqual(before.returncode, 1, before.stdout)
+            commands = [line.split(marker, 1)[1].rstrip(".")
+                        for line in before.stdout.splitlines() if "INV-7" in line
+                        for marker in ("restore it with ", "Undo it with ")
+                        if marker in line]
+            self.assertTrue(commands, before.stdout)
+            for command in commands:
+                subprocess.run(command, shell=True, cwd=str(root), check=True)
+            after = run_validate(root)
+            self.assertEqual(after.returncode, 0,
+                             f"following the remedy left: {after.stdout}")
+
+    def test_the_remedy_does_not_leave_a_duplicate_id(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.renamed(tmp)
+            for line in run_validate(root).stdout.splitlines():
+                for marker in ("restore it with ", "Undo it with "):
+                    if "INV-7" in line and marker in line:
+                        subprocess.run(line.split(marker, 1)[1].rstrip("."),
+                                       shell=True, cwd=str(root), check=True)
+            self.assertNotIn("INV-6", run_validate(root).stdout)
+            self.assertTrue((root / "adocs" / "plan_done" / "S001_base.md").is_file())
+            self.assertFalse((root / "adocs" / "plan_done" / "S001_renamed.md").exists())
+
+
 if __name__ == "__main__":
     unittest.main()
