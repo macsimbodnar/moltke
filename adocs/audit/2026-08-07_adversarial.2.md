@@ -164,7 +164,7 @@ writes — so the two copies are genuinely both in play.
 
 ### 2026-08-07_adversarial.2-F01  high  the Stop deadlock waiver keys on a `prompt_id` nothing establishes exists, and without one it turns every Stop check off permanently
 
-Status: open
+Status: closed
 
 Evidence: `mode_stop` (`bin/moltke.py:875-897`) counts consecutive blocks per
 `hook_input().get("prompt_id", "")` and, past `STOP_CAP`, returns `EXIT_OK`
@@ -235,7 +235,7 @@ problem set changes rather than only when it empties. Not applied here.
 
 ### 2026-08-07_adversarial.2-F02  high  a step listed in `plan.md` only in prose is invisible to the derived next step, and `--validate` says all checks pass
 
-Status: open
+Status: closed
 
 Evidence: S045 narrowed `plan_order` to list entries (`PLAN_ENTRY_RE`,
 `bin/moltke.py:544-557`) and left INV-3's forward check reading every id in the
@@ -314,7 +314,7 @@ red-first case for a step file whose id appears only in prose. Not applied here.
 
 ### 2026-08-07_adversarial.2-F03  medium  `git add -A` turns off both Stop gates for a moved file, and the README/MANUAL gate has no test at all
 
-Status: open
+Status: closed
 
 Evidence: `mode_stop` reads `git status --porcelain` and classifies each line by
 `line[:2]` and `line[3:]` (`bin/moltke.py:853-873`). A staged rename is one line,
@@ -383,7 +383,7 @@ rename out of `adocs/` in `test_which_paths_count_as_source`. Not applied here.
 
 ### 2026-08-07_adversarial.2-F04  medium  MANUAL says the two-unclosed-fence hole is pre-0.4.0; it reproduces at `b8b4345`
 
-Status: open
+Status: closed
 
 Evidence: `MANUAL.md:242-247` states, in the past tense, "before 0.4.0, a report
 with two unclosed evidence blocks lost the finding between them and `--audit list`
@@ -447,7 +447,7 @@ to the present tense and leave `2026-08-07_adversarial-F02` open. Not applied he
 
 ### 2026-08-07_adversarial.2-F05  medium  S039 now steers the user into `--step status`, which dies with a traceback in a marked repository that has no `adocs/`
 
-Status: open
+Status: closed
 
 Evidence: `status_disagreements` (`bin/moltke.py:590-601`) compares four rendered
 fields, and a missing `status.md` yields four disagreements, so `--session-start`
@@ -555,7 +555,7 @@ This is a decision, not an obvious patch. Not applied here.
 
 ### 2026-08-07_adversarial.2-F07  low  INV-8 as enforced is a line subsequence, so a fabricated decision inserted mid-file commits green against an invariant that says earlier bytes never change
 
-Status: open
+Status: closed
 
 Evidence: `inv_8_append_only` compares the current file against a high-water mark
 with `lines_survive` (`bin/moltke.py:340-343, 378-393`), which asks only that
@@ -616,7 +616,7 @@ up to S046. Not applied here.
 
 ### 2026-08-07_adversarial.2-F08  low  INV-13 counts markers `strip_guidance` never sees, so a fence inside an HTML comment blocks `--stop` with a message that is false for that file
 
-Status: open
+Status: closed
 
 Evidence: `inv_13_balanced_fences` counts `FENCE_MARKER` in the raw file
 (`bin/moltke.py:496`). `strip_guidance` removes HTML comments *before* it looks
@@ -673,7 +673,7 @@ inside a comment. Not applied here.
 
 ### 2026-08-07_adversarial.2-F09  low  S036's worklog exemption is shape-based, so the reviewer can append to the one file the fence blocks it from, silence the recap gate, and `--audit check` calls it expected
 
-Status: open
+Status: closed
 
 Evidence: `classify` in `audit_check` treats `adocs/worklog.md` as expected
 whenever `worklog_only_grew` holds (`bin/moltke.py:1404-1412`), and
@@ -730,7 +730,7 @@ here.
 
 ### 2026-08-07_adversarial.2-F10  low  the reviewer fence stops at the repository boundary, including for the installed checker's own source, while the agent definition states it unqualified
 
-Status: open
+Status: closed
 
 Evidence: `mode_pre_write` returns `EXIT_OK` for any path that does not resolve
 under `root` (`bin/moltke.py:745-749`), before the reviewer rule is reached.

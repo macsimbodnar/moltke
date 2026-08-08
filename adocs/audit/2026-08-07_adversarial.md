@@ -201,7 +201,7 @@ touches nothing but the report and new tests. That also fixes the misleading
 
 ### 2026-08-07_adversarial-F02  high  an unbalanced code fence hides an open finding from INV-10 and the recap gate
 
-Status: planned
+Status: closed
 
 Evidence: `strip_guidance` (`bin/moltke.py:94-103`) pairs triple-backtick markers
 globally and non-greedily, with no notion of line-start or of balance, so an odd

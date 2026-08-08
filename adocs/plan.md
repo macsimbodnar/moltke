@@ -72,4 +72,10 @@ step instead.
 54. S029  init handles a repo already initialized on another machine
 55. S031  target repositories inherit the worklog secret check, not just moltke's own suite
 56. S058  bump 0.5.0, re-run the audit, close the findings it no longer reports
-57. S059  verify the installed 0.5.0 in a live session, after reinstall
+57. S060  --stop enforces instead of crashing when a plan_done/ arrival is not on disk
+58. S061  the Stop waiver clock does not freeze when prompt logging fails
+59. S062  --step done refuses before it writes, so a failed completion leaves INV-1 satisfied
+60. S063  INV-13 scans every file strip_guidance is pointed at, specs.md included
+61. S064  one decode policy for every file moltke reads
+62. S065  MANUAL says which commit an immutability violation names
+63. S059  verify the installed 0.5.0 in a live session, after reinstall

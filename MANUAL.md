@@ -208,9 +208,10 @@ subdirectory move as the escape hatch if it ever matters.
 require the completion stamp to mention README and MANUAL. They cannot tell
 whether you actually looked. The check enforces that the question was asked,
 not that it was answered honestly. It sees the step arrive in `plan_done/`
-however you moved it — `git mv`, a plain `mv`, or `mv` then `git add -A`; up to
+however you moved it — `git mv`, a plain `mv`, or `mv` then `git add -A`. Up to
 and including 0.4.0 a staged rename walked past it, and past the recap gate for
-a file moved out of `adocs/`, because both read the old path. The same used to be true of the green-suite
+a file moved out of `adocs/`, because both read the old path; 0.5.0 carries the
+fix. The same used to be true of the green-suite
 requirement — nothing ran a suite at all — which is what `test_command` fixes;
 without that key set, completion is still trusted rather than checked.
 
@@ -287,8 +288,8 @@ Two unclosed fences are a different problem: they are an even count, they pair a
 one closed fence, and nothing distinguishes them from one — templates do put
 headings inside fences on purpose. That shape is what you produce by pasting two
 transcripts and closing neither, and up to and including 0.4.0 it deleted the
-finding between them silently. An audit report that states a finding under its own
-name which no check can then read is now an INV-14 violation naming that finding, and
+finding between them silently. Since 0.5.0 an audit report that states a finding
+under its own name which no check can then read is an INV-14 violation naming it, and
 `--audit list` prints it as `hidden` instead of leaving it out. `--post-write`
 reports it too, so it surfaces when you save the report. Close the evidence blocks
 around the heading and it clears.

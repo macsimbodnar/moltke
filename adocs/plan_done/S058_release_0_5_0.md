@@ -7,4 +7,4 @@ decisions:  DEC-034
 closes:
 blocks:
 paused_by:
-done:
+done:      2026-08-08: bumped 0.5.0 in its own commit, ran the third adversarial audit against it through the reviewer subagent, and reconciled with --audit check exit 0, the report the run's only footprint. Nine of the eleven carried findings no longer reproduce, each re-run verbatim rather than trusted from a step stamp, and moved to closed: .2-F01..F05, .2-F07..F10, and 2026-08-07_adversarial-F02, which had been planned for three runs. .2-F06 stays accepted under DEC-031; .2-F07's documentation residual became a new finding rather than a closed stamp. Six new findings, one step each: S060 to S065, ordered ahead of S059 because correctness jumps the queue. Closing a status hit the fenced template example in the .2 report first — the pre-S049 template substituted the real stem — and was reverted, with the visible status confirmed through report_findings. MANUAL's two version-attributed sentences now name 0.5.0. Suite 286 OK, --validate green. README needed no change: no test count moved.
