@@ -57,6 +57,23 @@ a `Status: <value>` line in its section; the S008 report template must conform.
 check abstains. INV-3 additionally treats a missing `plan.md` in an enabled
 repo as a violation.
 
+2026-08-08 (S067): `--stop` reports and counts on every path. S060 removed the
+traceback and put `main`'s backstop behind it, which returns before the retry
+counter `mode_stop` writes at the end — so an `OSError` from `status_disagreements`,
+the porcelain gates, or `stop_turn_key` dropped every problem already collected
+and blocked forever, the one thing INV-12 and DEC-006 say `--stop` may never do.
+Five stops on a broken symlink named like a step file read `2 2 2 2 2` where the
+cap should waive at four (finding 2026-08-08_adversarial.2-F01). Each section now
+catches its own failure and turns it into a problem, which is what this function
+already knows how to report, so the cap and the waiver run in every case.
+
+Every git call goes through one `_git_run`, which returns `None` when there is no
+git to run. `_git_lines` was made tolerant of a missing binary and the three
+direct `subprocess.run` sites were not, so with git off `PATH` the documented
+"no git, the check abstains" became INV-7 and INV-8 reporting that they could not
+read the repository — the recurring shape again, a rule applied in one place and
+not its twins.
+
 2026-08-08 (S064): every repository file moltke reads goes through `read_file`,
 which decodes UTF-8 and replaces what it cannot. Thirteen readers decoded
 strictly and six replaced, and INV-14's two halves disagreed about the same file

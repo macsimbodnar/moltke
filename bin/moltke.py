@@ -315,9 +315,9 @@ def git_blobs(root, specs):
     specs = list(dict.fromkeys(specs))
     if not specs:
         return {}
-    result = subprocess.run(["git", "-C", str(root), "cat-file", "--batch"],
-                            input=("\n".join(specs) + "\n").encode(), capture_output=True)
-    if result.returncode != 0:
+    result = _git_run(["git", "-C", str(root), "cat-file", "--batch"],
+                      input=("\n".join(specs) + "\n").encode())
+    if result is None or result.returncode != 0:
         return {}
     blobs, out, pos = {}, result.stdout, 0
     for spec in specs:
@@ -361,11 +361,10 @@ def inv_7_done_immutable(root, config):
     # that is not committed yet, history sees tampering that is. Additions are
     # the one legal change (append by move only). No git history, no baseline, so
     # the check abstains.
-    result = subprocess.run(
-        ["git", "-C", str(root), "status", "--porcelain", "--", f"{DOCS}/plan_done"],
-        capture_output=True, text=True)
+    result = _git_run(
+        ["git", "-C", str(root), "status", "--porcelain", "--", f"{DOCS}/plan_done"], text=True)
     violations = []
-    if result.returncode == 0:
+    if result is not None and result.returncode == 0:
         for line in result.stdout.splitlines():
             status, _, entry = line[:2], line[2], line[3:]
             if any(code in status for code in ("M", "D", "R", "C", "U")):
@@ -466,9 +465,8 @@ def inv_8_append_only(root, config):
                 f"clears: git show {required_sha[:8]}:{rel}. A reversal is a new entry marking "
                 f"the old one VOID, never an edit")
     for rel in APPEND_ONLY_FILES:
-        shown = subprocess.run(["git", "-C", str(root), "show", f"HEAD:{rel}"],
-                               capture_output=True)
-        if shown.returncode != 0:
+        shown = _git_run(["git", "-C", str(root), "show", f"HEAD:{rel}"])
+        if shown is None or shown.returncode != 0:
             continue
         path = root / rel
         if not path.is_file():
@@ -1127,8 +1125,15 @@ def stop_turn_key(root, payload):
     parts = [str(payload.get("prompt_id") or ""), str(payload.get("session_id") or "")]
     worklog = root / DOCS / "worklog.md"
     prompts = 0
-    if worklog.is_file():
-        text = read_stripped(worklog)
+    try:
+        text = read_stripped(worklog) if worklog.is_file() else ""
+    except OSError:
+        # An unreadable worklog leaves the count where it was, which is exactly
+        # the frozen clock S061 was about — so the breadcrumb below is what has
+        # to keep moving. Raising instead would escape past the counter and
+        # wedge the turn (S067, .2-F01).
+        text = ""
+    if text:
         for heading in WORKLOG_HEADING.finditer(text):
             line = heading.group(0)
             if not RECAP_HEADING.search(line) and PROMPT_HEADING.search(line):
@@ -1152,9 +1157,24 @@ def _stop_state_path(root):
     return resolved / "moltke_stop_state.json" if resolved else None
 
 
+def _git_run(*args, **kwargs):
+    """git, or None when there is no git to run.
+
+    Every call goes through here (S067, .2-F01): `_git_lines` was made tolerant
+    of a missing binary and the three direct `subprocess.run` sites were not, so
+    with git off PATH the documented "the check abstains" became INV-7 and INV-8
+    reporting that they could not read the repository, and every --stop blocked
+    behind them.
+    """
+    try:
+        return subprocess.run(*args, capture_output=True, **kwargs)
+    except OSError:
+        return None
+
+
 def _git_lines(root, *args):
-    result = subprocess.run(["git", "-C", str(root), *args], capture_output=True, text=True)
-    return result.stdout.splitlines() if result.returncode == 0 else None
+    result = _git_run(["git", "-C", str(root), *args], text=True)
+    return result.stdout.splitlines() if result and result.returncode == 0 else None
 
 
 WORKLOG_HEADING = re.compile(r"^##\s.*$", re.M)
@@ -1228,54 +1248,80 @@ def _stale_remedy(root):
             f"bin/moltke.py --step status")
 
 
+def porcelain_problems(root, porcelain):
+    """The recap and stamp gates, as problems. Lifted out of mode_stop (S067)
+    so a read failure here is caught next to what caused it and becomes a
+    problem, rather than escaping past the retry counter and wedging the turn."""
+    problems = []
+    if porcelain is None:
+        return problems
+    # Both sides of a rename (S050): a file promoted out of adocs/ adds a
+    # source file and a file moved into adocs/ removes one, and judging the
+    # line by its old path alone made the first read as exempt.
+    changed_source = [line for line in porcelain
+                      if any(not path.startswith(RECAP_EXEMPT)
+                             for path in porcelain_paths(line))]
+    # No commit yet means no history a recap would sit alongside, and the
+    # scaffold's own files are not work: abstain, as INV-7 and INV-8 do.
+    committed = _git_lines(root, "rev-parse", "HEAD") is not None
+    if changed_source and committed and recap_pending(root):
+        problems.append(f"source changed but {DOCS}/worklog.md has no recap heading after "
+                        f"the last logged prompt; append a recap (step id, what changed, "
+                        f"files, tests, commit) before ending the turn, or commit the "
+                        f"change if the turn that made it was already recapped.")
+    for line in porcelain if committed else []:
+        # Before the first commit every file is an arrival, including the
+        # scaffold's own, which is why the recap gate abstains there too.
+        # With -uall those now reach this gate individually (S060).
+        entry = porcelain_paths(line)[-1]
+        if _arrives_here(line[:2]) and entry.startswith(f"{DOCS}/plan_done/"):
+            # The index can name a path the worktree no longer has — `AD`,
+            # `RD` — and `RD` is what following this gate's own remedy
+            # produces: it blocks, --pre-write forbids editing the file it
+            # names, so `mv` back is the only compliant way out. Nothing
+            # arrived, so there is nothing to stamp (S060).
+            if not (root / entry).is_file():
+                continue
+            fields = parse_step_file(root / entry)
+            stamp = fields.get("done", "")
+            if "README" not in stamp or "MANUAL" not in stamp:
+                problems.append(f"{entry} was completed without the README and MANUAL "
+                                f"check recorded; check both files and note it in the "
+                                f"done: stamp (checking with no change needed is valid).")
+    return problems
+
+
 def mode_stop(root, config, marker_violations):
     payload = hook_input()  # stdin is read once; every use below shares it
     problems = list(marker_violations) + run_checks(root, config)
 
-    remedy = _stale_remedy(root)
-    for field, said, real in status_disagreements(root):
-        problems.append(f"status.md is stale or missing: {field} says {said!r}, the filesystem "
-                        f"says {real!r}. {remedy[0].upper()}{remedy[1:]} before ending the turn.")
+    # Everything below reads paths run_checks does not, and an OSError from any
+    # of them used to escape to main's backstop — which returns EXIT_BLOCK
+    # before the retry counter at the bottom of this function is written. So the
+    # cap never advanced, the waiver never fired, and every problem collected
+    # above was dropped: a wedged session, which INV-12 and DEC-006 make the one
+    # thing --stop may never do (S067, .2-F01). A failure here is a problem like
+    # any other, and problems are what this function knows how to report.
+    try:
+        remedy = _stale_remedy(root)
+        for field, said, real in status_disagreements(root):
+            problems.append(f"status.md is stale or missing: {field} says {said!r}, the "
+                            f"filesystem says {real!r}. {remedy[0].upper()}{remedy[1:]} before "
+                            f"ending the turn.")
+    except OSError as exc:
+        problems.append(f"status.md could not be compared against the filesystem ({exc}); "
+                        f"fix the path it names, then run bin/moltke.py --validate")
 
     # -uall, like worktree_state since S036 and for the same reason: plain
     # porcelain collapses a wholly untracked directory into one entry, so
     # `?? adocs/plan_done/` reached the stamp gate as a path that is a directory
     # on disk. One porcelain shape for every reader (S060).
     porcelain = _git_lines(root, "status", "--porcelain", "-uall")
-    if porcelain is not None:
-        # Both sides of a rename (S050): a file promoted out of adocs/ adds a
-        # source file and a file moved into adocs/ removes one, and judging the
-        # line by its old path alone made the first read as exempt.
-        changed_source = [line for line in porcelain
-                          if any(not path.startswith(RECAP_EXEMPT)
-                                 for path in porcelain_paths(line))]
-        # No commit yet means no history a recap would sit alongside, and the
-        # scaffold's own files are not work: abstain, as INV-7 and INV-8 do.
-        committed = _git_lines(root, "rev-parse", "HEAD") is not None
-        if changed_source and committed and recap_pending(root):
-            problems.append(f"source changed but {DOCS}/worklog.md has no recap heading after "
-                            f"the last logged prompt; append a recap (step id, what changed, "
-                            f"files, tests, commit) before ending the turn, or commit the "
-                            f"change if the turn that made it was already recapped.")
-        for line in porcelain if committed else []:
-            # Before the first commit every file is an arrival, including the
-            # scaffold's own, which is why the recap gate abstains there too.
-            # With -uall those now reach this gate individually (S060).
-            entry = porcelain_paths(line)[-1]
-            if _arrives_here(line[:2]) and entry.startswith(f"{DOCS}/plan_done/"):
-                # The index can name a path the worktree no longer has — `AD`,
-                # `RD` — and `RD` is what following this gate's own remedy
-                # produces: it blocks, --pre-write forbids editing the file it
-                # names, so `mv` back is the only compliant way out. Nothing
-                # arrived, so there is nothing to stamp (S060).
-                if not (root / entry).is_file():
-                    continue
-                fields = parse_step_file(root / entry)
-                stamp = fields.get("done", "")
-                if "README" not in stamp or "MANUAL" not in stamp:
-                    problems.append(f"{entry} was completed without the README and MANUAL "
-                                    f"check recorded; check both files and note it in the "
-                                    f"done: stamp (checking with no change needed is valid).")
+    try:
+        problems.extend(porcelain_problems(root, porcelain))
+    except OSError as exc:
+        problems.append(f"the working tree could not be read ({exc}); fix the path it names, "
+                        f"then run bin/moltke.py --validate")
 
     state_path = _stop_state_path(root)
     if problems:
@@ -1339,9 +1385,8 @@ def scaffold_root(start=None):
     if marked is not None:
         return marked
     start = Path(start or Path.cwd()).resolve()
-    result = subprocess.run(["git", "-C", str(start), "rev-parse", "--show-toplevel"],
-                            capture_output=True, text=True)
-    if result.returncode == 0 and result.stdout.strip():
+    result = _git_run(["git", "-C", str(start), "rev-parse", "--show-toplevel"], text=True)
+    if result is not None and result.returncode == 0 and result.stdout.strip():
         return Path(result.stdout.strip())
     return start
 

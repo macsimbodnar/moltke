@@ -779,3 +779,72 @@ class TestStop(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestStopNeverWedges(unittest.TestCase):
+    """S067 (2026-08-08_adversarial.2-F01): S060 stopped --stop dying at exit 1
+    on an unreadable path and traded it for something worse — the OSError
+    escaped to main's backstop before the retry counter was written, so the
+    deadlock cap never advanced and every problem already collected was thrown
+    away. INV-12 and DEC-006 make no-deadlock a property of the tool, and
+    MANUAL states it as one."""
+
+    def repo_with_a_violation(self, tmp):
+        root = workflow_repo(tmp)
+        (root / "adocs" / "plan.md").write_text(
+            "# Plan\n\n1. S001 base\n2. S002 pending\n3. S003 active\n4. S099 phantom\n",
+            encoding="utf-8")
+        git_baseline(root)
+        log_prompt(root)
+        return root
+
+    def test_the_cap_still_fires_when_a_path_cannot_be_read(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.repo_with_a_violation(tmp)
+            (root / "adocs" / "plan_todo" / "S050_lost.md").symlink_to("nowhere.md")
+            exits = [run_moltke(root, "--stop", stdin='{"session_id":"s1"}').returncode
+                     for _ in range(5)]
+            self.assertEqual(exits, [2, 2, 2, 0, 0],
+                             "the waiver must reach an unreadable tree too")
+
+    def test_the_problems_collected_before_the_failure_are_printed(self):
+        # --stop had these in hand and dropped them, while --post-write and
+        # --validate printed all six for the identical tree.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.repo_with_a_violation(tmp)
+            (root / "adocs" / "plan_todo" / "S050_thing.md").mkdir()
+            stop = run_moltke(root, "--stop", stdin="{}")
+            post = run_moltke(root, "--post-write", stdin="{}")
+            self.assertEqual(stop.returncode, 2, stop.stderr)
+            self.assertGreaterEqual(len(stop.stderr.strip().splitlines()),
+                                    len(post.stderr.strip().splitlines()),
+                                    "--stop must not say less than --post-write about one tree")
+            self.assertIn("INV-3", stop.stderr)
+            self.assertIn("S050_thing.md", stop.stderr)
+
+    def test_an_unreadable_worklog_does_not_freeze_the_counter(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.repo_with_a_violation(tmp)
+            worklog = root / "adocs" / "worklog.md"
+            worklog.chmod(0o000)
+            try:
+                exits = [run_moltke(root, "--stop", stdin="{}").returncode for _ in range(8)]
+            finally:
+                worklog.chmod(0o644)
+            self.assertEqual(exits, [2, 2, 2, 0, 0, 0, 0, 0])
+
+    def test_git_missing_from_path_abstains_rather_than_violating(self):
+        # The documented behaviour is that the git-based checks abstain without
+        # git. _git_lines raised instead of returning None, so INV-7 reported
+        # that it could not read the repository and every --stop blocked.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.repo_with_a_violation(tmp)
+            empty_path = Path(tmp) / "nobin"
+            empty_path.mkdir()
+            result = subprocess.run(
+                [sys.executable, str(MOLTKE), "--validate"],
+                cwd=root, capture_output=True, text=True, input="",
+                env={"PATH": str(empty_path), "HOME": str(tmp)})
+            self.assertNotIn("could not read the repository", result.stdout + result.stderr)
+            self.assertNotIn("Traceback", result.stderr)
+            self.assertIn("INV-3", result.stdout, "the non-git violation is still reported")
