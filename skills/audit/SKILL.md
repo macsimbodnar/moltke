@@ -38,8 +38,11 @@ fix things reports fewer of them.
 python3 ${CLAUDE_PLUGIN_ROOT}/bin/moltke.py --audit check
 ```
 
-It compares the tree against the baseline `--audit new` recorded. The report and
-any new files under `tests/` are expected; anything else exits 1 and is listed.
+It compares the tree against the baseline `--audit new` recorded. The report,
+any new files under `tests/`, and an append to `adocs/worklog.md` that matches
+what `--log-prompt` writes are expected; anything else exits 1 and is listed.
+The worklog is named in the listing either way, because an append there is the
+one edit that can turn off the `Stop` recap gate for the surrounding turn.
 Review each one with `git diff` and keep or revert it deliberately, before any
 finding is acted on — a report produced by a run that also patched the code is
 not evidence of what was there.

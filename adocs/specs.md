@@ -55,6 +55,23 @@ a `Status: <value>` line in its section; the S008 report template must conform.
 check abstains. INV-3 additionally treats a missing `plan.md` in an enabled
 repo as a violation.
 
+2026-08-08 (S056): `--audit check` reads the worklog append rather than only
+testing its shape. `--log-prompt` writes a `## <stamp> prompt` heading and the
+prompt quoted line by line, so an appended region containing anything else — a
+recap heading, unquoted prose — is unexpected and exits 1, while a genuine hook
+append stays expected and is named in the listing instead of passing unmentioned.
+S036 exempted the file by shape because a gate that is wrong on every audit
+spanning a prompt is one people wave through; the blind spot it left was in the
+one file where an append changes another gate's answer, since a recap heading
+discharges the `Stop` recap gate for the surrounding turn, and `Bash` reaches it
+even though the write fence does not (finding 2026-08-07_adversarial.2-F09).
+Quoting is what makes the corroboration safe: a prompt that itself contains a
+recap heading or a fence arrives with every line prefixed `> `. What is unchanged
+is that `Stop` cannot tell who appended a recap and still accepts one in the
+moment: the fabricated heading silences that gate for the turn, and `--audit
+check` is where it surfaces. That is DEC-022's prevention-to-detection trade
+applied to this file rather than an exception to it.
+
 2026-08-08 (S055): INV-13 and `strip_guidance` share one `fence_markers`, which
 removes HTML comments and then finds the line-anchored markers. The invariant
 counted markers in the raw file while the stripper removed comments first, so a

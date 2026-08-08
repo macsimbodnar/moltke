@@ -1514,23 +1514,49 @@ def worklog_prefix(root):
     return [len(content), hashlib.sha256(content).hexdigest()]
 
 
-def worklog_only_grew(root, recorded):
-    """Whether the worklog still starts with exactly what it held at --audit new.
+def worklog_append(root, recorded):
+    """What was appended to the worklog since `--audit new`, or None if the file
+    did not simply grow.
 
     UserPromptSubmit appends to it on every prompt, so any audit spanning a
     prompt has a worklog change in its footprint — one the reviewer is fenced out
     of making. An append is what the hook does; a rewrite is what covering your
-    tracks looks like, and stays reported (F05).
+    tracks looks like, and stays reported (F05). Returning the appended text
+    rather than a boolean is S056: the shape test alone said "expected" and
+    printed nothing further, so an append made from Bash — the one edit that both
+    passes the exemption and changes a gate's answer — was invisible.
     """
     if not (isinstance(recorded, list) and len(recorded) == 2):
-        return False
+        return None
     length, digest = recorded
     try:
         content = (root / DOCS / "worklog.md").read_bytes()
     except OSError:
-        return False
-    return (len(content) >= length
-            and hashlib.sha256(content[:length]).hexdigest() == digest)
+        return None
+    if len(content) < length or hashlib.sha256(content[:length]).hexdigest() != digest:
+        return None
+    return content[length:].decode("utf-8", errors="replace")
+
+
+def foreign_worklog_lines(appended):
+    """Lines in an append that `--log-prompt` would not have written.
+
+    It writes `## <stamp> prompt`, a blank line, then the prompt with every line
+    prefixed `> ` — so a prompt containing a heading, a fence, or the word recap
+    arrives quoted and stays recognisable. Anything else in the appended region
+    came from somewhere that is not the hook, and a recap heading there is the
+    case that matters: it discharges the `Stop` recap gate for the surrounding
+    turn (S056, .2-F09).
+    """
+    foreign = []
+    for line in appended.splitlines():
+        if not line.strip() or line.startswith(">"):
+            continue
+        if (WORKLOG_HEADING.match(line) and PROMPT_HEADING.search(line)
+                and not RECAP_HEADING.search(line)):
+            continue
+        foreign.append(line)
+    return foreign
 
 
 def audit_check(root, config):
@@ -1556,11 +1582,26 @@ def audit_check(root, config):
     expected, unexpected = [], []
 
     worklog = f"{DOCS}/worklog.md"
-    appended = worklog_only_grew(root, saved.get("worklog"))
+    appended = worklog_append(root, saved.get("worklog"))
+    foreign = foreign_worklog_lines(appended) if appended is not None else []
+    worklog_note = None
+    if appended is not None:
+        added = len([line for line in appended.splitlines() if line.strip()])
+        if foreign:
+            worklog_note = (f"{worklog}: appended {added} line(s), {len(foreign)} of which "
+                            f"--log-prompt would not have written, first {foreign[0].strip()!r}. "
+                            f"A recap heading here discharges the Stop recap gate for this turn")
+        else:
+            worklog_note = f"{worklog}: appended {added} line(s), all prompt log entries"
 
     def classify(entry, note, is_new):
+        if entry == worklog:
+            # Named either way (S056): the exemption stays, because a gate that
+            # is wrong on every audit spanning a prompt is one people learn to
+            # wave through (F05), but it never passes silently again.
+            note = worklog_note or note
         if (entry == report or (entry.startswith("tests/") and is_new)
-                or (entry == worklog and appended)):
+                or (entry == worklog and appended is not None and not foreign)):
             expected.append(note)
         else:
             unexpected.append(note)
