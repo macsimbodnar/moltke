@@ -43,7 +43,7 @@ Enforced by `bin/moltke.py` in marked repositories:
 Properties of the checker itself:
 
 - INV-11 every mode exits 0 immediately when `.moltke.json` is absent or `enabled` is false. 2026-08-01 (S006, DEC-017): except the setup modes `--scaffold` and `--decline`, which run before the gate because they exist to create the marker; both still leave a declined repository untouched.
-- INV-12 every blocking exit carries a message stating exactly what to do to unblock (DEC-006: a `Stop` hook has a cap on consecutive blocks; an unactionable message deadlocks the session). 2026-08-07 (DEC-031): the cap needs somewhere to keep its count, so it exists wherever git does — a plain clone, a linked worktree, a submodule — and not in a repository with no git at all, where every `Stop` blocks until the problem is fixed. Accepted, not planned.
+- INV-12 every blocking exit carries a message stating exactly what to do to unblock (DEC-006: a `Stop` hook has a cap on consecutive blocks; an unactionable message deadlocks the session). 2026-08-07 (DEC-031): the cap needs somewhere to keep its count, so it exists wherever git does — a plain clone, a linked worktree, a submodule — and not in a repository with no git at all, where every `Stop` blocks until the problem is fixed. Accepted, not planned. 2026-08-08 (S080, DEC-039): the qualifier widens from a repository with no git to anywhere moltke cannot write its state beside the git directory — an unwritable `.git` is the same accepted gap, and the message now names the missing cap instead of leaving it a mystery.
 
 2026-08-01 (S004): INV-8 uses the same git HEAD baseline as INV-7: the
 committed content must be a byte-prefix of the current file; untracked files
@@ -56,6 +56,19 @@ a `Status: <value>` line in its section; the S008 report template must conform.
 (append by move only). Repos without git history have no baseline, so the
 check abstains. INV-3 additionally treats a missing `plan.md` in an enabled
 repo as a violation.
+
+2026-08-08 (S080, DEC-039): `mode_stop` prints before it persists, and nothing
+in it raises. The retry state write was the one unguarded write left after S067
+guarded every read, so an unwritable `.git` escaped to `main`'s backstop — which
+returns before the problems are printed and before the cap is consulted. Eight
+consecutive stops read `2 2 2 2 2 2 2 2` against `2 2 2 0 0` for a writable
+`.git`, and the message called a write a read and named `--validate`, which
+reports all checks pass on that tree (finding 2026-08-08_adversarial.3-F01). It
+was the third wedge found in this function and the second introduced while fixing
+the first, which is why DEC-039 states a rule for it rather than moving the guard
+again. The missing cap is the accepted half: DEC-031 weighed the same trade for a
+repository with no git, so the property is scoped to wherever the state can be
+written, and the message says so.
 
 2026-08-08 (S078): INV-16 compares the prime-directive section against its
 stripped form, which is what this file already claimed it did. It returned clean

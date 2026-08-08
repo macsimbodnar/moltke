@@ -1387,6 +1387,16 @@ def mode_stop(root, config, marker_violations):
 
     state_path = _stop_state_path(root)
     if problems:
+        # Print first, persist second, and let nothing here raise (S080,
+        # DEC-039). The state write was the one unguarded write left in this
+        # function after S067 guarded every read, so an unwritable .git escaped
+        # to main's backstop — which returns before these lines run. The
+        # problems were collected and thrown away, and the session could not
+        # end: the third wedge found here and the second introduced fixing the
+        # first. Printing before persisting means the worst case is a missing
+        # cap rather than a silent turn.
+        for problem in problems:
+            print(f"moltke: {problem}", file=sys.stderr)
         turn = stop_turn_key(root, payload)
         fingerprint = hashlib.sha256("\n".join(sorted(problems)).encode()).hexdigest()[:16]
         count = 1
@@ -1400,11 +1410,19 @@ def mode_stop(root, config, marker_violations):
                     count = state.get("count", 0) + 1
             except (OSError, json.JSONDecodeError):
                 pass
-            state_path.write_text(
-                json.dumps({"turn": turn, "fingerprint": fingerprint, "count": count}),
-                encoding="utf-8")
-        for problem in problems:
-            print(f"moltke: {problem}", file=sys.stderr)
+            try:
+                state_path.write_text(
+                    json.dumps({"turn": turn, "fingerprint": fingerprint, "count": count}),
+                    encoding="utf-8")
+            except OSError as exc:
+                # DEC-039 scopes the cap to wherever the state can be written,
+                # which is DEC-031's accepted gap applied to its neighbour: every
+                # Stop blocks until the problem is fixed, and the message says
+                # why the waiver never comes rather than leaving it a mystery.
+                print(f"moltke: {state_path.name} could not be written ({exc}), so the "
+                      f"deadlock cap cannot count attempts and every Stop will block until "
+                      f"the problems above are fixed or that path is made writable.",
+                      file=sys.stderr)
         if count > STOP_CAP:
             # Live docs (2026-08-01) document no built-in cap; this one keeps
             # the no-deadlock property of DEC-006 / INV-12. The problems are

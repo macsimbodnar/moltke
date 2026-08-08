@@ -946,7 +946,60 @@ class TestTheStampGateSeesInsideAnUntrackedPlanDone(unittest.TestCase):
                              f"the step inside it must be judged: {result.stderr}")
 
 
+class TestTheStopStateWriteNeverWedges(unittest.TestCase):
+    """S080 (2026-08-08_adversarial.3-F01): the retry state write was the one
+    unguarded write left in mode_stop. S067 guarded every read here and left it,
+    so the OSError escaped to main's backstop, which returns before the problems
+    are printed and before the cap is consulted — the third wedge found in this
+    function and the second introduced while fixing the first. DEC-039 makes the
+    crash a defect and the missing cap an accepted, stated gap."""
 
+    STATE_FILE = "moltke_stop_state.json"
+
+    def wedged(self, tmp):
+        root = workflow_repo(tmp)
+        (root / "adocs" / "plan.md").write_text(
+            "# Plan\n\n1. S001 base\n2. S002 pending\n3. S003 active\n4. S099 phantom\n",
+            encoding="utf-8")
+        git_baseline(root)
+        log_prompt(root)
+        return root
+
+    def test_an_unwritable_state_directory_does_not_crash_or_go_silent(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.wedged(tmp)
+            git_dir = root / ".git"
+            git_dir.chmod(0o500)
+            try:
+                results = [run_moltke(root, "--stop", stdin="{}") for _ in range(3)]
+            finally:
+                git_dir.chmod(0o755)
+            for result in results:
+                self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+                self.assertNotIn("Traceback", result.stderr)
+                self.assertIn("INV-3", result.stderr, "the problems must still be printed")
+
+    def test_the_message_says_the_write_failed_and_names_the_missing_cap(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.wedged(tmp)
+            git_dir = root / ".git"
+            git_dir.chmod(0o500)
+            try:
+                result = run_moltke(root, "--stop", stdin="{}")
+            finally:
+                git_dir.chmod(0o755)
+            self.assertIn(self.STATE_FILE, result.stderr,
+                          "the state file is what could not be written; name it")
+            self.assertNotIn("could not read the repository", result.stderr)
+
+    def test_the_cap_still_fires_where_the_state_is_writable(self):
+        # Non-vacuity, and the property DEC-039 scopes rather than drops.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.wedged(tmp)
+            exits = [run_moltke(root, "--stop", stdin="{}").returncode for _ in range(5)]
+            self.assertEqual(exits, [2, 2, 2, 0, 0])
+            self.assertTrue((root / ".git" / self.STATE_FILE).is_file(),
+                            "the state file this test is about must exist by name")
 
 
 if __name__ == "__main__":

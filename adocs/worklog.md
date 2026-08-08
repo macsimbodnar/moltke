@@ -1670,3 +1670,11 @@ silently. That is audit finding F14, reproduced and planned as S014.
 ## 2026-08-08T16:37+02:00 prompt
 
 > ok execute all the remainning steps then run an audit
+
+## 2026-08-08T22:24+02:00 prompt
+
+> what is left of the plan?
+
+## 2026-08-08T22:24+02:00 prompt
+
+> execute all of them one after the other without interruption
