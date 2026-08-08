@@ -494,3 +494,70 @@ class TestStepSkill(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestARefusedCompletionChangesNothing(unittest.TestCase):
+    """S062 (2026-08-08_adversarial-F03): step_done wrote the stamp and unpaused
+    the parent, then renamed — and the rename is the only one of the three that
+    can fail. S052 turned that failure into a refusal, after two mutations were
+    already on disk, so a repository went from `all checks pass` to an INV-1
+    violation by way of a command that said it had refused. specs.md states the
+    contract: no transition may leave INV-1..INV-7 violated."""
+
+    def blocked_pair(self, tmp):
+        """S001 active, paused by its blocking child S002, everything green."""
+        root = workflow_repo(tmp)
+        add_testing_row(root, "S003")
+        run_moltke(root, "--step", "done", "S003", "--stamp", STAMP)
+        run_moltke(root, "--step", "start", "S002")
+        run_moltke(root, "--step", "block", "S002", "child")
+        add_testing_row(root, "S004")
+        self.assertEqual(validate(root).returncode, 0, validate(root).stdout)
+        return root
+
+    def test_a_refusal_leaves_the_repository_exactly_as_it_was(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.blocked_pair(tmp)
+            before = {p.name: p.read_text(encoding="utf-8")
+                      for p in (root / "adocs" / "plan_current").iterdir()}
+            (root / "adocs" / "plan_done").rename(root / "adocs" / "plan_done_off")
+            result = run_moltke(root, "--step", "done", "S004", "--stamp", STAMP)
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            after = {p.name: p.read_text(encoding="utf-8")
+                     for p in (root / "adocs" / "plan_current").iterdir()}
+            self.assertEqual(after, before, "a refused completion wrote to the plan tree")
+
+    def test_the_refusal_does_not_create_an_invariant_violation(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.blocked_pair(tmp)
+            done = root / "adocs" / "plan_done"
+            done.rename(root / "adocs" / "plan_done_off")
+            run_moltke(root, "--step", "done", "S004", "--stamp", STAMP)
+            (root / "adocs" / "plan_done_off").rename(done)   # do what the refusal said
+            result = validate(root)
+            self.assertEqual(result.returncode, 0,
+                             f"the refusal left the tree violating something: {result.stdout}")
+
+    def test_the_parent_is_not_unpaused_by_a_refusal(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.blocked_pair(tmp)
+            (root / "adocs" / "plan_done").rename(root / "adocs" / "plan_done_off")
+            run_moltke(root, "--step", "done", "S004", "--stamp", STAMP)
+            parent = (root / "adocs" / "plan_current" / "S002_pending.md").read_text(
+                encoding="utf-8")
+            self.assertRegex(parent, r"paused_by:\s*S004",
+                             "the parent was unpaused by a completion that refused")
+
+    def test_a_successful_completion_still_does_all_three(self):
+        # Non-vacuity: stamp written, parent unpaused, file moved.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.blocked_pair(tmp)
+            result = run_moltke(root, "--step", "done", "S004", "--stamp", STAMP)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            moved = root / "adocs" / "plan_done" / "S004_child.md"
+            self.assertTrue(moved.is_file(), result.stdout)
+            self.assertIn(STAMP, moved.read_text(encoding="utf-8"))
+            parent = (root / "adocs" / "plan_current" / "S002_pending.md").read_text(
+                encoding="utf-8")
+            self.assertNotRegex(parent, r"paused_by:\s*S004")
+            self.assertEqual(validate(root).returncode, 0)

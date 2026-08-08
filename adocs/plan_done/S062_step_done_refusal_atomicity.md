@@ -7,4 +7,4 @@ decisions:
 closes:     2026-08-08_adversarial-F03
 blocks:
 paused_by:
-done:
+done:      2026-08-08: --step done writes nothing until the move is certain. It stamped, unpaused, and renamed last, and the rename is the only one that can fail, so S052's refusal arrived after two mutations were on disk — a transition that refused and repaired half of itself, taking the repository from all checks pass to an INV-1 violation. The stamped content now goes straight to plan_done/, so the first action is the failing one; the source is unlinked only once the destination exists, with the copy undone if that fails; the parent is unpaused after both. set_field split into a pure with_field and a write to make that ordering possible. 4 tests, red observed on all three symptoms. Suite 297 OK, --validate green. README test count 293 to 297; MANUAL needed no change, since it documents the refusal and not the write order; specs gained a dated note.

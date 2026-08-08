@@ -1419,17 +1419,27 @@ def append_to_plan(root, step_id, goal):
     plan_path.write_text(text + entry + "\n", encoding="utf-8")
 
 
-def set_field(path, key, value):
-    """Set a step field, adding the line when the file does not carry it yet."""
+def with_field(text, key, value):
+    """A step file's text with one field set, adding the line if it is absent.
+
+    Separate from the write (S062) so a caller can decide where the result goes
+    — `step_done` writes it to the destination rather than editing in place, so
+    a failed move leaves nothing half-written.
+    """
     rendered = f"{key}:{' ' * max(1, 11 - len(key) - 1)}{value}".rstrip()
     lines, found = [], False
-    for line in path.read_text(encoding="utf-8").splitlines():
+    for line in text.splitlines():
         if line.split(":", 1)[0].strip() == key:
             line, found = rendered, True
         lines.append(line)
     if not found:
         lines.append(rendered)
-    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return "\n".join(lines) + "\n"
+
+
+def set_field(path, key, value):
+    """Set a step field in place."""
+    path.write_text(with_field(path.read_text(encoding="utf-8"), key, value), encoding="utf-8")
 
 
 def step_new(root, config, name, goal):
@@ -1562,12 +1572,33 @@ def step_done(root, config, step_id, stamp):
     if gate is not None:
         return gate
 
-    set_field(path, "done", stamp)
+    # Nothing is written until the move is certain (S062,
+    # 2026-08-08_adversarial-F03). The rename is the only one of the three
+    # mutations that can fail, and it used to go last, so a refusal left the
+    # stamp written and the parent unpaused — a transition that refused and
+    # repaired half of itself, taking the repository from all checks pass to an
+    # INV-1 violation. Writing the stamped content straight to the destination
+    # makes the first step the failing one; the source is only unlinked once the
+    # destination exists, and the parent is unpaused after both.
+    destination = root / DOCS / "plan_done" / path.name
+    try:
+        destination.write_text(with_field(path.read_text(encoding="utf-8"), "done", stamp),
+                               encoding="utf-8")
+    except OSError as exc:
+        return refuse(f"could not write {destination.relative_to(root)} ({exc}); nothing was "
+                      f"changed. {DOCS}/plan_done/ is where completed steps go: restore it, or "
+                      f"run bin/moltke.py --scaffold, which creates what is absent and "
+                      f"overwrites nothing")
+    try:
+        path.unlink()
+    except OSError as exc:
+        destination.unlink(missing_ok=True)
+        return refuse(f"could not remove {path.relative_to(root)} after copying it "
+                      f"({exc}); the copy was undone and nothing was changed")
     for parent_id, parent_path, parent_fields in steps["plan_current"]:
         if step_id in field_value(parent_fields, "paused_by"):
             set_field(parent_path, "paused_by", "")
             print(f"moltke: {parent_id} unpaused.")
-    path.rename(root / DOCS / "plan_done" / path.name)
     print(f"moltke: {step_id} completed and moved to plan_done/. Commit it; the move is the "
           f"last action of the step.")
     return EXIT_OK

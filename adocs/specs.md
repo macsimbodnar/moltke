@@ -56,6 +56,19 @@ a `Status: <value>` line in its section; the S008 report template must conform.
 check abstains. INV-3 additionally treats a missing `plan.md` in an enabled
 repo as a violation.
 
+2026-08-08 (S062): `--step done` writes nothing until the move is certain. It
+stamped the step file, unpaused the parent, and renamed last — and the rename is
+the only one of the three that can fail, so the refusal S052 added arrived after
+two mutations were on disk: a transition that refused and repaired half of
+itself, taking a repository from `all checks pass` to an INV-1 violation while
+reporting that it had declined (finding 2026-08-08_adversarial-F03). The stamped
+content now goes straight to `plan_done/`, so the first action is the one that
+can fail; the source is unlinked only once the destination exists, and a failure
+there undoes the copy; the parent is unpaused after both. `set_field` split into
+a pure `with_field` and a write, which is what makes that ordering possible.
+`adocs/specs.md`'s own line — no transition may leave INV-1..INV-7 violated —
+is the contract this restores.
+
 2026-08-08 (S061): the `Stop` turn key folds in the prompt-log failure
 breadcrumb, so it keeps moving on the one path where the worklog cannot. S047
 made the key the worklog's prompt-heading count because `UserPromptSubmit`
