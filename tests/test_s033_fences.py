@@ -330,8 +330,6 @@ class TestAReportCannotHideItsOwnFindings(unittest.TestCase):
             (REPO / ".moltke.json").read_text(encoding="utf-8"))), [])
 
 
-if __name__ == "__main__":
-    unittest.main()
 
 
 class TestEveryStrippedFileIsGuarded(unittest.TestCase):
@@ -495,3 +493,7 @@ class TestOneDecodePolicy(unittest.TestCase):
         strict = [line.strip() for line in source.splitlines()
                   if ".read_text(" in line and "errors=" not in line]
         self.assertEqual(strict, [], "read repository files through read_file")
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -115,6 +115,32 @@ class TestRulesetIdentity(unittest.TestCase):
         self.assertIn("test_ruleset_template_matches_the_live_ruleset", covering)
 
 
+class TestEveryTestFileRunsWholeWhenInvokedDirectly(unittest.TestCase):
+    """S074 (2026-08-08_adversarial.2-F08): test_s033_fences.py had
+    `unittest.main()` above two classes, so running the file directly collected
+    26 of its 35 tests while discovery collected all of them. The suite was
+    unaffected, which is why nothing noticed — but watching one file fail before
+    the fix is how AGENTS.md section 6 says red is observed, and for two steps
+    that file reported OK while running none of their tests."""
+
+    def test_every_test_file_runs_whole_when_invoked_directly(self):
+        offenders = []
+        for path in sorted((REPO / "tests").glob("test_*.py")):
+            lines = path.read_text(encoding="utf-8").splitlines()
+            guards = [n for n, line in enumerate(lines)
+                      if line.startswith('if __name__ == "__main__":')]
+            if not guards:
+                offenders.append(f"{path.name}: no __main__ guard, so running it does nothing")
+                continue
+            after = [line for line in lines[guards[0] + 1:]
+                     if line.strip() and not line.startswith((" ", "\t"))]
+            if after:
+                offenders.append(f"{path.name}: {len(after)} line(s) after the guard")
+        self.assertEqual(offenders, [],
+                         "a class below unittest.main() never runs when the file is invoked "
+                         "directly, which is how red is observed")
+
+
 if __name__ == "__main__":
     import sys
     if "--refresh" in sys.argv:

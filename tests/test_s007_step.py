@@ -493,9 +493,6 @@ class TestStepSkill(unittest.TestCase):
         self.assertRegex(frontmatter, r"description:\s*\S")
 
 
-if __name__ == "__main__":
-    unittest.main()
-
 
 class TestARefusedCompletionChangesNothing(unittest.TestCase):
     """S062 (2026-08-08_adversarial-F03): step_done wrote the stamp and unpaused
@@ -640,3 +637,10 @@ class TestNoDeadEndCompletion(unittest.TestCase):
             result = run_moltke(root, "--step", "done", "S002", "--stamp", STAMP)
             self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
             self.assertIn("paused by S004", result.stderr)
+
+
+
+
+
+if __name__ == "__main__":
+    unittest.main()

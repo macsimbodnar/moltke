@@ -169,3 +169,7 @@ class TestTheInvariantTravels(unittest.TestCase):
                                  + f"\nkey {SHAPES[0][2]}\n", encoding="utf-8")
             result = self.run_moltke(root, "--validate")
             self.assertNotIn("INV-15", result.stdout)
+
+
+if __name__ == "__main__":
+    unittest.main()

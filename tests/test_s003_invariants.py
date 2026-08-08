@@ -307,9 +307,6 @@ class TestInvariants(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
 
-if __name__ == "__main__":
-    unittest.main()
-
 
 class TestInv7NamesTheRenamedFile(unittest.TestCase):
     """S071 (2026-08-08_adversarial.2-F05): INV-7 sliced the porcelain line and
@@ -368,3 +365,10 @@ class TestInv7NamesTheRenamedFile(unittest.TestCase):
                         .stdout.splitlines()]
             self.assertTrue(any(code.startswith("R") for code in statuses), statuses)
             self.assertEqual(run_validate(root).returncode, 1)
+
+
+
+
+
+if __name__ == "__main__":
+    unittest.main()

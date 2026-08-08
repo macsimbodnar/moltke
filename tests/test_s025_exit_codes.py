@@ -141,3 +141,7 @@ class TestCleanPathsAreQuietAndZero(unittest.TestCase):
             result = run_moltke(root, "--audit", "new", "probe")
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             self.assertIn("--audit check", result.stderr)
+
+
+if __name__ == "__main__":
+    unittest.main()

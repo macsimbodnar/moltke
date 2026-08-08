@@ -777,9 +777,6 @@ class TestStop(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
 
 
-if __name__ == "__main__":
-    unittest.main()
-
 
 class TestStopNeverWedges(unittest.TestCase):
     """S067 (2026-08-08_adversarial.2-F01): S060 stopped --stop dying at exit 1
@@ -947,3 +944,10 @@ class TestTheStampGateSeesInsideAnUntrackedPlanDone(unittest.TestCase):
             result = run_moltke(root, "--stop", stdin="{}")
             self.assertEqual(len(stamp_complaints(result)), 1,
                              f"the step inside it must be judged: {result.stderr}")
+
+
+
+
+
+if __name__ == "__main__":
+    unittest.main()
