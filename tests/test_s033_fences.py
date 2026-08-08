@@ -397,6 +397,7 @@ class TestEveryStrippedFileIsGuarded(unittest.TestCase):
         # guard was vacuous by construction. Naming the callers instead cannot
         # be defeated by changing how the file is read.
         allowed = {'def strip_guidance(text):', 'return strip_guidance(text)',
+                   'return strip_guidance(text).strip() != text.strip()',
                    'return strip_guidance(fields.get(key, "")).strip()'}
         source = (REPO / "bin" / "moltke.py").read_text(encoding="utf-8")
         offenders = [line.strip() for line in source.splitlines()
@@ -527,6 +528,54 @@ class TestInv14NamesTheCauseItCanProve(unittest.TestCase):
             self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
             self.assertIn("INV-14", result.stdout)
             self.assertIn("2026-08-01_adversarial-F02", result.stdout)
+
+
+class TestInv16Compares(unittest.TestCase):
+    """S078 (2026-08-08_adversarial.2-F12): INV-16 returned clean as soon as
+    prime_directive was non-empty, so a section holding a lead-in sentence and
+    the rule itself inside a fence passed — the directive proper unreadable, no
+    check reporting it, and prime_directive returning the lead-in. specs.md
+    describes it as comparing what the file states against what survives
+    stripping, exactly as INV-14 does; it tested both sides for emptiness."""
+
+    MIXED = ("# Specs\n\n## Prime directive\n\nThis project has one rule.\n\n"
+             "```\nState is derivable from tracked files alone.\n```\n\n"
+             "## Invariants\n\n- INV-1\n")
+
+    def test_a_directive_fenced_beside_other_prose_is_reported(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            (root / "adocs" / "specs.md").write_text(self.MIXED, encoding="utf-8")
+            self.assertEqual(moltke.prime_directive(root), "This project has one rule.",
+                             "precondition: the lead-in reads as the directive")
+            result = run_validate(root)
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn("INV-16", result.stdout)
+
+    def test_a_wholly_fenced_directive_is_still_reported(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            (root / "adocs" / "specs.md").write_text(
+                "# Specs\n\n## Prime directive\n\n```\nnever lose a write\n```\n\n"
+                "## Invariants\n\n- INV-1\n", encoding="utf-8")
+            self.assertEqual(run_validate(root).returncode, 1)
+
+    def test_an_ordinary_directive_stays_clean(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            (root / "adocs" / "specs.md").write_text(
+                "# Specs\n\n## Prime directive\n\nnever lose a write\n\n"
+                "## Invariants\n\n```\nINV-1 example\n```\n", encoding="utf-8")
+            self.assertEqual(run_validate(root).returncode, 0)
+
+    def test_an_unwritten_directive_is_the_nudge_not_a_violation(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            (root / "adocs" / "specs.md").write_text(
+                "# Specs\n\n## Prime directive\n\n<!-- one sentence -->\n\n"
+                "## Invariants\n\n- INV-1\n", encoding="utf-8")
+            self.assertEqual(run_validate(root).returncode, 0)
+            self.assertIn("Planning phase pending", run_moltke(root, "--session-start").stdout)
 
 
 if __name__ == "__main__":

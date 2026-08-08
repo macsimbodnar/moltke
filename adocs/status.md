@@ -5,9 +5,9 @@ this file: on disagreement, `plan_current/` wins.
 
 Updated: 2026-08-08 by `moltke --step status`.
 
-- Last done: S077
+- Last done: S078
 - In progress: none
-- Next: S078
+- Next: S059
 - Blocked: none
 - Parked:
   - `2026-08-06_adversarial-F02`, the reviewer write fence, is the one finding of

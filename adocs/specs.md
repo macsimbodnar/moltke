@@ -38,7 +38,7 @@ Enforced by `bin/moltke.py` in marked repositories:
 - INV-13 `plan.md`, `decisions.md`, `worklog.md`, and every audit report have an even number of code-fence markers. 2026-08-07 (S033): added, because an unclosed fence makes content invisible to every scanner that reads the file.
 - INV-14 no audit report states a finding under its own name that `strip_guidance` then removes. 2026-08-08 (S049, DEC-033): added, because parity catches one unclosed fence and not two — two are an even count that pairs as one closed fence and deletes the finding between them. 2026-08-08 (S075): comments come out before the comparison, so a heading inside one is guidance like any other commented content rather than a finding a fence swallowed — the message named a cause that was not present and a remedy that could not be followed.
 - INV-15 `worklog.md` holds nothing shaped like a credential: prefixed key shapes and PEM private-key headers. 2026-08-08 (S031, DEC-032, DEC-024): added, because prompt logging writes verbatim into a tracked file in every repository moltke is installed into, and the tool doing the writing is the one that should say so. Detected, never redacted, and never printed beyond the first 8 characters.
-- INV-16 `specs.md` never states a prime directive that `strip_guidance` then removes. 2026-08-08 (S063): added, because INV-13's parity cannot see an even marker count and a written-but-unreadable directive reads as unwritten to every check, including the planning nudge.
+- INV-16 `specs.md` never states a prime directive that `strip_guidance` then removes. 2026-08-08 (S063): added, because INV-13's parity cannot see an even marker count and a written-but-unreadable directive reads as unwritten to every check, including the planning nudge. 2026-08-08 (S078): it compares the section against its stripped form rather than testing both sides for emptiness, so a directive fenced beside other prose is reported too — the section is one sentence by design, and anything a fence removes from it is content no check can read.
 
 Properties of the checker itself:
 
@@ -56,6 +56,16 @@ a `Status: <value>` line in its section; the S008 report template must conform.
 (append by move only). Repos without git history have no baseline, so the
 check abstains. INV-3 additionally treats a missing `plan.md` in an enabled
 repo as a violation.
+
+2026-08-08 (S078): INV-16 compares the prime-directive section against its
+stripped form, which is what this file already claimed it did. It returned clean
+as soon as `prime_directive` was non-empty, so a section holding a lead-in
+sentence and the rule itself inside a fence passed: the directive unreadable,
+nothing reporting it, and `prime_directive` answering with the lead-in (finding
+2026-08-08_adversarial.2-F12). `hides_content` holds the comparison INV-14 and
+INV-16 both make, which also keeps it inside the short list of lines allowed to
+call `strip_guidance` — the S072 guard caught the first attempt, which is the
+guard working.
 
 2026-08-08 (S077): `--audit check` and the `Stop` gates share one definition of
 "newly here". `_is_new_file` kept the pre-S050 predicate while `_arrives_here`

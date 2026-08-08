@@ -179,6 +179,15 @@ def stripped_files(root):
     return files
 
 
+def hides_content(text):
+    """Whether stripping guidance would remove anything from `text`.
+
+    The comparison INV-14 and INV-16 both make, in one place, so it stays inside
+    the short list of lines allowed to call `strip_guidance` (S078).
+    """
+    return strip_guidance(text).strip() != text.strip()
+
+
 def read_stripped(path):
     """A repository file with guidance stripped. Every whole-file read through
     `strip_guidance` goes via here, so INV-13 and the scanners cannot disagree
@@ -698,14 +707,24 @@ def inv_16_prime_directive_readable(root, config):
     if not specs.is_file():
         return []
     raw = PRIME_DIRECTIVE_SECTION.search(read_file(specs))
-    if not raw or not strip_comments(raw.group(1)).strip():
+    if not raw:
+        return []
+    stated = strip_comments(raw.group(1)).strip()
+    if not stated:
         return []   # nothing written yet: that is the planning nudge's business
-    if prime_directive(root):
+    # Compare the two sides rather than testing both for emptiness (S078,
+    # .2-F12). Returning clean as soon as prime_directive was non-empty passed a
+    # section holding a lead-in sentence and the rule itself inside a fence: the
+    # directive unreadable, nothing reporting it, and prime_directive answering
+    # with the lead-in. The section is one sentence by design, so anything a
+    # fence removes from it is content no check can read.
+    if not hides_content(stated):
         return []
     return [f"INV-16: {DOCS}/specs.md states a prime directive that a code fence swallows, so "
-            f"every check reads it as unwritten and --session-start asks for one that is "
-            f"already there. The marker count is even, which is why INV-13 is quiet: close "
-            f"the example blocks around it, or move them out of the section"]
+            f"what every check reads is not what the file says — and --session-start may be "
+            f"asking for a directive that is already there. The marker count is even, which is "
+            f"why INV-13 is quiet: close the example blocks around it, or move them out of "
+            f"the section"]
 
 
 def inv_15_worklog_secrets(root, config):
