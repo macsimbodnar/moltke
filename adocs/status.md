@@ -7,7 +7,7 @@ Updated: 2026-08-08 by `moltke --step status`.
 
 - Last done: S031
 - In progress: none
-- Next: no steps left in plan.md
+- Next: S058
 - Blocked: none
 - Parked:
   - S012 completed 2026-08-06 on two machines. Five of its six clauses passed; the reviewer write fence failed, proven by a live plugin spawn writing outside `adocs/audit/` unblocked. That is finding F02 and step S016, which must re-probe with a live spawn rather than synthetic payloads. Until S016 lands, the reviewer is confined by its prompt and not by enforcement.

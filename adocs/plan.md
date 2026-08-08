@@ -71,3 +71,5 @@ step instead.
 53. S028  init drives a guided planning phase after scaffolding
 54. S029  init handles a repo already initialized on another machine
 55. S031  target repositories inherit the worklog secret check, not just moltke's own suite
+56. S058  bump 0.5.0, re-run the audit, close the findings it no longer reports
+57. S059  verify the installed 0.5.0 in a live session, after reinstall

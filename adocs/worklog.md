@@ -1639,3 +1639,7 @@ silently. That is audit finding F14, reproduced and planned as S014.
 ## 2026-08-08T11:19+02:00 prompt
 
 > run all the steps untill you need my inputl
+
+## 2026-08-08T12:13+02:00 prompt
+
+> let's go over them in an iteractive way, put a little explanation on top of the question
