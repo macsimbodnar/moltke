@@ -143,5 +143,46 @@ class TestCleanPathsAreQuietAndZero(unittest.TestCase):
             self.assertIn("--audit check", result.stderr)
 
 
+class TestAuditFollowsTheDocumentedTable(unittest.TestCase):
+    """S076 (2026-08-08_adversarial.2-F10): the S060 backstop returned
+    EXIT_BLOCK for --audit, which README's table assigns to the three hook modes
+    only, and reported a failed write as "could not read the repository" with a
+    remedy that had nothing to do with it. mode_step already had its own
+    handler; mode_audit did not."""
+
+    def test_a_failed_audit_write_refuses_on_stderr_with_exit_1(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            audit_dir = root / "adocs" / "audit"
+            audit_dir.mkdir(parents=True, exist_ok=True)
+            audit_dir.chmod(0o555)
+            try:
+                result = run_moltke(root, "--audit", "new", "adversarial")
+                self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+                self.assertEqual(result.stdout, "", "a refusal belongs on stderr")
+                self.assertIn("write", result.stderr.lower(),
+                              "a failed write must not be reported as a read")
+            finally:
+                audit_dir.chmod(0o755)
+
+    def test_a_failed_audit_read_refuses_rather_than_blocking(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            report = audit_report(root, [("2026-08-01_adversarial-F01", "accepted")])
+            report.chmod(0o000)
+            try:
+                result = run_moltke(root, "--audit", "list")
+                self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+                self.assertNotIn("Traceback", result.stderr)
+            finally:
+                report.chmod(0o644)
+
+    def test_the_ordinary_audit_paths_are_unchanged(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            self.assertEqual(run_moltke(root, "--audit", "new", "adversarial").returncode, 0)
+            self.assertEqual(run_moltke(root, "--audit", "list").returncode, 0)
+
+
 if __name__ == "__main__":
     unittest.main()

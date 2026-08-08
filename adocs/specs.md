@@ -57,6 +57,14 @@ a `Status: <value>` line in its section; the S008 report template must conform.
 check abstains. INV-3 additionally treats a missing `plan.md` in an enabled
 repo as a violation.
 
+2026-08-08 (S076): `--audit` refuses with exit 1 on stderr like `--step` does,
+instead of returning the `main` backstop's exit 2 — which `README.md`'s table
+assigns to the three hook modes only — and its message says whether the failure
+was a read or a write. A failed `--audit new` was reported as "could not read the
+repository" with `--validate` named as the remedy, which had nothing to do with
+it, and the exit table stopped being traceable to the code that produces it,
+which §7 requires of every doc claim (finding 2026-08-08_adversarial.2-F10).
+
 2026-08-08 (S075): INV-14 strips comments before comparing, so what it reports
 is always something a fence can hide. `strip_guidance` removes HTML comments as
 well as fences, so a draft finding commented out — which the shipped template

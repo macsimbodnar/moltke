@@ -2156,6 +2156,19 @@ def mode_audit(root, config, argv):
     op, rest = argv[0], argv[1:]
     if op not in AUDIT_OPS:
         return refuse(f"unknown --audit operation {op!r}; use one of {', '.join(AUDIT_OPS)}")
+    try:
+        return _mode_audit(root, config, op, rest)
+    except OSError as exc:
+        # --audit refuses like --step does (S076, .2-F10). The S060 backstop
+        # returned EXIT_BLOCK here, which README's table assigns to the three
+        # hook modes only, and called every failure a read — including a write,
+        # with a remedy that had nothing to do with it.
+        verb = "write to" if op == "new" else "read"
+        return refuse(f"--audit {op} could not {verb} {DOCS}/audit ({exc}); fix that path and "
+                      f"run this again")
+
+
+def _mode_audit(root, config, op, rest):
     if op == "list":
         return audit_list(root, config)
     if op == "check":
