@@ -57,6 +57,16 @@ a `Status: <value>` line in its section; the S008 report template must conform.
 check abstains. INV-3 additionally treats a missing `plan.md` in an enabled
 repo as a violation.
 
+2026-08-08 (S069): the `Stop` stamp gate judges step files, matching
+`STEP_FILE_RE` like `plan_steps` does. It tested the porcelain status and the
+path prefix alone, so anything arriving under `plan_done/` was asked for a
+completion stamp — including `--scaffold`'s own `.gitkeep`. In a project with
+history adopting moltke, which is what `--scaffold` is for, that meant every
+`Stop` blocked from the moment it was scaffolded, staging did not clear it, and
+`--validate` said all checks pass throughout (finding
+2026-08-08_adversarial.2-F03). This was the only reader of `plan_done/` without
+that filter, which is why INV-5 and INV-6 had nothing to say about the same file.
+
 2026-08-08 (S068): `--session-start` prints its JSON envelope on every path,
 with a read failure carried inside `additionalContext` rather than on stderr.
 The whole payload was built before the single print, so one unreadable path lost

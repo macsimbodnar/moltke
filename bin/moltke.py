@@ -1298,6 +1298,14 @@ def porcelain_problems(root, porcelain):
             # arrived, so there is nothing to stamp (S060).
             if not (root / entry).is_file():
                 continue
+            # A step file, not merely a path under plan_done/ (S069, .2-F03).
+            # This was the one reader of that directory without STEP_FILE_RE, so
+            # --scaffold's own .gitkeep, or any stray file, was asked for a
+            # completion stamp — and in a project adopting moltke that meant
+            # every Stop blocked from the moment it was scaffolded, with
+            # --validate green throughout.
+            if not STEP_FILE_RE.match(Path(entry).name):
+                continue
             fields = parse_step_file(root / entry)
             stamp = fields.get("done", "")
             if "README" not in stamp or "MANUAL" not in stamp:

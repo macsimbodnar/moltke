@@ -876,3 +876,46 @@ class TestSessionStartAlwaysSpeaks(unittest.TestCase):
             context = session_context(root)
             self.assertIn("S003", context)
             self.assertNotIn("could not", context)
+
+
+class TestTheStampGateJudgesStepFiles(unittest.TestCase):
+    """S069 (2026-08-08_adversarial.2-F03): the gate tested the porcelain status
+    and the path prefix and nothing else, so anything arriving under plan_done/
+    was asked for a completion stamp. --scaffold's own .gitkeep is such a thing,
+    which made every Stop block in an existing project the moment it adopted
+    moltke. plan_steps filters on STEP_FILE_RE; this was the only reader of
+    plan_done/ without that filter."""
+
+    def test_a_stray_file_under_plan_done_is_not_a_completion(self):
+        for name in (".gitkeep", "notes.txt", "README.md"):
+            with self.subTest(name=name), tempfile.TemporaryDirectory() as tmp:
+                root = workflow_repo(tmp)
+                git_baseline(root)
+                log_prompt(root)
+                (root / "adocs" / "plan_done" / name).write_text("x\n", encoding="utf-8")
+                result = run_moltke(root, "--stop", stdin="{}")
+                self.assertEqual(stamp_complaints(result), [],
+                                 f"{name} is not a step: {result.stderr}")
+
+    def test_scaffolding_into_a_repository_with_history_does_not_wedge_it(self):
+        # The finding's own path: the documented way an existing project adopts
+        # moltke, after which every Stop blocked on a file the scaffold wrote.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "README.md").write_text("# existing project\n", encoding="utf-8")
+            subprocess.run(["git", "-C", str(root), "init", "-q"], check=True)
+            git(root, "add", "-A")
+            git(root, "commit", "-qm", "existing history")
+            run_moltke(root, "--scaffold")
+            result = run_moltke(root, "--stop", stdin="{}")
+            self.assertEqual(stamp_complaints(result), [], result.stderr)
+
+    def test_a_real_step_file_still_has_to_carry_the_stamp(self):
+        # Non-vacuity: the filter must not turn the gate off.
+        def git_mv(root, src, dst):
+            git(root, "mv", str(src.relative_to(root)), str(dst.relative_to(root)))
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = TestStop._completed_by_hand(TestStop(), tmp, git_mv)
+            result = run_moltke(root, "--stop", stdin="{}")
+            self.assertEqual(len(stamp_complaints(result)), 1, result.stderr)
