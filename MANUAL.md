@@ -58,6 +58,16 @@ It asks once. Yes scaffolds `AGENTS.md`, `CLAUDE.md`, `.cursor/rules/moltke.mdc`
 never asks again. Nothing existing is ever overwritten: a repository that
 already has an `AGENTS.md` keeps it, and moltke reports what it left alone.
 
+On a machine where the repository already uses moltke — a fresh clone, a
+colleague joining — `/moltke:init` verifies instead of scaffolding: `--validate`,
+then the session context to show where the project actually is, then `--scaffold`
+for its drift report. Repository state travels in git; only the plugin install is
+per-machine, so the one thing worth checking is whether `AGENTS.md`, `CLAUDE.md`,
+and `.cursor/rules/moltke.mdc` still match the templates of the plugin you have
+installed. Drift is reported file by file and never fixed for you: those files
+may carry house rules on purpose. A refresh happens only if you say yes to one,
+and never touches `adocs/` or `.moltke.json`.
+
 The same turn continues into a planning phase: the prime directive and the
 invariants into `adocs/specs.md`, an ordered first plan into `adocs/plan.md` with
 one `--step new` per step, the session's choices into `adocs/decisions.md`, and a
@@ -122,7 +132,7 @@ Cursor) must, since hooks exist only in Claude Code.
 | Command | What it does |
 |---|---|
 | `--validate` | run every invariant, print all violations, exit 1 if any |
-| `--scaffold` | create the marker, `AGENTS.md`, `CLAUDE.md`, the Cursor pointer, and `adocs/` from templates; never overwrites an existing file |
+| `--scaffold` | create the marker, `AGENTS.md`, `CLAUDE.md`, the Cursor pointer, and `adocs/` from templates; never overwrites an existing file, and reports for each kept ruleset file whether it still matches the installed template |
 | `--decline` | record that this repository declines the workflow, durably; refuses to disable an already-enabled repository |
 | `--step new <name>` | allocate the next step id, write the step file, list it in `plan.md` |
 | `--step start <id>` | move a step from `plan_todo/` to `plan_current/` |

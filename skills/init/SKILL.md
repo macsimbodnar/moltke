@@ -14,10 +14,26 @@ Check `.moltke.json` at the repository root.
 - **Missing** — continue to step 2.
 - **`"enabled": false`** — the user already declined. Say so in one line and stop.
   Do not ask again, do not scaffold.
-- **`"enabled": true`** — already set up. Run
-  `python3 ${CLAUDE_PLUGIN_ROOT}/bin/moltke.py --validate` and report the result.
-  Scaffolding again is safe but usually pointless; only do it to restore a
-  deleted file.
+- **`"enabled": true`** — already set up, which on a fresh clone is the normal
+  case: the repository's state travels in git and only the plugin install is
+  per-machine. Verify rather than scaffold, in this order:
+
+  1. `python3 ${CLAUDE_PLUGIN_ROOT}/bin/moltke.py --validate` — report the result
+     verbatim. A violation here is the first thing to fix, before any work.
+  2. `python3 ${CLAUDE_PLUGIN_ROOT}/bin/moltke.py --session-start` — read back the
+     `plan_current/` stack and the derived next step, so the user sees where the
+     project is rather than being told it is set up.
+  3. `python3 ${CLAUDE_PLUGIN_ROOT}/bin/moltke.py --scaffold` — safe here: it
+     creates only what is missing and overwrites nothing. Its `kept` lines say,
+     file by file, whether `AGENTS.md`, `CLAUDE.md`, and `.cursor/rules/moltke.mdc`
+     still match the installed plugin's templates. Report any drift as drift:
+     it means the files were written by an older plugin, or edited on purpose,
+     and both are legitimate.
+
+  Offer a refresh of a drifted file as a question, naming what would change, and
+  apply it only on an explicit yes — the ruleset may hold house rules that an
+  overwrite would erase. Never touch `adocs/` or `.moltke.json` this way: those
+  are the project's own state, not the plugin's.
 
 ## 2. Ask once
 

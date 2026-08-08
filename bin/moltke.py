@@ -1139,6 +1139,25 @@ def declined(root):
     return isinstance(config, dict) and config.get("enabled") is False
 
 
+# Template names, not destinations: the ruleset moltke versions and copies once
+# — AGENTS.md, CLAUDE.md, .cursor/rules/moltke.mdc. Everything under adocs/
+# becomes the project's own content the moment it is used, and the marker carries
+# per-project keys, so comparing either would report drift on every repository
+# that works (S029).
+VERSIONED_TEMPLATES = ("AGENTS.md", "CLAUDE.md", "cursor_rules")
+
+
+def template_drift(target, template):
+    """True if a kept file differs from the installed plugin's template, False if
+    it matches, None if this file is not one moltke versions."""
+    if template not in VERSIONED_TEMPLATES:
+        return None
+    try:
+        return target.read_bytes() != (TEMPLATE_ROOT / template).read_bytes()
+    except OSError:
+        return None
+
+
 def mode_scaffold():
     # Exempt from the INV-11 gate: this mode exists to create the marker (DEC-017).
     root = scaffold_root()
@@ -1150,7 +1169,7 @@ def mode_scaffold():
     for template, destination in SCAFFOLD_MAP:
         target = root / destination
         if target.exists():
-            kept.append(destination)
+            kept.append((destination, template_drift(target, template)))
             continue
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes((TEMPLATE_ROOT / template).read_bytes())
@@ -1164,12 +1183,28 @@ def mode_scaffold():
     print(f"moltke: scaffolded {root}")
     for path in created:
         print(f"  created  {path}")
-    for path in kept:
-        print(f"  kept     {path} (already present, not overwritten)")
+    drifted = []
+    for path, drift in kept:
+        if drift is None:
+            print(f"  kept     {path} (already present, not overwritten)")
+            continue
+        verdict = "differs from the installed template" if drift else \
+                  "matches the installed template"
+        print(f"  kept     {path} (already present, not overwritten; {verdict})")
+        if drift:
+            drifted.append(path)
     if not created:
         print("  nothing to do; the workflow is already set up here")
     elif kept:
         print("Review the kept files: moltke did not merge anything into them.")
+    if drifted:
+        # Reported, never acted on (S029). The ruleset is the user's file: it may
+        # carry house rules deliberately, and an automatic refresh would erase
+        # them. Repository state travels in git; only the plugin is per-machine,
+        # so this is the one thing a fresh clone cannot already know.
+        print(f"Template drift in {', '.join(drifted)}: written by an older plugin, or edited "
+              f"on purpose. Nothing was changed. Compare against "
+              f"{TEMPLATE_ROOT} and merge by hand if you want the newer wording.")
     return EXIT_OK
 
 

@@ -55,6 +55,21 @@ a `Status: <value>` line in its section; the S008 report template must conform.
 check abstains. INV-3 additionally treats a missing `plan.md` in an enabled
 repo as a violation.
 
+2026-08-08 (S029): `--scaffold`'s `kept` lines report, file by file, whether
+`AGENTS.md`, `CLAUDE.md`, and `.cursor/rules/moltke.mdc` still match the
+installed plugin's templates, and a closing line names every file that drifted.
+Reported, never acted on: the ruleset may carry house rules, and an automatic
+refresh would erase them. Nothing under `adocs/` and not `.moltke.json` is
+compared — both become the project's own content the moment it is used, so
+comparing them would report drift on every repository that works. This is what a
+fresh clone cannot already know: repository state travels in git, and only the
+plugin install is per-machine. The `init` skill's already-enabled branch becomes
+that verification path — `--validate`, then `--session-start` to read back the
+stack and the derived next step, then `--scaffold` for the drift report — and a
+refresh of a drifted file is offered as a question, applied only on an explicit
+yes. No new CLI operation, so no surface change: the drift belongs where the
+kept-file decision is already made.
+
 2026-08-08 (S028): `--session-start` reports the planning phase as pending while
 `adocs/specs.md` has no prime directive or `adocs/plan.md` lists no steps, naming
 only the file that is unfilled. `--scaffold` writes both with their content as a

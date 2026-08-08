@@ -7,4 +7,4 @@ decisions:
 closes:
 blocks:
 paused_by:
-done:
+done:      2026-08-08: --scaffold's kept lines now report whether AGENTS.md, CLAUDE.md, and .cursor/rules/moltke.mdc still match the installed plugin's templates, with a closing line naming every drifted file. Reported, never acted on: the ruleset may carry house rules an overwrite would erase. adocs/ and .moltke.json are deliberately not compared — both become the project's own content, so comparing them would report drift on every repository that works. The init skill's enabled-marker branch became the fresh-clone verification path: --validate, --session-start to read back the stack and derived next step, --scaffold for the drift report, and a refresh offered as a question applied only on an explicit yes. No new CLI operation, so no surface change. 6 tests, red observed, plus the fresh-clone case walked outside the suite. Suite 280 OK, --validate green. README test count 274 to 280; MANUAL's setup section and the --scaffold row both describe it; specs gained a dated note.

@@ -177,6 +177,72 @@ class TestTemplatesAreGeneric(unittest.TestCase):
                          "templates/AGENTS.md drifted from AGENTS.md (DEC-012)")
 
 
+class TestTemplateDriftReport(unittest.TestCase):
+    """S029: a fresh clone of a repository that already uses moltke has every
+    tracked file already — repository state travels in git, only the plugin
+    install is per-machine. `--scaffold` there creates nothing, and said nothing
+    about whether the ruleset it copied months ago still matches the installed
+    plugin's. The kept-file lines carry that now: reported, never acted on."""
+
+    RULESET = ("AGENTS.md", "CLAUDE.md", ".cursor/rules/moltke.mdc")
+
+    def cloned(self, tmp):
+        """A repository scaffolded by an older plugin: every file present, and
+        AGENTS.md holding content this plugin's template no longer has."""
+        root = Path(tmp)
+        run_moltke(root, "--scaffold")
+        agents = root / "AGENTS.md"
+        agents.write_text(agents.read_text(encoding="utf-8")
+                          + "\n## Old rule from a previous release\n", encoding="utf-8")
+        return root
+
+    def test_a_kept_file_that_matches_the_template_says_so(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.cloned(tmp)
+            result = run_moltke(root, "--scaffold")
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            for name in ("CLAUDE.md", ".cursor/rules/moltke.mdc"):
+                line = next(l for l in result.stdout.splitlines() if name in l)
+                self.assertIn("matches the installed template", line)
+
+    def test_a_kept_file_that_drifted_is_reported_file_by_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.cloned(tmp)
+            result = run_moltke(root, "--scaffold")
+            line = next(l for l in result.stdout.splitlines() if "AGENTS.md" in l)
+            self.assertIn("differs from the installed template", line)
+            self.assertIn("AGENTS.md", result.stdout)
+
+    def test_drift_is_reported_and_never_acted_on(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.cloned(tmp)
+            before = (root / "AGENTS.md").read_text(encoding="utf-8")
+            run_moltke(root, "--scaffold")
+            self.assertEqual((root / "AGENTS.md").read_text(encoding="utf-8"), before,
+                             "--scaffold overwrote a kept file")
+
+    def test_the_workflow_state_files_are_not_compared(self):
+        # adocs/ is the project's own content the moment it is used: comparing it
+        # against the template would report drift on every real repository.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.cloned(tmp)
+            specs = root / "adocs" / "specs.md"
+            specs.write_text(specs.read_text(encoding="utf-8") + "\nreal content\n",
+                             encoding="utf-8")
+            result = run_moltke(root, "--scaffold")
+            line = next(l for l in result.stdout.splitlines() if "adocs/specs.md" in l)
+            self.assertNotIn("template", line)
+
+    def test_an_untouched_scaffold_reports_no_drift_at_all(self):
+        # Non-vacuity: if this reported drift, every line above would be noise.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            run_moltke(root, "--scaffold")
+            result = run_moltke(root, "--scaffold")
+            self.assertNotIn("differs from the installed template", result.stdout)
+            self.assertIn("matches the installed template", result.stdout)
+
+
 class TestInitSkill(unittest.TestCase):
     def test_skill_declares_name_and_description(self):
         skill = REPO / "skills" / "init" / "SKILL.md"
@@ -186,6 +252,18 @@ class TestInitSkill(unittest.TestCase):
         frontmatter = text.split("---", 2)[1]
         self.assertIn("name: init", frontmatter)
         self.assertRegex(frontmatter, r"description:\s*\S")
+
+    def test_the_already_enabled_branch_is_a_verification_path(self):
+        # S029: "already set up, scaffolding again is pointless" was the whole
+        # instruction for the commonest case there is — a colleague cloning a
+        # repository that already uses moltke.
+        text = (REPO / "skills" / "init" / "SKILL.md").read_text(encoding="utf-8")
+        branch = text.split("`\"enabled\": true`", 1)[1].split("## 2.", 1)[0]
+        for expected in ("--validate", "--session-start", "--scaffold", "drift"):
+            self.assertIn(expected, branch,
+                          f"the enabled-marker branch does not mention {expected!r}")
+        self.assertRegex(branch, r"(?i)ask|yes|explicit",
+                         "a template refresh must be offered, not applied")
 
     def test_the_planning_phase_uses_the_tool_rather_than_hand_copied_files(self):
         # S028: a scaffold leaves specs.md and plan.md as comments, and the step
