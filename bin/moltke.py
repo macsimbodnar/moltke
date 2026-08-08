@@ -1937,7 +1937,12 @@ def audit_new(root, config, audit_type):
 
 
 def _is_new_file(status):
-    return status in ("??", "A ")
+    # One definition of "newly here", shared with the Stop gates (S077, .2-F11).
+    # This kept the pre-S050 predicate while _arrives_here learned that the
+    # index half decides, so `AM` — a red-first test staged and then refined,
+    # which is how one is actually written — was reported as contamination the
+    # reviewer had to justify, when it is exactly what the fence permits.
+    return _arrives_here(status)
 
 
 def worklog_prefix(root):

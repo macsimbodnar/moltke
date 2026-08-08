@@ -412,3 +412,6 @@ never after. Append only.
 | S076 | a failed --audit list refuses rather than blocking | test_s025_exit_codes.py TestAuditFollowsTheDocumentedTable.test_a_failed_audit_read_refuses_rather_than_blocking (red observed: `2 != 1`) | pass 2026-08-08 |
 | S076 | the ordinary --audit paths are unchanged | test_s025_exit_codes.py TestAuditFollowsTheDocumentedTable.test_the_ordinary_audit_paths_are_unchanged | pass 2026-08-08 |
 | S076 | README's and MANUAL's exit tables are traceable to the code again | the tables already assign exit 2 to the three hook modes and exit 1 refusals to `refuse`, which is now what --audit returns | pass 2026-08-08 |
+| S077 | a red-first test staged and then refined is expected, not contamination | test_s008_audit.py TestOneDefinitionOfNewlyHere.test_a_staged_then_edited_new_test_is_expected, with the AM porcelain shape asserted as a precondition (red observed: exit 1 listing it as unexpected) | pass 2026-08-08 |
+| S077 | an edit to a test that already existed is still unexpected | test_s008_audit.py TestOneDefinitionOfNewlyHere.test_an_edit_to_a_test_that_already_existed_is_still_unexpected, the non-vacuity guard for widening the predicate | pass 2026-08-08 |
+| S077 | the two readers share one predicate rather than two that drift | _is_new_file now calls _arrives_here, which the Stop gates already used | pass 2026-08-08 |

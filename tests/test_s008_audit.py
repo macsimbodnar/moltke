@@ -688,5 +688,47 @@ class TestDefinitions(unittest.TestCase):
                               f"{rel} does not name a real out-of-repository target")
 
 
+class TestOneDefinitionOfNewlyHere(unittest.TestCase):
+    """S077 (2026-08-08_adversarial.2-F11): _is_new_file kept the pre-S050
+    predicate, `status in ("??", "A ")`, while the Stop gates moved to
+    _arrives_here, whose index half also accepts AM and RM. So a red-first
+    regression test staged and then refined — the ordinary shape of writing
+    one — was reported as contamination the reviewer had to justify, when it is
+    exactly what the fence permits."""
+
+    def test_a_staged_then_edited_new_test_is_expected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            git_baseline(root)
+            run_moltke(root, "--audit", "new", "adversarial")
+            regression = root / "tests" / "test_regression.py"
+            regression.parent.mkdir(parents=True, exist_ok=True)
+            regression.write_text("# red first\n", encoding="utf-8")
+            git(root, "add", "tests/test_regression.py")
+            regression.write_text("# red first, refined\n", encoding="utf-8")
+            self.assertIn("AM tests/test_regression.py",
+                          git(root, "status", "--porcelain", "-uall").stdout,
+                          "precondition: git recorded it as added-then-modified")
+            result = run_moltke(root, "--audit", "check")
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertNotIn("unexpected", result.stdout)
+
+    def test_an_edit_to_a_test_that_already_existed_is_still_unexpected(self):
+        # Non-vacuity: the fence permits new files under tests/, not patches to
+        # existing ones, and widening "newly here" must not widen that.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            existing = root / "tests" / "test_existing.py"
+            existing.parent.mkdir(parents=True, exist_ok=True)
+            existing.write_text("# was here first\n", encoding="utf-8")
+            git_baseline(root)
+            run_moltke(root, "--audit", "new", "adversarial")
+            existing.write_text("# weakened\n", encoding="utf-8")
+            git(root, "add", "-A")
+            result = run_moltke(root, "--audit", "check")
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn("test_existing.py", result.stdout)
+
+
 if __name__ == "__main__":
     unittest.main()
