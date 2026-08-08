@@ -159,7 +159,7 @@ def strip_guidance(text):
     return "".join(kept)
 
 
-STRIPPED_FILES = ("plan.md", "decisions.md", "worklog.md", "specs.md")
+STRIPPED_FILES = ("plan.md", "decisions.md", "worklog.md", "specs.md", "testing.md")
 
 
 def stripped_files(root):
@@ -289,7 +289,11 @@ def inv_5_done_evidence(root, config):
     testing_path = root / DOCS / "testing.md"
     rows = ""
     if testing_path.is_file():
-        rows = "\n".join(l for l in read_file(testing_path).splitlines()
+        # Through read_stripped, like every other scanner input (S085, .3-F06):
+        # this ledger was the last file read raw, so a row inside a code fence —
+        # guidance by the rule specs states as universal — counted as evidence
+        # and completed a step.
+        rows = "\n".join(l for l in read_stripped(testing_path).splitlines()
                          if l.startswith("|"))
     violations = []
     for step_id, path, fields in plan_steps(root)["plan_done"]:
@@ -1853,7 +1857,7 @@ def step_done(root, config, step_id, stamp):
                 return refuse(f"{other_id} still declares blocks: {step_id}; complete or "
                               f"drop {other_id} first")
     testing = root / DOCS / "testing.md"
-    rows = read_file(testing) if testing.is_file() else ""
+    rows = read_stripped(testing) if testing.is_file() else ""
     if not re.search(rf"\b{step_id}\b", "\n".join(l for l in rows.splitlines()
                                                   if l.startswith("|"))):
         return refuse(f"no testing.md row references {step_id}; acceptance rows are added "

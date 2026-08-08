@@ -729,5 +729,50 @@ class TestNewAndBlockWriteLast(unittest.TestCase):
             self.assertTrue((root / "adocs" / "plan_current" / "S005_dep.md").is_file())
 
 
+class TestTestingRowsAreReadThroughStrip(unittest.TestCase):
+    """S085 (2026-08-08_adversarial.3-F06): the testing ledger was the last
+    scanner input read raw, so a row inside a code fence — guidance by the rule
+    specs states as universal — completed a step and satisfied INV-5."""
+
+    FENCED = ("\n\nHow to write a row, for reference:\n\n"
+              "```\n| {step} | example criterion | tests/test_example.py | pass |\n```\n")
+
+    def fenced_row(self, root, step_id):
+        testing = root / "adocs" / "testing.md"
+        testing.write_text(testing.read_text(encoding="utf-8")
+                           + self.FENCED.format(step=step_id), encoding="utf-8")
+
+    def test_a_fenced_row_does_not_complete_a_step(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            self.fenced_row(root, "S003")
+            result = run_moltke(root, "--step", "done", "S003", "--stamp", STAMP)
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn("testing.md", result.stderr)
+            self.assertTrue((root / "adocs" / "plan_current" / "S003_active.md").is_file())
+
+    def test_a_fenced_row_does_not_satisfy_inv5(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            add_testing_row(root, "S003")
+            run_moltke(root, "--step", "done", "S003", "--stamp", STAMP)
+            testing = root / "adocs" / "testing.md"
+            kept = [l for l in testing.read_text(encoding="utf-8").splitlines()
+                    if "S003" not in l]
+            testing.write_text("\n".join(kept) + self.FENCED.format(step="S003"),
+                               encoding="utf-8")
+            result = validate(root)
+            self.assertEqual(result.returncode, 1, result.stdout)
+            self.assertIn("INV-5", result.stdout)
+
+    def test_a_real_row_still_works(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            add_testing_row(root, "S003")
+            self.assertEqual(run_moltke(root, "--step", "done", "S003",
+                                        "--stamp", STAMP).returncode, 0)
+            self.assertEqual(validate(root).returncode, 0)
+
+
 if __name__ == "__main__":
     unittest.main()

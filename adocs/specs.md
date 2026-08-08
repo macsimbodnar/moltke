@@ -57,6 +57,14 @@ a `Status: <value>` line in its section; the S008 report template must conform.
 check abstains. INV-3 additionally treats a missing `plan.md` in an enabled
 repo as a violation.
 
+2026-08-08 (S085): `adocs/testing.md` is read through `read_stripped` by INV-5
+and by `--step done`, and joins `stripped_files` and therefore INV-13's scan. It
+was the last scanner input read raw, so a row inside a code fence — guidance by
+the rule this file states as universal — counted as evidence and completed a step
+(finding 2026-08-08_adversarial.3-F06). Adding the reader without adding the file
+to the guarded set failed S072's functional guard, which is that guard doing its
+job three steps after it was built.
+
 2026-08-08 (S084): INV-7 names `git mv` for a rename inside `plan_done/`, which
 undoes it, rather than `git checkout` on the new path, which restores it from an
 index that already holds the rename and therefore changes nothing. S071 made this
