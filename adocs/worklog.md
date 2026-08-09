@@ -1880,3 +1880,29 @@ adocs/testing.md (5 rows), adocs/specs.md (dated note), README.md (392 to 396),
 MANUAL.md (no-traceback paragraph), adocs/plan_done/S091_setup_modes_refuse.md,
 adocs/status.md.
 Suite 396 OK, --validate green.
+
+## 2026-08-09T03:35+02:00 recap
+
+S092 complete. `git_prefix` is computed once per root and cached. Closes
+2026-08-08_adversarial.4-F05.
+
+Red observed: 29 `git rev-parse --show-prefix` spawns for one run_checks over a
+fixture with eight completed steps. On this repository it was 257, on every prompt,
+through the Stop and post-write hooks, for an answer that cannot change while a run
+is in flight.
+
+Measured against the stashed working tree: `--validate` 9.54s to 0.72s, `--stop`
+9.79s to 0.78s.
+
+The cache key is the root, so a process checking two roots still asks once for each.
+S081's monorepo behaviour — what the prefix exists for — is unchanged and green.
+
+The test asserts at least one prefix lookup before asserting the count, so a fixture
+without git history cannot pass by abstaining.
+
+Files: bin/moltke.py (_GIT_PREFIX_CACHE, git_prefix),
+tests/test_s003_invariants.py (TestGitPrefixIsComputedOncePerRoot, 1 test),
+adocs/testing.md (4 rows), adocs/specs.md (dated note with the measurements),
+README.md (396 to 397), adocs/plan_done/S092_cache_git_prefix.md, adocs/status.md.
+MANUAL checked, no change: the caching is invisible at the surface it documents.
+Suite 397 OK, --validate green.

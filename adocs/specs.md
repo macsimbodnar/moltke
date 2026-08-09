@@ -57,6 +57,15 @@ a `Status: <value>` line in its section; the S008 report template must conform.
 check abstains. INV-3 additionally treats a missing `plan.md` in an enabled
 repo as a violation.
 
+2026-08-09 (S092): `git_prefix` is computed once per root and cached. It shells out
+to `git rev-parse --show-prefix`, and `from_git_path` and `to_git_path` call it once per
+path, so INV-7 and INV-8 walking every completed step and every history line spawned 257
+processes for one `run_checks` over this repository — on every prompt, through the Stop
+and post-write hooks (finding 2026-08-08_adversarial.4-F05). Measured here: `--validate`
+9.54s to 0.72s, `--stop` 9.79s to 0.78s. The answer cannot change while a run is in
+flight, and the key is the root, so a process checking two roots still asks once for
+each. What S081 added the prefix for is unchanged.
+
 2026-08-09 (S091): `--scaffold` and `--decline` guard their own writes and refuse
 with exit 1 instead of raising. Both are dispatched before `main`'s backstop and have
 to be — that backstop runs after the marker gate they exist to create — so an

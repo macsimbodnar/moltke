@@ -494,6 +494,52 @@ class TestInv7RenameRemedyRestores(unittest.TestCase):
             self.assertFalse((root / "adocs" / "plan_done" / "S001_renamed.md").exists())
 
 
+class TestGitPrefixIsComputedOncePerRoot(unittest.TestCase):
+    """S092 (2026-08-08_adversarial.4-F05): `git_prefix` shells out to
+    `git rev-parse --show-prefix`, and `from_git_path`/`to_git_path` call it once
+    per path. INV-7 and INV-8 walk every completed step and every history line, so
+    one run_checks spawned a process per path — hundreds on this repository, on
+    every prompt, for an answer that cannot change during a run."""
+
+    def counted(self, root):
+        """run_checks over `root`, returning how many git subprocesses it spawned."""
+        from surface import moltke
+        calls = []
+        original = moltke._git_run
+
+        def counting(*args, **kwargs):
+            calls.append(args[0] if args else kwargs.get("args"))
+            return original(*args, **kwargs)
+
+        moltke._git_run = counting
+        getattr(moltke, "_GIT_PREFIX_CACHE", {}).clear()
+        try:
+            config, _violations = moltke.load_marker(Path(root))
+            moltke.run_checks(Path(root), config)
+        finally:
+            moltke._git_run = original
+        return [c for c in calls if c and "--show-prefix" in c]
+
+    def test_one_run_checks_asks_for_the_prefix_once(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            for n in range(4, 12):
+                step_file(root / "adocs" / "plan_done", f"S0{n:02d}", f"done_{n}",
+                          done="2026-08-01 done, README and MANUAL checked")
+            (root / "adocs" / "plan.md").write_text(
+                "# Plan\n\n" + "".join(f"{i}. S0{i:02d} s\n" for i in range(1, 12)),
+                encoding="utf-8")
+            git_baseline(root)
+            prefix_calls = self.counted(root)
+            # Precondition: without git history INV-7 and INV-8 abstain and this
+            # would measure nothing. git_baseline above is what makes it non-vacuous.
+            self.assertTrue(prefix_calls, "no prefix lookup happened at all; the fixture "
+                                          "has no git history and the check abstained")
+            self.assertEqual(len(prefix_calls), 1,
+                             f"the prefix cannot change during a run, and was asked for "
+                             f"{len(prefix_calls)} times")
+
+
 STAMP = "2026-08-09 suite green; README and MANUAL checked"
 
 

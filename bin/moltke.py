@@ -1353,6 +1353,9 @@ def recap_pending(root):
 RECAP_EXEMPT = (f"{DOCS}/", ".claude/")
 
 
+_GIT_PREFIX_CACHE = {}
+
+
 def git_prefix(root):
     """Where the marked root sits inside the git repository, as `packages/foo/`.
 
@@ -1364,11 +1367,20 @@ def git_prefix(root):
     run, INV-8 abstaining on real tampering because `HEAD:adocs/decisions.md`
     does not resolve from the top level, and both `Stop` gates reading every
     path wrongly.
+
+    Cached per root (S092, .4-F05). `from_git_path` and `to_git_path` call this
+    once per path, and INV-7 and INV-8 walk every completed step and every history
+    line, so one run_checks over this repository spawned 257 processes to ask a
+    question whose answer cannot change while it runs — on every prompt, through
+    the Stop and post-write hooks. The key is the root, so a process checking two
+    roots still asks once for each.
     """
-    result = _git_run(["git", "-C", str(root), "rev-parse", "--show-prefix"], text=True)
-    if result is None or result.returncode != 0:
-        return ""
-    return result.stdout.strip()
+    key = str(root)
+    if key not in _GIT_PREFIX_CACHE:
+        result = _git_run(["git", "-C", key, "rev-parse", "--show-prefix"], text=True)
+        _GIT_PREFIX_CACHE[key] = ("" if result is None or result.returncode != 0
+                                  else result.stdout.strip())
+    return _GIT_PREFIX_CACHE[key]
 
 
 def from_git_path(root, rel):
