@@ -1,6 +1,7 @@
 """S006: --scaffold and --decline (setup modes, exempt from INV-11 by DEC-017)."""
 
 import json
+import os
 import re
 import subprocess
 import sys
@@ -381,6 +382,86 @@ class TestPlanningPhaseNudge(unittest.TestCase):
             result = run_moltke(root, "--session-start")
             self.assertEqual(result.returncode, 0)
             self.assertNotIn("planning", result.stdout.lower())
+
+
+class TestSetupModesRefuseInsteadOfRaising(unittest.TestCase):
+    """S091 (2026-08-08_adversarial.4-F04): both setup modes are dispatched
+    before `main`'s backstop — they have to be, since that backstop runs after
+    the marker gate they exist to create — and neither guarded its writes. An
+    unwritable directory produced a Python traceback, which MANUAL says no mode
+    produces since 0.6.0, and exit 1 with no message a user could act on.
+
+    The marker is the first entry in SCAFFOLD_MAP, so a failure partway through
+    also left an enabled `.moltke.json` over a tree that was never built: every
+    hook live, against nothing."""
+
+    def unwritable(self, tmp):
+        target = Path(tmp) / "readonly"
+        target.mkdir()
+        target.chmod(0o500)
+        return target
+
+    def setUp(self):
+        if os.geteuid() == 0:
+            self.skipTest("running as root, which bypasses the directory permissions "
+                          "this test needs; run the suite as an ordinary user")
+
+    def test_scaffold_refuses_an_unwritable_directory_without_a_traceback(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            target = self.unwritable(tmp)
+            try:
+                result = run_moltke(target, "--scaffold")
+                self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+                self.assertNotIn("Traceback", result.stderr)
+                self.assertIn(str(target), result.stdout + result.stderr)
+            finally:
+                target.chmod(0o700)
+
+    def test_decline_refuses_an_unwritable_directory_without_a_traceback(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            target = self.unwritable(tmp)
+            try:
+                result = run_moltke(target, "--decline")
+                self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+                self.assertNotIn("Traceback", result.stderr)
+                self.assertIn(str(target), result.stdout + result.stderr)
+            finally:
+                target.chmod(0o700)
+
+    def test_a_failed_scaffold_leaves_no_enabled_marker(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            # adocs/ as a regular file: the marker is written first and the
+            # directory writes come later, so this fails partway through.
+            (root / "adocs").write_text("not a directory\n", encoding="utf-8")
+            result = run_moltke(root, "--scaffold")
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertNotIn("Traceback", result.stderr)
+            marker = root / ".moltke.json"
+            if marker.is_file():
+                self.assertIsNot(
+                    json.loads(marker.read_text(encoding="utf-8")).get("enabled"), True,
+                    "an enabled marker over a tree that was never built makes every hook "
+                    "live against nothing")
+
+    def test_an_ordinary_scaffold_and_decline_still_work(self):
+        # Non-vacuity: guards that refused everything would pass all three tests
+        # above. Each mode is exercised in its own directory because --decline
+        # leaves a marker --scaffold then honours.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "fresh"
+            root.mkdir()
+            result = run_moltke(root, "--scaffold")
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertTrue((root / ".moltke.json").is_file())
+            self.assertTrue((root / "adocs" / "plan_todo").is_dir())
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "declined"
+            root.mkdir()
+            result = run_moltke(root, "--decline")
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertIs(json.loads((root / ".moltke.json").read_text(
+                encoding="utf-8"))["enabled"], False)
 
 
 if __name__ == "__main__":

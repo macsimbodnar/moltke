@@ -1853,3 +1853,30 @@ adocs/specs.md (dated note plus surface table row), README.md (387 to 392),
 MANUAL.md (--step unpause row), adocs/plan_done/S090_paused_by_must_exist.md,
 adocs/status.md.
 Suite 392 OK, --validate green.
+
+## 2026-08-09T03:15+02:00 recap
+
+S091 complete. `--scaffold` and `--decline` refuse with exit 1 instead of raising,
+and a failed scaffold leaves nothing half-applied. Closes 2026-08-08_adversarial.4-F04.
+
+Red observed on all three: an unwritable directory produced
+`PermissionError: [Errno 13] Permission denied: '.../readonly/.moltke.json'` with a
+full traceback on stderr, from both modes, against a MANUAL paragraph claiming no
+mode ends in a traceback since 0.6.0. With `adocs` present as a regular file the
+marker was written first and then `FileExistsError: [Errno 17] File exists` landed
+partway through, leaving an enabled `.moltke.json` over a tree that was never built.
+
+Both modes are dispatched before main's backstop and have to be — that backstop runs
+after the marker gate they exist to create — so each guards its own writes. The
+scaffold rollback removes only what the failing run created, which is safe because
+scaffolding never overwrites; anything that could not be removed is named in the
+refusal rather than left silent.
+
+The permission tests skip with a message under root instead of passing silently.
+
+Files: bin/moltke.py (mode_scaffold try/rollback, mode_decline guard),
+tests/test_s006_scaffold.py (TestSetupModesRefuseInsteadOfRaising, 4 tests, os import),
+adocs/testing.md (5 rows), adocs/specs.md (dated note), README.md (392 to 396),
+MANUAL.md (no-traceback paragraph), adocs/plan_done/S091_setup_modes_refuse.md,
+adocs/status.md.
+Suite 396 OK, --validate green.

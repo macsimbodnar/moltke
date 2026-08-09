@@ -57,6 +57,17 @@ a `Status: <value>` line in its section; the S008 report template must conform.
 check abstains. INV-3 additionally treats a missing `plan.md` in an enabled
 repo as a violation.
 
+2026-08-09 (S091): `--scaffold` and `--decline` guard their own writes and refuse
+with exit 1 instead of raising. Both are dispatched before `main`'s backstop and have
+to be — that backstop runs after the marker gate they exist to create — so an
+unwritable directory reached the user as a Python traceback, which MANUAL has claimed
+no mode produces since 0.6.0 (finding 2026-08-08_adversarial.4-F04). `--scaffold` also
+rolls back: the marker is the first entry in `SCAFFOLD_MAP`, so a failure partway
+through left an enabled `.moltke.json` over a tree that was never built, with every
+hook live against nothing. Only files the failing run created are removed — scaffolding
+never overwrites, so nothing of the user's is at stake — and what could not be removed
+is named in the refusal.
+
 2026-08-09 (S090, DEC-040): INV-1 reports a `paused_by` naming a step that is in no
 plan directory, and `--step unpause <id>` is the command that clears it. A pause is
 what takes a step out of the active count, so nothing checking that the pauser

@@ -1634,20 +1634,46 @@ def mode_scaffold():
               f"workflow and is left untouched. Delete that file to reconsider.")
         return EXIT_OK
     created, kept = [], []
-    for template, destination in SCAFFOLD_MAP:
-        target = root / destination
-        if target.exists():
-            kept.append((destination, template_drift(target, template)))
-            continue
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_bytes((TEMPLATE_ROOT / template).read_bytes())
-        created.append(destination)
-    for dirname in SCAFFOLD_DIRS:
-        keep = root / dirname / ".gitkeep"
-        if not keep.exists():
-            keep.parent.mkdir(parents=True, exist_ok=True)
-            keep.write_text("", encoding="utf-8")
-            created.append(f"{dirname}/")
+    # Dispatched before main's backstop, which it has to be — that backstop runs
+    # after the marker gate this mode exists to create — so an unguarded write
+    # here reached the user as a traceback, which MANUAL says no mode produces
+    # (S091, .4-F04). The rollback matters as much as the message: the marker is
+    # the first entry in SCAFFOLD_MAP, so a failure partway through left an
+    # enabled .moltke.json over a tree that was never built, with every hook live
+    # against nothing. Only files this run created are removed, and scaffolding
+    # never overwrites, so nothing of the user's is at stake.
+    try:
+        for template, destination in SCAFFOLD_MAP:
+            target = root / destination
+            if target.exists():
+                kept.append((destination, template_drift(target, template)))
+                continue
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes((TEMPLATE_ROOT / template).read_bytes())
+            created.append(destination)
+        for dirname in SCAFFOLD_DIRS:
+            keep = root / dirname / ".gitkeep"
+            if not keep.exists():
+                keep.parent.mkdir(parents=True, exist_ok=True)
+                keep.write_text("", encoding="utf-8")
+                created.append(f"{dirname}/")
+    except OSError as exc:
+        undone = []
+        for destination in reversed(created):
+            path = root / destination.rstrip("/")
+            path = path / ".gitkeep" if destination.endswith("/") else path
+            try:
+                path.unlink()
+                undone.append(destination)
+            except OSError:
+                continue  # reported below: what is left is what could not be removed
+        left = [d for d in created if d not in undone]
+        detail = (f" What this run had already created was removed, so nothing is half-applied."
+                  if not left else
+                  f" These could not be removed and are still there: {', '.join(left)}; delete "
+                  f"them before running this again.")
+        return refuse(f"could not scaffold {root} ({exc}); nothing is set up here.{detail} Fix "
+                      f"the path the error names and run this again")
     print(f"moltke: scaffolded {root}")
     for path in created:
         print(f"  created  {path}")
@@ -1684,8 +1710,15 @@ def mode_decline():
         print(f"moltke: {path} already exists and is not a declined marker; leaving it alone. "
               f"Remove it first if this repository should stop using the workflow.")
         return EXIT_OK
-    path.write_text(json.dumps({"schema": 1, "enabled": False}, indent=2) + "\n",
-                    encoding="utf-8")
+    # Same reason as mode_scaffold: dispatched ahead of main's backstop, so its
+    # one write is guarded here or not at all (S091, .4-F04).
+    try:
+        path.write_text(json.dumps({"schema": 1, "enabled": False}, indent=2) + "\n",
+                        encoding="utf-8")
+    except OSError as exc:
+        return refuse(f"could not write {path} ({exc}); this repository is not recorded as "
+                      f"declining the workflow, and nothing was changed. Fix the path the "
+                      f"error names and run this again")
     print(f"moltke: wrote {path} with enabled false. Nothing will be scaffolded or enforced "
           f"here, and you will not be asked again. Delete the file to reconsider.")
     return EXIT_OK

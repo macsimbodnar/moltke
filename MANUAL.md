@@ -181,6 +181,11 @@ where a step file belongs, a path the index has and the worktree does not — is
 reported as a violation naming the check that hit it, and anything else a broken
 tree reaches is caught at the top and exits `2` with the path. `--log-prompt` and
 `--session-start` still exit `0` there, because neither may ever block.
+`--scaffold` and `--decline` are the exception to where that catch lives: they run
+before it, since they exist to create the marker it comes after, so each guards its
+own writes and refuses with exit `1`. A `--scaffold` that fails partway removes what
+that run had created, rather than leaving an enabled marker over a tree it never
+finished building.
 
 Two more details for anyone parsing output. `--post-write` returns `2` but is
 non-blocking by contract: the tool it follows has already run, and the exit code
