@@ -57,6 +57,22 @@ a `Status: <value>` line in its section; the S008 report template must conform.
 check abstains. INV-3 additionally treats a missing `plan.md` in an enabled
 repo as a violation.
 
+2026-08-09 (S097): `--step new` and `--step block` refuse when the next id would pass
+S999, before anything touches the filesystem. `next_step_id` had no upper bound while
+`STEP_FILE_RE` and `PLAN_ENTRY_RE` both require exactly three digits, so at the ceiling the
+allocator produced an id nothing in the tool can read: `S1000_x.md` on disk, `S1000` listed
+in `plan.md`, and `plan_steps`, `plan_order`, `derived_next`, `--roadmap`, `--session-start`
+and every invariant blind to it at once, with `--validate` green and no CLI path back
+(finding 2026-08-09_adversarial-F01). INV-3 could not report it in either direction: the
+file is not a step file and the entry is not a list entry. Two triggers, both real — any
+`S999` token in `plan.md` prose, which the shipped plan template explicitly invites, and the
+id space genuinely running out, which this repository is 900 steps from. This is
+2026-08-08_adversarial.4-F01 in its other half: S088 validated the step *name* in the same
+filename and left the *id* unchecked. Widening the id space to four digits stays a decision
+rather than a rename — it would move `STEP_FILE_RE`, `PLAN_ENTRY_RE`, `pauser_id`,
+`inv_4_done_not_blocked` and `next_step_id` together — and the refusal names where the
+ceiling came from so a prose token can be told from a real step.
+
 2026-08-09 (S095): a step field folds its indented continuation lines into its value.
 `parse_step_file` matched `^([a-z_]+):\s*(.*)$` once per line, and a continuation line
 matches nothing, so every field was silently truncated to its first line. Found live during

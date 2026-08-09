@@ -2035,3 +2035,33 @@ adocs/audit/2026-08-08_adversarial.4.md (seven statuses to closed), adocs/plan.m
 seven new step files S097 to S103, adocs/testing.md (5 rows),
 adocs/plan_done/S096_bump_0_7_0.md, adocs/status.md.
 Suite 410 OK, --validate green.
+
+## 2026-08-09T15:27+02:00 prompt
+
+> I upgraded. Now exec all the remaining steps
+
+## 2026-08-09T06:05+02:00 recap
+
+S097 complete. `--step new` and `--step block` refuse when the next id would pass
+S999. Closes 2026-08-09_adversarial-F01, the high of that run.
+
+Red observed: `moltke: created adocs/plan_todo/S1000_later_work.md and listed S1000
+in plan.md`, exit 0, with `--validate` green afterwards. STEP_FILE_RE and
+PLAN_ENTRY_RE both require exactly three digits, so that step was on disk, in the
+plan, and invisible to every scanner at once.
+
+Both triggers are real: any S999 token in plan.md prose — which the shipped plan
+template explicitly invites — and the id space running out, which this repository
+is 900 steps from at S097 in nine days.
+
+The refusal names where the ceiling came from, so a prose token can be told from a
+real step. Widening to four digits stays a decision rather than a rename: it would
+move STEP_FILE_RE, PLAN_ENTRY_RE, pauser_id, inv_4_done_not_blocked and
+next_step_id together.
+
+Files: bin/moltke.py (STEP_ID_MAX, highest_step_id, next_step_id,
+step_id_ceiling_problem, mode_step dispatch), tests/test_s007_step.py
+(TestStepIdCeiling, 5 tests), adocs/testing.md (5 rows), adocs/specs.md (dated
+note), README.md (410 to 415), adocs/plan_done/S097_step_id_ceiling.md,
+adocs/status.md.
+Suite 415 OK, --validate green.

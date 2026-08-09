@@ -1775,17 +1775,54 @@ def locate_step(root, step_id):
     return None, None, None
 
 
-def next_step_id(root):
-    """Highest id ever seen plus one; ids are never reused (DEC-008),
-    so plan.md counts even when the file is gone."""
-    highest = 0
+STEP_ID_MAX = 999
+
+
+def highest_step_id(root):
+    """(number, where it was found) for the highest id this repository has used.
+
+    Ids are never reused (DEC-008), so plan.md counts even when the file is
+    gone. `where` exists for the refusal in mode_step: at the ceiling the cause
+    is usually a token in plan.md prose rather than a step that exists, and a
+    message that cannot say which is not actionable (S097).
+    """
+    highest, where = 0, None
     steps = plan_steps(root)
     for dirname in PLAN_DIRS:
-        for step_id, _p, _f in steps[dirname]:
-            highest = max(highest, int(step_id[1:]))
+        for step_id, path, _f in steps[dirname]:
+            if int(step_id[1:]) > highest:
+                highest, where = int(step_id[1:]), f"{DOCS}/{dirname}/{path.name}"
     for number in re.findall(r"\bS(\d{3})\b", plan_text(root) or ""):
-        highest = max(highest, int(number))
+        if int(number) > highest:
+            highest, where = int(number), f"{DOCS}/plan.md"
+    return highest, where
+
+
+def next_step_id(root):
+    highest, _where = highest_step_id(root)
     return f"S{highest + 1:03d}"
+
+
+def step_id_ceiling_problem(root):
+    """S097 (2026-08-09_adversarial-F01): past S999 the allocator produced an id
+    no scanner can read. STEP_FILE_RE and PLAN_ENTRY_RE both require exactly
+    three digits, so S1000_x.md matched neither: the file was on disk, the entry
+    was in plan.md, and plan_steps, plan_order, derived_next, --roadmap and every
+    invariant were blind to it together, with --validate green. INV-3 could not
+    report it in either direction. Two triggers, both real — any S999 token in
+    plan.md prose, which the shipped template invites, and the id space genuinely
+    running out.
+    """
+    highest, where = highest_step_id(root)
+    if highest < STEP_ID_MAX:
+        return None
+    return (f"the next id would be S{highest + 1}, past the S{STEP_ID_MAX} ceiling, and a "
+            f"four-digit id is one nothing in this tool can read: step files and plan "
+            f"entries are matched as exactly three digits, so the step would exist on disk, "
+            f"be listed in plan.md, and be invisible to every check at once. The highest id "
+            f"in use is S{highest:03d}, found in {where}. If that is a token in prose rather "
+            f"than a step, change it there; if the id space is genuinely full, widening it is "
+            f"a decision, not a rename")
 
 
 def write_step(path, step_id, goal, blocks=""):
@@ -2547,14 +2584,14 @@ def mode_step(root, config, argv, goal, stamp, marker_violations=()):
         # naming a step that does not exist. rest is indexed inside the try so a
         # missing argument still reaches the usage handler below (S088).
         if op == "new":
-            problem = step_name_problem(rest[0])
+            problem = step_name_problem(rest[0]) or step_id_ceiling_problem(root)
             return refuse(problem) if problem else step_new(root, config, rest[0], goal)
         if op == "start":
             return step_start(root, config, rest[0])
         if op == "unpause":
             return step_unpause(root, config, rest[0])
         if op == "block":
-            problem = step_name_problem(rest[1])
+            problem = step_name_problem(rest[1]) or step_id_ceiling_problem(root)
             return refuse(problem) if problem else step_block(root, config, rest[0], rest[1])
         if op == "done":
             return step_done(root, config, rest[0], stamp)

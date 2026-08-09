@@ -1009,6 +1009,91 @@ class TestDestinationNeverClobbered(unittest.TestCase):
             self.assertEqual(validate(root).returncode, 0, validate(root).stdout)
 
 
+class TestStepIdCeiling(unittest.TestCase):
+    """S097 (2026-08-09_adversarial-F01): `next_step_id` has no upper bound, and
+    `STEP_FILE_RE` and `PLAN_ENTRY_RE` both require exactly three digits. Past
+    S999 the allocator produced an id nothing in the tool can read: the file
+    lands in plan_todo/, the entry lands in plan.md, and `plan_steps`,
+    `plan_order`, `derived_next`, `--roadmap` and all sixteen invariants are
+    blind to it at once, with `--validate` green. S088 validated the step name
+    and left the id half of the same filename unchecked."""
+
+    def at_the_ceiling(self, tmp):
+        """A tree that passes every check, whose plan.md mentions S999 in prose.
+
+        The shipped templates/adocs/plan.md invites exactly this: "An id named in
+        a sentence anywhere else in this file is prose: it does not change the
+        order, and it is not checked."
+        """
+        root = workflow_repo(tmp)
+        plan = root / "adocs" / "plan.md"
+        plan.write_text("# Plan\n\nThe long tail of this work is tracked under S999.\n\n"
+                        "1. S001 base\n2. S002 pending\n3. S003 active\n", encoding="utf-8")
+        self.assertEqual(validate(root).returncode, 0,
+                         "precondition: the fixture must be green before the allocation")
+        return root
+
+    def test_new_refuses_past_the_ceiling_and_writes_nothing(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.at_the_ceiling(tmp)
+            before = (root / "adocs" / "plan.md").read_bytes()
+            result = run_moltke(root, "--step", "new", "later_work")
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn("S999", result.stderr)
+            self.assertIn("adocs/plan.md", result.stderr,
+                          "the refusal must name where the ceiling came from")
+            self.assertEqual((root / "adocs" / "plan.md").read_bytes(), before)
+            self.assertEqual(list((root / "adocs" / "plan_todo").glob("*later_work*")), [])
+            self.assertEqual(validate(root).returncode, 0, validate(root).stdout)
+
+    def test_block_refuses_past_the_ceiling_and_leaves_the_parent_unpaused(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.at_the_ceiling(tmp)
+            result = run_moltke(root, "--step", "block", "S003", "later_work")
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn("S999", result.stderr)
+            parent = (root / "adocs" / "plan_current" / "S003_active.md").read_text(
+                encoding="utf-8")
+            self.assertNotIn("S1000", parent)
+            self.assertEqual(validate(root).returncode, 0, validate(root).stdout)
+
+    def test_no_four_digit_id_reaches_the_filesystem_or_the_plan(self):
+        # The shape the defect produced, pinned directly: a file and a plan entry
+        # that exist and that no scanner in the tool can read.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.at_the_ceiling(tmp)
+            run_moltke(root, "--step", "new", "later_work")
+            for directory in ("plan_todo", "plan_current", "plan_done"):
+                self.assertEqual(
+                    [p.name for p in (root / "adocs" / directory).iterdir()
+                     if re.match(r"^S\d{4,}_", p.name)], [], directory)
+            self.assertNotRegex((root / "adocs" / "plan.md").read_text(encoding="utf-8"),
+                                r"\bS\d{4,}\b")
+
+    def test_the_highest_id_below_the_ceiling_still_allocates(self):
+        # Non-vacuity: S999 itself is a legal id, so the refusal starts at the
+        # step after it and not at the step that reaches it.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            plan = root / "adocs" / "plan.md"
+            plan.write_text("# Plan\n\nA note about S998.\n\n"
+                            "1. S001 base\n2. S002 pending\n3. S003 active\n", encoding="utf-8")
+            result = run_moltke(root, "--step", "new", "the_last_one")
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertTrue((root / "adocs" / "plan_todo" / "S999_the_last_one.md").is_file())
+            self.assertEqual(validate(root).returncode, 0, validate(root).stdout)
+
+    def test_ordinary_allocation_is_untouched(self):
+        # The other non-vacuity anchor: a guard that refused everything would
+        # pass every test above.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            result = run_moltke(root, "--step", "new", "ordinary")
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertTrue((root / "adocs" / "plan_todo" / "S004_ordinary.md").is_file())
+            self.assertEqual(validate(root).returncode, 0, validate(root).stdout)
+
+
 class TestMultilineStepFields(unittest.TestCase):
     """S095: `parse_step_file` matched `^([a-z_]+):\\s*(.*)$` per line, and an
     indented continuation line matches nothing, so every field was silently
