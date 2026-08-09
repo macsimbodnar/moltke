@@ -1998,3 +1998,40 @@ is nothing to keep in sync. The 0.6.0 mentions in MANUAL and specs are historica
 claims about which release carried a fix and stay true.
 
 Suite 410 OK, --validate green. Audit re-run next, at this commit.
+
+## 2026-08-09T05:40+02:00 recap
+
+S096 complete. 0.7.0 bumped in its own commit, fifth adversarial audit run against
+it, prior findings closed, new ones triaged.
+
+Bump: the plugin cache directory is keyed by version, so `claude plugin install` on
+0.6.0 fetches nothing. Max can upgrade now.
+
+Audit: clean-context reviewer spawn against beea5f9, `--audit check` exit 0 with the
+untracked report as the only change. All seven 2026-08-08_adversarial.4 findings
+re-measured from their own reproductions — not trusted from step stamps — and none
+reproduces; all seven closed. Mutation testing planted ten mutants and killed all
+ten, so the run counts as a properly conducted one.
+
+Seven new findings, one step each, S097 to S103, correctness ahead of the lows:
+
+- F01 high: --step new allocates S1000 past the S999 ceiling, and STEP_FILE_RE and
+  PLAN_ENTRY_RE both require exactly three digits, so the step is on disk, listed in
+  plan.md, and invisible to every scanner with --validate green. Reachable today by
+  any S999 token in plan.md prose, which the shipped template invites.
+- F02 medium: a step paused by itself, or two pausing each other, passes every check
+  and the two commands that could clear it name each other. The door S090 left open.
+- F03 medium: writers do not honour the rule S095 gave readers, so a newline in
+  --goal injects a list entry into plan.md and a two-line --stamp completes green and
+  then wedges the Stop gate with an unfollowable remedy. Latent: no such stamp exists
+  here.
+- F04, F05, F06, F07 low: Parked blank lines, the fence on a non-string agent_type,
+  two MANUAL refusal claims that are not refusals, and an unchecked id: field.
+
+DEC-035 does not fire: one high and two medium, so the audit loop continues.
+
+Files: .claude-plugin/plugin.json, adocs/audit/2026-08-09_adversarial.md (new),
+adocs/audit/2026-08-08_adversarial.4.md (seven statuses to closed), adocs/plan.md,
+seven new step files S097 to S103, adocs/testing.md (5 rows),
+adocs/plan_done/S096_bump_0_7_0.md, adocs/status.md.
+Suite 410 OK, --validate green.

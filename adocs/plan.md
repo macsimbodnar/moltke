@@ -110,3 +110,10 @@ step instead.
 92. S059  verify the installed release in a live session, after reinstall
 93. S095  multiline step fields
 94. S096  bump 0.7.0, re-run the audit, close the findings it no longer reports
+95. S097  allocating a step id no scanner can read is a refusal, not a success
+96. S098  a pause has to resolve: no step pauses itself, and no cycle of pauses
+97. S099  a written field value cannot land in a shape the parser drops
+98. S100  the Parked block is carried through as verbatim as the docs say
+99. S101  a malformed agent_type is fenced, not mistaken for the main thread
+100. S102  the two documented refusals match what the code does
+101. S103  a step file's id: field agrees with its filename, or does not exist

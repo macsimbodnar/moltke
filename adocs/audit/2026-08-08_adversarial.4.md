@@ -48,7 +48,11 @@ marked root). Nothing in this repository was written except this report.
 
 ### 2026-08-08_adversarial.4-F01  high  `--step new` and `--step block` accept any name, and an ordinary hyphen creates a step no check can see
 
-Status: planned
+Status: closed
+
+Closed 2026-08-09 by S088, on the 2026-08-09_adversarial re-run at
+0.7.0 (beea5f9): re-measured from this finding's own reproduction and it no
+longer reproduces.
 
 Evidence.
 
@@ -151,7 +155,11 @@ asserts `--validate` still exits 0 would have caught this.
 
 ### 2026-08-08_adversarial.4-F02  medium  `--step done` overwrites an existing `plan_done/` file, destroying immutable history, and exits 0
 
-Status: planned
+Status: closed
+
+Closed 2026-08-09 by S089, on the 2026-08-09_adversarial re-run at
+0.7.0 (beea5f9): re-measured from this finding's own reproduction and it no
+longer reproduces.
 
 Evidence.
 
@@ -216,7 +224,11 @@ established for writability.
 
 ### 2026-08-08_adversarial.4-F03  medium  a `paused_by` naming a step that exists nowhere passes every invariant and cannot be cleared by any command
 
-Status: planned
+Status: closed
+
+Closed 2026-08-09 by S090, on the 2026-08-09_adversarial re-run at
+0.7.0 (beea5f9): re-measured from this finding's own reproduction and it no
+longer reproduces.
 
 Evidence.
 
@@ -265,7 +277,11 @@ that does not exist as well as one already completed.
 
 ### 2026-08-08_adversarial.4-F04  medium  `--scaffold` and `--decline` still end in a Python traceback, which MANUAL says no mode does since 0.6.0
 
-Status: planned
+Status: closed
+
+Closed 2026-08-09 by S091, on the 2026-08-09_adversarial re-run at
+0.7.0 (beea5f9): re-measured from this finding's own reproduction and it no
+longer reproduces.
 
 Evidence.
 
@@ -335,7 +351,11 @@ leaves an unmarked repository rather than an enabled empty one.
 
 ### 2026-08-08_adversarial.4-F05  medium  every invariant run spawns one `git rev-parse --show-prefix` per path: 257 processes and 7 seconds per `--stop`
 
-Status: planned
+Status: closed
+
+Closed 2026-08-09 by S092, on the 2026-08-09_adversarial re-run at
+0.7.0 (beea5f9): re-measured from this finding's own reproduction and it no
+longer reproduces.
 
 Evidence.
 
@@ -386,7 +406,11 @@ steps would keep it from coming back.
 
 ### 2026-08-08_adversarial.4-F06  low  INV-8's history violation prints a `git show` command that fails when the marked root is below the git top level
 
-Status: planned
+Status: closed
+
+Closed 2026-08-09 by S093, on the 2026-08-09_adversarial re-run at
+0.7.0 (beea5f9): re-measured from this finding's own reproduction and it no
+longer reproduces.
 
 Evidence.
 
@@ -432,7 +456,11 @@ above already does, and cover it with the nested-root fixture
 
 ### 2026-08-08_adversarial.4-F07  low  `--step status` silently deletes Parked entries that are not indented, while the docs promise they are carried through untouched
 
-Status: planned
+Status: closed
+
+Closed 2026-08-09 by S094, on the 2026-08-09_adversarial re-run at
+0.7.0 (beea5f9): re-measured from this finding's own reproduction and it no
+longer reproduces.
 
 Evidence.
 
