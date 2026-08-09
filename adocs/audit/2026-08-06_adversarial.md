@@ -91,7 +91,14 @@ here.
 
 ### 2026-08-06_adversarial-F02  high  the reviewer write fence probably never matches, and fails open
 
-Status: planned
+Status: closed
+
+Closed 2026-08-09 by S059. The four later runs stopped reporting it once S016
+changed the match to a suffix, but closure waited on evidence no audit can
+produce from inside itself: the fence hit by a real plugin subagent spawn rather
+than a constructed payload. That observation is recorded verbatim in
+`adocs/audit/2026-08-09_verification.md` — a live `moltke:adversarial_reviewer`
+blocked outside the fence and permitted under `adocs/audit/`, both sides seen.
 
 Evidence: `bin/moltke.py:393,408`. The fence is bare-string equality:
 `REVIEWER_AGENT = "adversarial_reviewer"`, then

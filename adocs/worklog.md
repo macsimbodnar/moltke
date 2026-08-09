@@ -1704,3 +1704,59 @@ commit 2b8bfac, the type, and the scope boundary.
   adocs/audit/2026-08-08_adversarial.3.md (statuses), adocs/plan.md,
   adocs/plan_todo/S088..S094 (new), adocs/status.md.
 - No tests added; no code changed. Suite green at 376 tests.
+
+## 2026-08-09T00:36+02:00 prompt
+
+> I peformed the command command line claude plugin install moltke@moltke on claude code cli
+
+## 2026-08-09T00:37+02:00 prompt
+
+> I peformed the command command line claude plugin install moltke@moltke on claude code cli
+
+## 2026-08-09T00:40+02:00 prompt
+
+> whats next?
+
+## 2026-08-09T00:42+02:00 prompt
+
+> what's next?
+
+## 2026-08-09T00:44+02:00 prompt
+
+> it is not clear to me what are you doing. Should i do something or you will do the necessary tests?
+
+## 2026-08-09T00:47+02:00 prompt
+
+> go
+
+## 2026-08-09T09:50+02:00 prompt
+
+> ok so what's next?
+
+## 2026-08-09T01:20+02:00 recap
+
+S059 complete. The installed plugin is 0.6.0 at gitCommitSha c2e6ad3, this
+checkout's HEAD, and the cached bin/moltke.py is byte-identical to the working
+tree, so the parked note claiming neither release was ever installed is false and
+is removed. All five hook events observed in a live session and recorded verbatim
+in adocs/audit/2026-08-09_verification.md. 2026-08-06_adversarial-F02 moves from
+planned to closed on a live moltke:adversarial_reviewer spawn: blocked on
+adocs/probe_fence_outside.md, permitted on adocs/audit/, both sides seen.
+
+The first Stop refusal found a defect. The gate reported the README and MANUAL
+check missing from a stamp that recorded it: parse_step_file (bin/moltke.py:86)
+matches per line, so a field's indented continuation lines are discarded and every
+field is silently truncated to its first line. The gate was right about what it
+could see. Planned as S095 rather than fixed here, since S059 excludes changing
+behaviour the live session reveals. The stamp was rewritten as one line, the
+convention every plan_done/ file already follows.
+
+Not live-observed: the PostToolUse refusal path, which needs a real invariant
+violation in the repository to trigger. Stated as such in the record and in the
+stamp; it stays suite-covered.
+
+Files: adocs/audit/2026-08-09_verification.md (new), adocs/audit/2026-08-06_adversarial.md
+(F02 planned to closed), adocs/testing.md (7 rows), adocs/status.md, adocs/plan.md,
+adocs/plan_todo/S095_multiline_step_fields.md (new),
+adocs/plan_done/S059_verify_installed_0_5_0.md (moved from plan_todo via plan_current).
+No code changed. Suite 376 OK, --validate green.

@@ -108,3 +108,4 @@ step instead.
 90. S093  INV-8's high-water-mark remedy prints the git blob spec, not the root-relative path
 91. S094  --step status carries an unindented Parked list through, or refuses
 92. S059  verify the installed release in a live session, after reinstall
+93. S095  multiline step fields

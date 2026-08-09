@@ -5,20 +5,18 @@ this file: on disagreement, `plan_current/` wins.
 
 Updated: 2026-08-09 by `moltke --step status`.
 
-- Last done: S087
+- Last done: S059
 - In progress: none
 - Next: S088
 - Blocked: none
 - Parked:
-  - `2026-08-06_adversarial-F02`, the reviewer write fence, is the one finding of
-    that run still `planned`. S016 changed the match and the suite covers it, but
-    closing it needs a live plugin subagent spawn, which no audit can produce from
-    inside itself. That clause belongs to S059.
-  - the installed plugin runs from the plugin cache at the version in
-    `plugin.json`, not from this checkout. 0.5.0 and 0.6.0 are both committed and
-    neither was ever installed, so every fix from S045 onward is inert in live
-    sessions until `claude plugin install moltke@moltke` runs. Editing
-    `bin/moltke.py` here changes nothing that hooks execute. S059 verifies it.
+  - the installed plugin runs from the plugin cache, not from this checkout, so
+    editing `bin/moltke.py` here changes nothing hooks execute until
+    `claude plugin install moltke@moltke` runs again. As of 2026-08-09 the cache
+    is 0.6.0 at `gitCommitSha` `c2e6ad3` and its `bin/moltke.py` is byte-identical
+    to this tree, so what runs is what is committed — but that holds only until
+    the next commit lands here (S059,
+    `adocs/audit/2026-08-09_verification.md`).
   - DEC-020: the repository root is also the plugin root, so `adocs/`, `tests/`,
     `AGENTS.md`, and `CLAUDE.md` ship inside every install. Escape hatch is a
     `plugin/` subdirectory move.
