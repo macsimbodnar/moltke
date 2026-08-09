@@ -57,6 +57,20 @@ a `Status: <value>` line in its section; the S008 report template must conform.
 check abstains. INV-3 additionally treats a missing `plan.md` in an enabled
 repo as a violation.
 
+2026-08-09 (S098): INV-1's pause rule is "the pause resolves" rather than "the pauser
+exists", and `--step unpause` clears exactly what INV-1 reports. S090 closed the phantom
+pauser and left the neighbouring case: a step whose `paused_by` names itself, or a ring of
+steps pausing each other, satisfies that rule because every pauser exists, and is just as
+stuck — none of them counts as active so INV-1 and INV-2 report nothing, `--step done` sends
+you to the pauser and `--step unpause` sends you back to `--step done`, the two commands
+naming each other (finding 2026-08-09_adversarial-F02). Reachable by a one-token slip:
+AGENTS.md §4 says to set `paused_by: <child_id>` on the parent, and the file being edited is
+the parent. A pauser in `plan_done/` terminates the walk instead of continuing it, which is
+S070's stale pause and is unchanged. `unresolvable_pauses` is shared by the invariant and by
+`--step unpause`, so the remedy the violation names is the remedy that works rather than a
+second description of it. DEC-040 is kept, not repealed: a pause resolving to live work is
+still refused.
+
 2026-08-09 (S097): `--step new` and `--step block` refuse when the next id would pass
 S999, before anything touches the filesystem. `next_step_id` had no upper bound while
 `STEP_FILE_RE` and `PLAN_ENTRY_RE` both require exactly three digits, so at the ceiling the

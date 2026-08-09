@@ -2065,3 +2065,27 @@ step_id_ceiling_problem, mode_step dispatch), tests/test_s007_step.py
 note), README.md (410 to 415), adocs/plan_done/S097_step_id_ceiling.md,
 adocs/status.md.
 Suite 415 OK, --validate green.
+
+## 2026-08-09T06:30+02:00 recap
+
+S098 complete. INV-1's pause rule is "the pause resolves" instead of "the pauser
+exists", and `--step unpause` clears exactly what INV-1 reports. Closes
+2026-08-09_adversarial-F02.
+
+Red observed: a step with `paused_by: S003` on itself left `--validate` at
+`moltke: all checks pass`, while `--step unpause S003` answered `S003 is paused by
+S003, which exists. Complete S003 with --step done S003` and `--step done S003`
+answered `complete S003 first`. The two commands named each other. Same for a
+two-step ring.
+
+`unresolvable_pauses` is shared by the invariant and the command, so "clear it
+with --step unpause" is true by construction rather than by two descriptions
+agreeing. A pauser in plan_done/ terminates the walk, so S070's stale pause is
+untouched. DEC-040 is kept rather than repealed: a pause resolving to live work is
+still refused, pinned by its own test.
+
+Files: bin/moltke.py (unresolvable_pauses, inv_1_active_max, step_unpause),
+tests/test_s003_invariants.py (TestAPauseMustResolve, 7 tests), adocs/testing.md
+(7 rows), adocs/specs.md (dated note), README.md (415 to 422), MANUAL.md (--step
+unpause row), adocs/plan_done/S098_pause_must_resolve.md, adocs/status.md.
+Suite 422 OK, --validate green.

@@ -557,6 +557,114 @@ class TestInv7RenameRemedyRestores(unittest.TestCase):
             self.assertFalse((root / "adocs" / "plan_done" / "S001_renamed.md").exists())
 
 
+class TestAPauseMustResolve(unittest.TestCase):
+    """S098 (2026-08-09_adversarial-F02): S090 made a pause naming a step in no
+    plan directory a violation, and left the neighbouring case open. A step that
+    pauses itself, or two that pause each other, satisfies that rule — every
+    pauser exists — while being just as unreachable: neither counts as active, so
+    INV-1 and INV-2 report nothing, `--step done` sends you to the pauser and
+    `--step unpause` sends you back to `--step done`. The two commands name each
+    other."""
+
+    def self_paused(self, root):
+        return step_file(root / "adocs" / "plan_current", "S003", "active",
+                         paused_by="S003  # 2026-08-09")
+
+    def cycle(self, root):
+        step_file(root / "adocs" / "plan_current", "S003", "active",
+                  paused_by="S004  # 2026-08-09")
+        step_file(root / "adocs" / "plan_current", "S004", "other",
+                  paused_by="S003  # 2026-08-09")
+        (root / "adocs" / "plan.md").write_text(
+            "# Plan\n\n1. S001 a\n2. S002 b\n3. S003 c\n4. S004 d\n", encoding="utf-8")
+
+    def test_a_step_paused_by_itself_is_a_violation(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            self.self_paused(root)
+            result = run_validate(root)
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn("S003", result.stdout)
+            self.assertIn("--step unpause", result.stdout,
+                          "the violation must name the command that clears it")
+
+    def test_two_steps_pausing_each_other_are_a_violation_naming_both(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            self.cycle(root)
+            result = run_validate(root)
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            cycle_lines = [l for l in result.stdout.splitlines()
+                           if "S003" in l and "S004" in l]
+            self.assertTrue(cycle_lines,
+                            f"the cycle must be reported naming both members: {result.stdout}")
+
+    def test_unpause_clears_what_validate_reports(self):
+        # The dead end is the defect, so the fix is only a fix if the way out
+        # exists: after unpause, validate is clean and the step completes.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            self.self_paused(root)
+            cleared = run_moltke(root, "--step", "unpause", "S003")
+            self.assertEqual(cleared.returncode, 0, cleared.stdout + cleared.stderr)
+            self.assertEqual(run_validate(root).returncode, 0, run_validate(root).stdout)
+            testing = root / "adocs" / "testing.md"
+            testing.write_text(testing.read_text(encoding="utf-8")
+                               + "| S003 | works | test_S003 | pass |\n", encoding="utf-8")
+            done = run_moltke(root, "--step", "done", "S003", "--stamp", STAMP)
+            self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+
+    def test_unpause_clears_one_member_of_a_cycle(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            self.cycle(root)
+            cleared = run_moltke(root, "--step", "unpause", "S003")
+            self.assertEqual(cleared.returncode, 0, cleared.stdout + cleared.stderr)
+            self.assertEqual(run_validate(root).returncode, 0, run_validate(root).stdout)
+
+    def test_a_pause_naming_reachable_live_work_is_still_refused(self):
+        # DEC-040's rule, which this step widens but must not repeal: a pause
+        # that resolves to a step someone can actually finish is not clearable.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            step_file(root / "adocs" / "plan_current", "S004", "blocking_child",
+                      blocks="S003")
+            (root / "adocs" / "plan.md").write_text(
+                "# Plan\n\n1. S001 a\n2. S002 b\n3. S003 c\n4. S004 d\n", encoding="utf-8")
+            parent = step_file(root / "adocs" / "plan_current", "S003", "active",
+                               paused_by="S004  # 2026-08-09")
+            self.assertEqual(run_validate(root).returncode, 0, run_validate(root).stdout)
+            result = run_moltke(root, "--step", "unpause", "S003")
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn("S004", parent.read_text(encoding="utf-8"))
+
+    def test_a_longer_chain_that_resolves_is_silent(self):
+        # Non-vacuity for the cycle rule: following paused_by more than one hop
+        # must not be mistaken for a cycle when it terminates.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            step_file(root / "adocs" / "plan_current", "S003", "active",
+                      paused_by="S004  # 2026-08-09")
+            step_file(root / "adocs" / "plan_current", "S004", "middle",
+                      paused_by="S005  # 2026-08-09", blocks="S003")
+            step_file(root / "adocs" / "plan_current", "S005", "leaf", blocks="S004")
+            (root / "adocs" / "plan.md").write_text(
+                "# Plan\n\n1. S001 a\n2. S002 b\n3. S003 c\n4. S004 d\n5. S005 e\n",
+                encoding="utf-8")
+            result = run_validate(root)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_the_phantom_pauser_rule_is_unchanged(self):
+        # S090's case still reports, with its own message.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            step_file(root / "adocs" / "plan_current", "S003", "active",
+                      paused_by="S999  # 2026-08-09")
+            result = run_validate(root)
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn("S999", result.stdout)
+
+
 class TestGitPrefixIsComputedOncePerRoot(unittest.TestCase):
     """S092 (2026-08-08_adversarial.4-F05): `git_prefix` shells out to
     `git rev-parse --show-prefix`, and `from_git_path`/`to_git_path` call it once

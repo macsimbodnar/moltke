@@ -268,6 +268,42 @@ def pauser_id(fields):
     return found.group(0) if found else None
 
 
+def unresolvable_pauses(root, steps=None):
+    """{step_id: ("phantom", pauser) or ("cycle", [members])} for every pause a
+    step cannot get out from under.
+
+    A pause is what takes a step out of INV-1's active count, so a pause that
+    does not resolve parks a step behind nothing while every check stays green.
+    Two shapes, one rule. S090 (.4-F03) covered the pauser that is in no plan
+    directory. S098 (2026-08-09_adversarial-F02) covers the rest of it: a step
+    that pauses itself, or a ring of steps pausing each other, satisfies S090's
+    rule — every pauser exists — and is just as stuck, with `--step done` and
+    `--step unpause` naming each other.
+
+    A pauser in `plan_done/` terminates the walk rather than continuing it: that
+    is S070's stale pause, which `--step done` reports and steps over.
+
+    Shared with `step_unpause` so "clear it with --step unpause" is true by
+    construction rather than by two descriptions agreeing.
+    """
+    steps = plan_steps(root) if steps is None else steps
+    known = {found for dirname in PLAN_DIRS for found, _p, _f in steps[dirname]}
+    pauses = {step_id: pauser_id(fields)
+              for step_id, _path, fields in steps["plan_current"] if pauser_id(fields)}
+    problems = {}
+    for step_id, pauser in pauses.items():
+        if pauser not in known:
+            problems[step_id] = ("phantom", pauser)
+            continue
+        seen, current = [step_id], pauses.get(step_id)
+        while current is not None and current not in seen:
+            seen.append(current)
+            current = pauses.get(current)
+        if current is not None:
+            problems[step_id] = ("cycle", seen[seen.index(current):])
+    return problems
+
+
 def inv_1_active_max(root, config):
     limit = _limit(config, "plan_active_max", 1)
     steps = plan_steps(root)
@@ -278,18 +314,21 @@ def inv_1_active_max(root, config):
         violations.append(
             f"INV-1: plan_current/ holds {len(active)} non-paused steps ({', '.join(active)}), "
             f"limit {limit}; pause or complete until {limit} remain")
-    # A pause is what takes a step out of the active count, so a pause naming
-    # work that is in no plan directory parks a step behind nothing and weakens
-    # the count generally (S090, .4-F03). INV-3 already reports the same shape
-    # for an id plan.md lists with no file; this is that rule for paused_by.
-    known = {found for dirname in PLAN_DIRS for found, _p, _f in steps[dirname]}
-    for step_id, _path, fields in steps["plan_current"]:
-        pauser = pauser_id(fields)
-        if pauser and pauser not in known:
+    # INV-3 already reports the same shape for an id plan.md lists with no file;
+    # this is that rule for paused_by.
+    for step_id, (kind, detail) in sorted(unresolvable_pauses(root, steps).items()):
+        if kind == "phantom":
             violations.append(
-                f"INV-1: {step_id} is paused by {pauser}, which has no step file in any plan "
+                f"INV-1: {step_id} is paused by {detail}, which has no step file in any plan "
                 f"directory, so it waits on work that does not exist and no completion can "
                 f"reach it. Clear it with bin/moltke.py --step unpause {step_id}")
+        else:
+            ring = " -> ".join(detail + [detail[0]])
+            violations.append(
+                f"INV-1: the pause on {step_id} never resolves: {ring}. Every step in that "
+                f"ring waits on another step in it, so none of them counts as active, none can "
+                f"be completed, and no invariant would otherwise say so. Clear it with "
+                f"bin/moltke.py --step unpause {step_id}")
     return violations
 
 
@@ -1953,11 +1992,16 @@ def step_unpause(root, config, step_id):
     pauser = pauser_id(fields)
     if not pauser:
         return refuse(f"{step_id} is not paused, so there is nothing to clear")
-    steps = plan_steps(root)
-    if pauser in {found for dirname in PLAN_DIRS for found, _p, _f in steps[dirname]}:
-        return refuse(f"{step_id} is paused by {pauser}, which exists. Complete {pauser} with "
-                      f"--step done {pauser}, which unpauses {step_id} on its way out; this "
-                      f"command only clears a pause naming a step that is in no plan directory")
+    # Exactly what INV-1 reports, read from the same function, so the remedy the
+    # violation names is the remedy that works (S098). DEC-040's rule is kept
+    # rather than widened: a pause that resolves to live work someone can finish
+    # is still refused, because clearing that one would be a way around the
+    # accounting rather than a repair.
+    if step_id not in unresolvable_pauses(root):
+        return refuse(f"{step_id} is paused by {pauser}, which exists and is reachable. "
+                      f"Complete {pauser} with --step done {pauser}, which unpauses {step_id} "
+                      f"on its way out; this command only clears a pause that never resolves, "
+                      f"which is the case --validate reports")
     set_field(path, "paused_by", "")
     print(f"moltke: {step_id} unpaused; {pauser} had no step file in any plan directory.")
     return EXIT_OK
