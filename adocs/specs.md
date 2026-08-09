@@ -57,6 +57,21 @@ a `Status: <value>` line in its section; the S008 report template must conform.
 check abstains. INV-3 additionally treats a missing `plan.md` in an enabled
 repo as a violation.
 
+2026-08-09 (S088): `--step new` and `--step block` refuse a short name that is not
+`[A-Za-z0-9_]+`, before either touches the filesystem. The name went unchecked
+into `f"{step_id}_{name}.md"` while `STEP_FILE_RE` requires that character set, so
+`--step new fix-parser` filed `S004_fix-parser.md` and listed `S004` in `plan.md`:
+a step every scanner keyed on the pattern skips, with `--validate` green over a
+plan that names an id no visible file carries — the listed-but-absent half of
+INV-3, produced by the tool whose job is to keep those two in step. A separator
+escaped the plan directory outright, `S004_../../../escaped.md` (finding
+2026-08-08_adversarial.4-F01). The check sits in `mode_step` rather than in either
+function because both write the plan entry before the step file (S088 keeps S083's
+order), so refusing halfway would leave `plan.md` naming a step that does not
+exist. `--audit new` has refused its type this way since S040 and is the model
+copied. The name is indexed inside the existing try, so a missing argument still
+prints usage rather than raising.
+
 2026-08-08 (S086, S087): `--roadmap` handles its own read failure and exits 0,
 which is what specs and both exit tables already said and what a mode AGENTS.md
 tells every agent to run at the end of a unit of work has to do; it was

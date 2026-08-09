@@ -135,9 +135,9 @@ Cursor) must, since hooks exist only in Claude Code.
 | `--roadmap` | print where the plan is: one timeline strip, the done/left split, and the step in progress or the derived next one. Derived from `plan.md` and the plan directories, never from `status.md` |
 | `--scaffold` | create the marker, `AGENTS.md`, `CLAUDE.md`, the Cursor pointer, and `adocs/` from templates; never overwrites an existing file, and reports for each kept ruleset file whether it still matches the installed template |
 | `--decline` | record that this repository declines the workflow, durably; refuses to disable an already-enabled repository |
-| `--step new <name>` | allocate the next step id, write the step file, list it in `plan.md` |
+| `--step new <name>` | allocate the next step id, write the step file, list it in `plan.md`. The name must match `[A-Za-z0-9_]+`, because it becomes the second half of `S000_<name>.md` and every invariant check reads that pattern; a hyphen or a dot would file a step no check can see |
 | `--step start <id>` | move a step from `plan_todo/` to `plan_current/` |
-| `--step block <parent> <name>` | create a blocking child in `plan_current/` and pause its parent |
+| `--step block <parent> <name>` | create a blocking child in `plan_current/` and pause its parent; the name follows the same `[A-Za-z0-9_]+` rule as `--step new` |
 | `--step done <id>` | complete a step and move it to `plan_done/`, refusing if anything is missing. Runs the `test_command` suite gate when the marker sets one, and refuses on a non-zero exit |
 | `--step status` | regenerate `status.md` from the filesystem, keeping the Parked list |
 | `--audit new <type>` | open `adocs/audit/YYYY-MM-DD_<type>.md`; never overwrites a report — a same-day re-run becomes `YYYY-MM-DD_<type>.2.md`, and its findings are numbered from that name. The type must match `[A-Za-z0-9_-]+`, so it stays a filename and cannot collide with that `.2` suffix. Also records a working-tree baseline for `--audit check` |

@@ -81,6 +81,25 @@ def check_marker(config):
 
 STEP_FILE_RE = re.compile(r"^(S\d{3})_[A-Za-z0-9_]+\.md$")
 PLAN_DIRS = ("plan_todo", "plan_current", "plan_done")
+# The short name is the second half of a filename STEP_FILE_RE has to match, so
+# the two are one rule stated twice and this is the half that is written
+# (S088, 2026-08-08_adversarial.4-F01).
+STEP_NAME_RE = re.compile(r"[A-Za-z0-9_]+")
+
+
+def step_name_problem(name):
+    """S088: the name went unchecked into `f"{step_id}_{name}.md"`. A hyphen
+    produced a file STEP_FILE_RE does not match, so every scanner keyed on it
+    skipped the file while plan.md listed the id — the tool that exists to keep
+    those two in step creating the listed-but-absent half of INV-3 itself. A
+    separator escaped the plan directory outright. `--audit new` refuses its type
+    for the same reason and is the model copied here."""
+    if STEP_NAME_RE.fullmatch(name):
+        return None
+    return (f"step name {name!r} must match [A-Za-z0-9_]+ so that {DOCS}/plan_*/S000_{{name}}.md "
+            f"is a filename inside one plan directory and matches the pattern every scanner "
+            f"reads; a hyphen or a dot makes a file no invariant check can see, and a separator "
+            f"puts it outside the plan entirely. Use underscores: fix_parser, not fix-parser")
 
 
 def parse_step_file(path):
@@ -2370,12 +2389,19 @@ def mode_step(root, config, argv, goal, stamp, marker_violations=()):
                       f"bin/moltke.py --scaffold to create it, or set \"enabled\": false in "
                       f"{MARKER} if this repository should not use the workflow")
     try:
+        # Checked here rather than inside step_new and step_block, and before
+        # either touches the filesystem: both write plan.md first and the step
+        # file second (S083), so a name refused halfway would leave the plan
+        # naming a step that does not exist. rest is indexed inside the try so a
+        # missing argument still reaches the usage handler below (S088).
         if op == "new":
-            return step_new(root, config, rest[0], goal)
+            problem = step_name_problem(rest[0])
+            return refuse(problem) if problem else step_new(root, config, rest[0], goal)
         if op == "start":
             return step_start(root, config, rest[0])
         if op == "block":
-            return step_block(root, config, rest[0], rest[1])
+            problem = step_name_problem(rest[1])
+            return refuse(problem) if problem else step_block(root, config, rest[0], rest[1])
         if op == "done":
             return step_done(root, config, rest[0], stamp)
         return step_status(root, config)

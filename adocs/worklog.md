@@ -1760,3 +1760,33 @@ Files: adocs/audit/2026-08-09_verification.md (new), adocs/audit/2026-08-06_adve
 adocs/plan_todo/S095_multiline_step_fields.md (new),
 adocs/plan_done/S059_verify_installed_0_5_0.md (moved from plan_todo via plan_current).
 No code changed. Suite 376 OK, --validate green.
+
+## 2026-08-09T11:05+02:00 prompt
+
+> next
+
+## 2026-08-09T01:55+02:00 recap
+
+S088 complete. `--step new` and `--step block` now refuse a short name outside
+`[A-Za-z0-9_]+`, before either touches the filesystem. Closes
+2026-08-08_adversarial.4-F01.
+
+The name went unchecked into `f"{step_id}_{name}.md"` while STEP_FILE_RE requires
+that character set. Red observed: `--step new fix-parser` created
+`S004_fix-parser.md`, listed S004 in plan.md, and left `--validate` at exit 0 over
+a plan naming an id no visible step file carries — the listed-but-absent half of
+INV-3, produced by the tool whose job is to keep those two in step. Worse,
+`--step new ../../../escaped` created `S004_../../../escaped.md`, outside the plan
+directory entirely.
+
+The check sits in `mode_step`, not inside `step_new`/`step_block`: both write the
+plan entry before the step file (S083), so a refusal halfway would leave plan.md
+naming a step that does not exist. The name is indexed inside the existing try, so
+a missing argument still prints usage rather than raising — pinned by a test.
+`--audit new` has refused its type this way since S040 and is the model copied.
+
+Files: bin/moltke.py (STEP_NAME_RE, step_name_problem, mode_step dispatch),
+tests/test_s007_step.py (TestStepNameValidation, 7 tests), adocs/testing.md (6 rows),
+adocs/specs.md (dated note), README.md (376 to 383), MANUAL.md (both --step rows),
+adocs/plan_done/S088_validate_step_names.md, adocs/status.md.
+Suite 383 OK, --validate green.

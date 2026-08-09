@@ -774,5 +774,95 @@ class TestTestingRowsAreReadThroughStrip(unittest.TestCase):
             self.assertEqual(validate(root).returncode, 0)
 
 
+class TestStepNameValidation(unittest.TestCase):
+    """S088 (2026-08-08_adversarial.4-F01): the short name went straight into a
+    filename. STEP_FILE_RE accepts `[A-Za-z0-9_]+`, so a hyphen produced a file
+    every scanner keyed on that pattern skips while plan.md listed the id — the
+    listed-but-absent half of INV-3, created by the tool that exists to keep the
+    two in step. `--audit new` already refuses its type for the same reason."""
+
+    def plan_ids(self, root):
+        return re.findall(r"S\d{3}", (root / "adocs" / "plan.md").read_text(encoding="utf-8"))
+
+    def test_new_refuses_a_hyphenated_name_and_writes_nothing(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            before = self.plan_ids(root)
+            result = run_moltke(root, "--step", "new", "fix-parser")
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn("A-Za-z0-9_", result.stderr)
+            self.assertEqual(list((root / "adocs" / "plan_todo").glob("*fix*")), [],
+                             "a refused name may not leave a step file behind")
+            self.assertEqual(self.plan_ids(root), before,
+                             "a refused name may not leave an id listed in plan.md")
+            self.assertEqual(validate(root).returncode, 0, validate(root).stdout)
+
+    def test_block_refuses_a_hyphenated_name_and_leaves_the_parent_unpaused(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            before = self.plan_ids(root)
+            result = run_moltke(root, "--step", "block", "S003", "fix-parser")
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn("A-Za-z0-9_", result.stderr)
+            parent = (root / "adocs" / "plan_current" / "S003_active.md").read_text(
+                encoding="utf-8")
+            self.assertNotIn("S004", parent, "the parent may not be paused by a refused child")
+            self.assertEqual(
+                [p.name for p in (root / "adocs" / "plan_current").iterdir()],
+                ["S003_active.md"])
+            self.assertEqual(self.plan_ids(root), before)
+            self.assertEqual(validate(root).returncode, 0, validate(root).stdout)
+
+    def test_a_traversing_name_stays_inside_the_marked_root(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            result = run_moltke(root, "--step", "new", "../../../escaped")
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertEqual(list(Path(tmp).glob("**/*escaped*")), [],
+                             "nothing may be created outside the plan directory")
+            self.assertFalse((root.parent / "escaped").exists())
+            self.assertEqual(validate(root).returncode, 0, validate(root).stdout)
+
+    def test_awkward_names_are_refused_before_they_reach_the_filesystem(self):
+        for name in ("with space", "sub/dir", "..", ".", "", "tab\there", "rm;ls",
+                     "trailing.md", "dot.name"):
+            for argv in (("new", name), ("block", "S003", name)):
+                with self.subTest(name=name, op=argv[0]), tempfile.TemporaryDirectory() as tmp:
+                    root = workflow_repo(tmp)
+                    result = run_moltke(root, "--step", *argv)
+                    self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+                    self.assertEqual(validate(root).returncode, 0)
+
+    def test_ordinary_names_still_work(self):
+        # Non-vacuity: the guard must not refuse the names the workflow uses.
+        # Without this a rule refusing everything would pass every case above.
+        for name in ("fix_parser", "S095_like_name", "step2", "UPPER_case"):
+            with self.subTest(name=name), tempfile.TemporaryDirectory() as tmp:
+                root = workflow_repo(tmp)
+                result = run_moltke(root, "--step", "new", name)
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                self.assertTrue((root / "adocs" / "plan_todo" / f"S004_{name}.md").is_file())
+                self.assertEqual(validate(root).returncode, 0, validate(root).stdout)
+
+    def test_block_still_creates_an_ordinary_child(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            result = run_moltke(root, "--step", "block", "S003", "fix_parser")
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertTrue((root / "adocs" / "plan_current" / "S004_fix_parser.md").is_file())
+            self.assertEqual(validate(root).returncode, 0, validate(root).stdout)
+
+    def test_a_missing_name_still_prints_usage(self):
+        # The guard reads rest[0]; reading it before the IndexError handler
+        # would turn a missing argument into a traceback instead of usage.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            for argv in (("new",), ("block", "S003")):
+                with self.subTest(op=argv):
+                    result = run_moltke(root, "--step", *argv)
+                    self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+                    self.assertIn("usage", result.stderr)
+
+
 if __name__ == "__main__":
     unittest.main()

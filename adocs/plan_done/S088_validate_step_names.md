@@ -17,4 +17,4 @@ decisions:
 closes:     2026-08-08_adversarial.4-F01
 blocks:
 paused_by:
-done:
+done:      2026-08-09: --step new and --step block refuse a short name outside [A-Za-z0-9_]+ before either touches the filesystem, closing 2026-08-08_adversarial.4-F01. The name went unchecked into the filename while STEP_FILE_RE requires that set, so 'fix-parser' filed a step every scanner skips while plan.md listed the id — --validate green over the listed-but-absent half of INV-3, created by the tool meant to keep the two in step — and a separator escaped the plan directory as S004_../../../escaped.md. Checked in mode_step rather than in either function, because both write the plan entry before the step file (S083) and a refusal halfway would leave plan.md naming a step that does not exist; --audit new since S040 is the model. 7 tests, red observed on all of them. Suite 383 OK, --validate green. README test count 376 to 383; MANUAL's two --step rows now state the rule; specs gained a dated note.
