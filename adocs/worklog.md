@@ -2134,3 +2134,29 @@ TestStatus), adocs/testing.md (3 rows), adocs/specs.md (dated note), README.md
 (427 to 429), adocs/plan_done/S100_parked_blank_lines.md, adocs/status.md.
 MANUAL checked, no change: its sentence already promised verbatim and is now true.
 Suite 429 OK, --validate green.
+
+## 2026-08-09T07:40+02:00 recap
+
+S101 complete. `--pre-write` tells an absent `agent_type` from a malformed one and
+fences the malformed. Closes 2026-08-09_adversarial-F05.
+
+Red observed: `{"agent_type": ["moltke:adversarial_reviewer"], ...}` writing
+`bin/moltke.py` at exit 0, and the same for a mapping, a number and a boolean.
+S087 stopped the crash by returning empty for non-strings, and empty is the main
+thread, which is never fenced.
+
+One deliberate narrowing: JSON `null` is read as absent, not malformed. It is how
+a payload says "no value", and fencing it would block every main-thread write if
+that is ever how "no agent" is encoded — a false block on the common path against
+a shape nobody has observed. Recorded in the test and in specs rather than left as
+a silent choice.
+
+DEC-022 is unchanged: the fence is a fast clear failure, not the guarantee. The
+reviewer holds Bash, and `--audit check` is what reconciles a run.
+
+Files: bin/moltke.py (mode_pre_write agent resolution),
+tests/test_s005_hooks.py (TestAMalformedAgentTypeIsFenced, 6 tests, _ABSENT
+sentinel), adocs/testing.md (6 rows), adocs/specs.md (dated note), README.md
+(429 to 435), adocs/plan_done/S101_fence_odd_agent_type.md, adocs/status.md.
+MANUAL checked, no change: its --pre-write row describes what the fence permits.
+Suite 435 OK, --validate green.

@@ -1247,7 +1247,19 @@ def mode_pre_write(root, config, path_arg):
     # Suffix match rather than an exact pair, so renaming the plugin cannot
     # silently reopen it; the cost is fencing another plugin's agent of the same
     # name, which at least blocks loudly instead of failing open.
-    agent = payload_str(payload, "agent_type").split(":")[-1]
+    # Absent and malformed are different things (S101, 2026-08-09_adversarial-F05).
+    # S087 made payload_str return "" for anything that is not a string, which
+    # stopped the crash and left a list-valued agent_type reading as the main
+    # thread — never fenced, so the reviewer's write went through at exit 0. A
+    # wrong pass is silent and a wrong block is loud, which is the direction S016
+    # chose. JSON null is read as absent rather than malformed: it is how a
+    # payload says "no value", and fencing it would block every main-thread write
+    # if that is ever how "no agent" is encoded.
+    raw = payload.get("agent_type") if isinstance(payload, dict) else None
+    if raw is not None and not isinstance(raw, str):
+        agent = REVIEWER_AGENT  # unreadable: fence rather than wave through
+    else:
+        agent = payload_str(payload, "agent_type").split(":")[-1]
     if agent == REVIEWER_AGENT and not reviewer_may_write(root, rel):
         print(f"moltke: the {REVIEWER_AGENT} may write under {DOCS}/audit/, and may create new "
               f"files under tests/, and {rel} is neither. Record what you found as a finding in "

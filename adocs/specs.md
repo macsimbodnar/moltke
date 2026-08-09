@@ -57,6 +57,20 @@ a `Status: <value>` line in its section; the S008 report template must conform.
 check abstains. INV-3 additionally treats a missing `plan.md` in an enabled
 repo as a violation.
 
+2026-08-09 (S101): `--pre-write` distinguishes an absent `agent_type` from a malformed
+one and fences the malformed. S087 made `payload_str` return "" for anything that is not a
+string, which stopped the crash and left the fence reading a list-valued `agent_type` as the
+main thread — never fenced by S016's rule — so a reviewer payload of that shape wrote
+`bin/moltke.py` at exit 0 (finding 2026-08-09_adversarial-F05). A wrong pass is silent and a wrong block is loud, which is the
+direction S016 chose and the one S087's own note says the fence must not depend on the field
+type to keep. Nothing establishes that Claude Code sends such a payload; this is a property
+of the code rather than a reproduction. JSON `null` is read as absent rather than malformed:
+it is how a payload says "no value", and fencing it would block every main-thread write if
+that is ever how "no agent" is encoded — a false block on the common path against a shape
+nobody has observed, so the cheaper mistake is chosen deliberately. DEC-022 is unchanged: the
+fence is a fast clear failure, not the guarantee, because the reviewer holds Bash and
+`--audit check` is what reconciles a run.
+
 2026-08-09 (S100): the Parked block is carried through with its blank lines. S094 carried
 it to the end of the file and still kept only non-blank lines, while `adocs/specs.md` and
 `skills/step/SKILL.md` both say "verbatim": paragraphs merged and a heading written below

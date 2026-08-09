@@ -16,6 +16,8 @@ from fixtures import marked_repo, step_file, workflow_repo
 
 MOLTKE = Path(__file__).resolve().parent.parent / "bin" / "moltke.py"
 
+_ABSENT = object()
+
 
 def run_moltke(cwd, *args, stdin=""):
     return subprocess.run(
@@ -1048,6 +1050,75 @@ class TestMalformedHookPayloads(unittest.TestCase):
                                   "tool_input": {"file_path": "bin/moltke.py"}})
             result = run_moltke(root, "--pre-write", stdin=payload)
             self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+
+
+class TestAMalformedAgentTypeIsFenced(unittest.TestCase):
+    """S101 (2026-08-09_adversarial-F05): S087 made `payload_str` return "" for
+    anything that is not a string, which stopped the crash and left the fence
+    reading a malformed `agent_type` as an absent one. Absent is the main thread
+    and is never fenced (S016), so `{"agent_type": ["moltke:adversarial_reviewer"]}`
+    wrote `bin/moltke.py` at exit 0 — a wrong pass, which is silent, in place of
+    a wrong block, which is loud. Nothing establishes that Claude Code ever sends
+    that shape, and S087's own note says the fence must not depend on it."""
+
+    def pre_write(self, root, agent_type):
+        payload = {"tool_input": {"file_path": "bin/moltke.py"}}
+        if agent_type is not _ABSENT:
+            payload["agent_type"] = agent_type
+        return run_moltke(root, "--pre-write", stdin=json.dumps(payload))
+
+    def test_a_list_agent_type_is_fenced(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            result = self.pre_write(root, ["moltke:adversarial_reviewer"])
+            self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+            self.assertIn("adversarial_reviewer", result.stderr)
+
+    def test_every_malformed_shape_is_fenced(self):
+        for shape in (["moltke:adversarial_reviewer"], {"name": "reviewer"}, 12345,
+                      True, ["anything", "at", "all"]):
+            with self.subTest(shape=shape), tempfile.TemporaryDirectory() as tmp:
+                root = workflow_repo(tmp)
+                result = self.pre_write(root, shape)
+                self.assertEqual(result.returncode, 2, (shape, result.stdout, result.stderr))
+
+    def test_an_absent_agent_type_is_still_the_main_thread(self):
+        # S016's rule, and the non-vacuity anchor: the distinction is absent
+        # versus malformed, not string versus everything else. A guard that
+        # fenced whenever the value was not the reviewer's name would block the
+        # main thread's every write.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            result = self.pre_write(root, _ABSENT)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_a_null_agent_type_is_read_as_absent(self):
+        # JSON null is how a payload says "no value", so it is treated as the
+        # absent case rather than as a malformed one. Fencing it would block
+        # every main-thread write if Claude Code ever encodes "no agent" that
+        # way — a false block on the common path, against a shape nobody has
+        # observed. The cheaper mistake, deliberately chosen.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            result = self.pre_write(root, None)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_another_agents_name_is_still_not_fenced(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            result = self.pre_write(root, "some-plugin:formatter")
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_the_plan_done_rule_still_runs_for_a_malformed_payload(self):
+        # S087's fix, which must not regress: the other two rules judge every
+        # payload shape regardless of what agent_type holds.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            payload = json.dumps({"agent_type": 12345,
+                                  "tool_input": {"file_path": "adocs/plan_done/S001_base.md"}})
+            result = run_moltke(root, "--pre-write", stdin=payload)
+            self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+            self.assertIn("plan_done", result.stderr)
 
 
 if __name__ == "__main__":
