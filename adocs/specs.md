@@ -57,6 +57,20 @@ a `Status: <value>` line in its section; the S008 report template must conform.
 check abstains. INV-3 additionally treats a missing `plan.md` in an enabled
 repo as a violation.
 
+2026-08-09 (S102): the two refusals MANUAL named are the two the code makes.
+`--decline` against an already-enabled repository is routed through `refuse`, so it exits 1
+on stderr like every other refusal: MANUAL and the specs surface table have both said
+"refuses to disable an already-enabled repository" since it was written, while the code
+printed to stdout and returned 0 — indistinguishable, by exit code and by stream, from the
+success it was declining to perform, which matters to anyone scripting the init flow outside
+Claude Code (finding 2026-08-09_adversarial-F06). The exit-code prose no longer lists
+`--audit new` on an existing report as a refusal: it takes a `.2` suffix and exits 0, which
+S020 chose deliberately and which the same file already described correctly.
+`--scaffold` against a declined repository is deliberately *not* changed to match. Routing
+it through `refuse` for symmetry was tried and reverted: INV-11 is that every mode exits 0 in
+a declined repository, and "a repository that declined feels nothing" outranks the tidiness
+of one exit code. No document calls that branch a refusal, so nothing disagrees with it.
+
 2026-08-09 (S101): `--pre-write` distinguishes an absent `agent_type` from a malformed
 one and fences the malformed. S087 made `payload_str` return "" for anything that is not a
 string, which stopped the crash and left the fence reading a list-valued `agent_type` as the
@@ -881,7 +895,7 @@ which is the only enforcement available outside Claude Code.
 | `--validate` | manual, any tool | run every invariant, report all violations, exit non-zero |
 | `--roadmap` | — | 2026-08-08 (S079, DEC-038): print where the plan is as one timeline strip, derived from `plan.md` order and the three plan directories. Never reads `status.md`, so it cannot report what the repository does not say. Exit 0 always |
 | `--scaffold` | `init` skill | create the marker, `AGENTS.md`, `CLAUDE.md`, the Cursor pointer, and `adocs/` from templates; never overwrites an existing file |
-| `--decline` | `init` skill | write `{"schema": 1, "enabled": false}`, durably; refuses to disable an already-enabled repository |
+| `--decline` | `init` skill | write `{"schema": 1, "enabled": false}`, durably; refuses to disable an already-enabled repository, exit 1 on stderr since 2026-08-09 (S102) |
 | `--audit OP ...` | `audit` skill | 2026-08-01 (S008): `new <type>` opens `adocs/audit/YYYY-MM-DD_<type>.md` from the template and never overwrites, taking a `.2`, `.3` sequence suffix on a same-day re-run (S020); `list` prints every finding with its status and what references it, exiting non-zero while an open finding has neither a step nor a decision. 2026-08-06 (S017): `new` also records a working-tree baseline in `.git/moltke_audit_baseline.json`, and `check` reconciles the run against it, printing expected and unexpected changes and exiting 1 on anything unexpected |
 | `--step OP ...` | `step` skill | 2026-08-01 (S007): lifecycle operations `new <name> [--goal]`, `start <id>`, `block <parent> <name>`, `done <id> --stamp`, `status`. Each refuses rather than repairs, naming the missing condition; no transition may leave INV-1..INV-7 violated. 2026-08-06 (S021): `done` additionally runs the optional `test_command` suite gate and refuses on a non-zero exit. 2026-08-09 (S090, DEC-040): `unpause <id>` clears a `paused_by` naming a step that is in no plan directory, and refuses one that names a step that exists |
 

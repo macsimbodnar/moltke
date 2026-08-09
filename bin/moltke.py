@@ -1717,6 +1717,11 @@ def mode_scaffold():
     # Exempt from the INV-11 gate: this mode exists to create the marker (DEC-017).
     root = scaffold_root()
     if declined(root):
+        # Exit 0 on stdout, deliberately (S102). Routing this through `refuse`
+        # for symmetry with `--decline` was tried and reverted: INV-11 is that
+        # every mode exits 0 in a declined repository, and "a repository that
+        # declined feels nothing" outranks the tidiness of one exit code. No
+        # document calls this a refusal, so nothing disagrees with the code.
         print(f"moltke: {root/MARKER} records enabled false; this repository declined the "
               f"workflow and is left untouched. Delete that file to reconsider.")
         return EXIT_OK
@@ -1794,9 +1799,11 @@ def mode_decline():
     root = scaffold_root()
     path = root / MARKER
     if path.is_file() and not declined(root):
-        print(f"moltke: {path} already exists and is not a declined marker; leaving it alone. "
-              f"Remove it first if this repository should stop using the workflow.")
-        return EXIT_OK
+        # Documented as a refusal in MANUAL and in the specs surface table since
+        # it was written; now it is one (S102, .F06).
+        return refuse(f"{path} already exists and is not a declined marker; leaving it "
+                      f"alone. Remove it first if this repository should stop using the "
+                      f"workflow.")
     # Same reason as mode_scaffold: dispatched ahead of main's backstop, so its
     # one write is guarded here or not at all (S091, .4-F04).
     try:

@@ -176,8 +176,9 @@ Exit codes and streams:
 
 Exit `1` means two different things and they arrive on different streams:
 `--validate`, `--audit list`, and `--audit check` print findings to stdout, while
-every refusal — `--step` transitions, `--audit new` on an existing report, an
-unknown operation, a failing `test_command` — goes to stderr. **If you script
+every refusal — `--step` transitions, an unknown operation, a failing
+`test_command`, `--decline` against an enabled repository — goes to stderr. `--audit new` on an existing report is not among
+them: it takes a `.2` suffix and exits `0`. **If you script
 this, capture both**, or you will get an exit code with no message. That matters
 most outside Claude Code, where `--validate` is the only lever you have.
 

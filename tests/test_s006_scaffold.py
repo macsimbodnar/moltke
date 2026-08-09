@@ -9,6 +9,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from fixtures import workflow_repo
 from surface import moltke
 
 MOLTKE = Path(__file__).resolve().parent.parent / "bin" / "moltke.py"
@@ -150,7 +151,9 @@ class TestDecline(unittest.TestCase):
             run_moltke(tmp, "--scaffold")
             before = (Path(tmp) / ".moltke.json").read_bytes()
             result = run_moltke(tmp, "--decline")
-            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            # Exit 1 on stderr since S102, which is what MANUAL and the specs
+            # surface table have called this branch since it was written.
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
             self.assertEqual((Path(tmp) / ".moltke.json").read_bytes(), before)
 
 
@@ -382,6 +385,72 @@ class TestPlanningPhaseNudge(unittest.TestCase):
             result = run_moltke(root, "--session-start")
             self.assertEqual(result.returncode, 0)
             self.assertNotIn("planning", result.stdout.lower())
+
+
+class TestDocumentedRefusalsAreRefusals(unittest.TestCase):
+    """S102 (2026-08-09_adversarial-F06): MANUAL and specs both say `--decline`
+    "refuses to disable an already-enabled repository", and the code printed to
+    stdout and returned 0 — indistinguishable, by exit code and by stream, from
+    the success it was declining to perform. AGENTS.md §7 makes a doc claim a
+    claim about code. It also matters to anyone scripting the init flow outside
+    Claude Code, which MANUAL explicitly addresses: exit 0 on both branches means
+    a script cannot tell whether the marker was written."""
+
+    def test_decline_on_an_enabled_repository_refuses(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            run_moltke(tmp, "--scaffold")
+            before = (Path(tmp) / ".moltke.json").read_bytes()
+            result = run_moltke(tmp, "--decline")
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn("moltke", result.stderr)
+            self.assertEqual((Path(tmp) / ".moltke.json").read_bytes(), before,
+                             "a refusal changes nothing")
+
+    def test_scaffold_on_a_declined_repository_stays_exit_0(self):
+        # Not the same choice as --decline, and the difference is INV-11: every
+        # mode exits 0 in a declined repository. Making this a refusal for
+        # symmetry was tried and reverted — "a repository that declined feels
+        # nothing" outranks one exit code, and no document calls this branch a
+        # refusal, so nothing disagrees with the code.
+        with tempfile.TemporaryDirectory() as tmp:
+            run_moltke(tmp, "--decline")
+            before = (Path(tmp) / ".moltke.json").read_bytes()
+            result = run_moltke(tmp, "--scaffold")
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertFalse((Path(tmp) / "adocs").exists())
+            self.assertEqual((Path(tmp) / ".moltke.json").read_bytes(), before)
+
+    def test_the_success_paths_still_exit_0(self):
+        # Non-vacuity: both refusals are the not-proceeding branch, and the
+        # branch that does proceed must be distinguishable from them.
+        with tempfile.TemporaryDirectory() as tmp:
+            self.assertEqual(run_moltke(tmp, "--decline").returncode, 0)
+        with tempfile.TemporaryDirectory() as tmp:
+            self.assertEqual(run_moltke(tmp, "--scaffold").returncode, 0)
+        with tempfile.TemporaryDirectory() as tmp:
+            run_moltke(tmp, "--scaffold")
+            self.assertEqual(run_moltke(tmp, "--scaffold").returncode, 0,
+                             "scaffolding an already-scaffolded repository is idempotent, "
+                             "not a refusal")
+
+    def test_audit_new_on_an_existing_report_is_not_a_refusal(self):
+        # The other half of the finding: MANUAL's exit-code prose named this as
+        # a refusal, and S020 deliberately chose the suffix instead. The prose
+        # is what changes; this pins the behaviour it now has to describe.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            first = run_moltke(root, "--audit", "new", "adversarial")
+            second = run_moltke(root, "--audit", "new", "adversarial")
+            self.assertEqual(first.returncode, 0, first.stdout + first.stderr)
+            self.assertEqual(second.returncode, 0, second.stdout + second.stderr)
+            self.assertTrue(list((root / "adocs" / "audit").glob("*_adversarial.2.md")))
+
+    def test_manual_does_not_list_it_among_the_refusals(self):
+        manual = (REPO / "MANUAL.md").read_text(encoding="utf-8")
+        listed = manual.split("every refusal — ", 1)[1].split(" — goes to stderr", 1)[0]
+        self.assertIn("--step", listed, "precondition: the refusal list must be what was read")
+        self.assertNotIn("--audit new", listed,
+                         "the refusal list must not name something the code does not refuse")
 
 
 class TestSetupModesRefuseInsteadOfRaising(unittest.TestCase):

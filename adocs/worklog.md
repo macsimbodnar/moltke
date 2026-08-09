@@ -2160,3 +2160,31 @@ sentinel), adocs/testing.md (6 rows), adocs/specs.md (dated note), README.md
 (429 to 435), adocs/plan_done/S101_fence_odd_agent_type.md, adocs/status.md.
 MANUAL checked, no change: its --pre-write row describes what the fence permits.
 Suite 435 OK, --validate green.
+
+## 2026-08-09T08:10+02:00 recap
+
+S102 complete. The two refusals MANUAL named are the two the code makes. Closes
+2026-08-09_adversarial-F06.
+
+`--decline` against an enabled repository now exits 1 on stderr. Red observed: the
+message on stdout at exit 0, indistinguishable from the success it was declining.
+MANUAL's exit-code prose no longer lists `--audit new` on an existing report as a
+refusal; that takes a `.2` suffix and exits 0, which S020 chose and the same file
+already described correctly elsewhere.
+
+Worth recording: the step's accepts asked for the same choice on `--scaffold`
+against a declined repository. It was made and then reverted — INV-11's own test
+caught it, since every mode exits 0 in a declined repository, and "a repository
+that declined feels nothing" outranks the tidiness of one exit code. No document
+calls that branch a refusal, so nothing disagreed with the code there. The revert
+is recorded in specs and in the test that now pins exit 0.
+
+Two existing tests were re-targeted to the new exit code rather than relaxed: both
+keep their assertions that the marker and the tree are unchanged.
+
+Files: bin/moltke.py (mode_decline through refuse, mode_scaffold comment),
+tests/test_s006_scaffold.py (TestDocumentedRefusalsAreRefusals, 5 tests, plus two
+re-targeted), adocs/testing.md (5 rows), adocs/specs.md (dated note and the
+--decline surface row), README.md (435 to 440), MANUAL.md (exit-code prose),
+adocs/plan_done/S102_manual_refusal_claims.md, adocs/status.md.
+Suite 440 OK, --validate green.
