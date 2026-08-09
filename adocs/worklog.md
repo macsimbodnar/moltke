@@ -1954,3 +1954,32 @@ adocs/specs.md (dated note), README.md (399 to 403), MANUAL.md (hook list),
 skills/step/SKILL.md, adocs/plan_done/S094_parked_survives_regeneration.md,
 adocs/status.md.
 Suite 403 OK, --validate green.
+
+## 2026-08-09T04:50+02:00 recap
+
+S095 complete. A step field now folds its indented continuation lines into its
+value. This is the defect S059's first Stop refusal exposed.
+
+Red observed: `'first line' != 'first line second line'`, and the Stop stamp gate
+reporting `without the README and MANUAL check recorded` against a stamp whose
+second line said exactly that. parse_step_file matched `^([a-z_]+):\s*(.*)$` per
+line; a continuation matches nothing and was dropped. `goal:`, `accepts:`,
+`touches:` and `excludes:` span lines all over the plan directories, so every
+reader of those fields had been seeing the opening line alone.
+
+A flush-left `word:` starts a new field, a blank line ends one, only an indented
+non-empty line continues it. `with_field` drops the lines a replaced value spanned
+— otherwise making continuations meaningful would fold replaced text straight back
+in, the same silent defect in a new place, and that has its own red-observed test.
+
+One test asserts the absence of a message, which would pass just as well if the
+gate never read the file. Its first precondition was unfalsifiable (it asserted the
+file was named, which only happens when the gate complains); rewritten as a twin
+fixture differing only in the words on the second line, which still fails.
+
+Files: bin/moltke.py (STEP_FIELD_RE, parse_step_file, with_field),
+tests/test_s007_step.py (TestMultilineStepFields, 7 tests), adocs/testing.md (7 rows),
+adocs/specs.md (dated note), README.md (403 to 410),
+adocs/plan_done/S095_multiline_step_fields.md, adocs/status.md.
+MANUAL checked, no change: it documents no step-file field syntax.
+Suite 410 OK, --validate green.

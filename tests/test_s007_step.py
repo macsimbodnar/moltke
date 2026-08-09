@@ -1009,5 +1009,96 @@ class TestDestinationNeverClobbered(unittest.TestCase):
             self.assertEqual(validate(root).returncode, 0, validate(root).stdout)
 
 
+class TestMultilineStepFields(unittest.TestCase):
+    """S095: `parse_step_file` matched `^([a-z_]+):\\s*(.*)$` per line, and an
+    indented continuation line matches nothing, so every field was silently
+    truncated to its first line. Found live during S059: the Stop stamp gate
+    reported the README and MANUAL check missing from a stamp that recorded it,
+    two lines down. goal:, accepts:, touches: and excludes: already span lines
+    across the plan directories, so every reader of those had been seeing the
+    first line alone."""
+
+    def parse(self, text):
+        from surface import moltke
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "S004_x.md"
+            path.write_text(text, encoding="utf-8")
+            return moltke.parse_step_file(path)
+
+    def test_a_continuation_line_is_part_of_the_field(self):
+        fields = self.parse("id:         S004\n"
+                            "goal:       first line\n"
+                            "            second line\n"
+                            "done:\n")
+        self.assertEqual(fields["goal"], "first line second line")
+
+    def stop_over_a_stamp(self, tmp, second_line):
+        """--stop's stderr for a step arriving in plan_done/ with a two-line stamp."""
+        root = workflow_repo(tmp)
+        subprocess.run(["git", "-C", str(root), "init", "-q"], check=True)
+        for args in (("add", "-A"), ("-c", "user.name=t", "-c", "user.email=t@t",
+                                     "commit", "-qm", "base")):
+            subprocess.run(["git", "-C", str(root), *args], check=True,
+                           stdout=subprocess.DEVNULL)
+        (root / "adocs" / "plan_done" / "S004_late.md").write_text(
+            "id:         S004\n"
+            "goal:       late\n"
+            "done:       2026-08-09: the work is finished and the suite is green,\n"
+            f"            {second_line}\n",
+            encoding="utf-8")
+        (root / "adocs" / "plan.md").write_text(
+            "# Plan\n\n1. S001 a\n2. S002 b\n3. S003 c\n4. S004 d\n", encoding="utf-8")
+        add_testing_row(root, "S004")
+        return run_moltke(root, "--stop").stderr
+
+    def test_a_stamp_whose_doc_check_is_on_the_second_line_satisfies_the_stop_gate(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            problems = self.stop_over_a_stamp(tmp, "README and MANUAL checked, no change.")
+            self.assertNotIn("without the README and MANUAL check recorded", problems)
+
+    def test_the_same_fixture_without_the_check_still_fails(self):
+        # Non-vacuity for the row above: it asserts the absence of a message, so
+        # it would pass just as well if the gate never looked at this file. The
+        # only difference here is the words on the second line.
+        with tempfile.TemporaryDirectory() as tmp:
+            problems = self.stop_over_a_stamp(tmp, "and the docs were not looked at.")
+            self.assertIn("S004_late.md", problems)
+            self.assertIn("without the README and MANUAL check recorded", problems)
+
+    def test_a_flush_left_line_that_looks_like_a_field_starts_a_new_one(self):
+        fields = self.parse("id:         S004\n"
+                            "goal:       first line\n"
+                            "note: not a continuation\n")
+        self.assertEqual(fields["goal"], "first line")
+        self.assertEqual(fields["note"], "not a continuation")
+
+    def test_a_blank_line_ends_a_field(self):
+        fields = self.parse("id:         S004\n"
+                            "goal:       first line\n"
+                            "\n"
+                            "  loose prose under the fields\n")
+        self.assertEqual(fields["goal"], "first line")
+
+    def test_setting_a_field_removes_the_lines_it_used_to_span(self):
+        # Without this, making continuations meaningful turns every set_field on
+        # a multi-line field into duplicated text — a new silent defect in place
+        # of the one being removed.
+        from surface import moltke
+        text = ("id:         S004\n"
+                "paused_by:  S005  # 2026-08-09\n"
+                "            stale continuation\n"
+                "done:\n")
+        rewritten = moltke.with_field(text, "paused_by", "")
+        self.assertNotIn("stale continuation", rewritten)
+        self.assertIn("done:", rewritten)
+
+    def test_this_repository_still_validates(self):
+        # The non-vacuity anchor: goal:, accepts:, touches: and excludes: span
+        # lines all over adocs/, so a change to how fields are read has to leave
+        # the real tree green.
+        result = run_moltke(REPO, "--validate")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+
 if __name__ == "__main__":
     unittest.main()

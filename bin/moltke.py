@@ -102,12 +102,32 @@ def step_name_problem(name):
             f"puts it outside the plan entirely. Use underscores: fix_parser, not fix-parser")
 
 
+STEP_FIELD_RE = re.compile(r"^([a-z_]+):\s*(.*)$")
+
+
 def parse_step_file(path):
-    fields = {}
+    """Fields, with indented continuation lines folded into the value.
+
+    S095: this matched per line and a continuation matches nothing, so every
+    field was silently truncated to its first line. Found live during S059 — the
+    Stop stamp gate reported the README and MANUAL check missing from a stamp
+    that recorded it two lines down — and goal:, accepts:, touches: and
+    excludes: span lines throughout the plan directories, so every reader of
+    those had been seeing the opening line alone. A flush-left `word:` starts a
+    new field, and a blank line ends the current one; only an indented non-empty
+    line continues it.
+    """
+    fields, current = {}, None
     for line in read_file(path).splitlines():
-        match = re.match(r"^([a-z_]+):\s*(.*)$", line)
+        match = STEP_FIELD_RE.match(line)
         if match:
-            fields.setdefault(match.group(1), match.group(2).strip())
+            current = match.group(1)
+            fields.setdefault(current, match.group(2).strip())
+            continue
+        if current and line.strip() and line[:1].isspace():
+            fields[current] = f"{fields[current]} {line.strip()}".strip()
+            continue
+        current = None
     return fields
 
 
@@ -1808,10 +1828,19 @@ def with_field(text, key, value):
     a failed move leaves nothing half-written.
     """
     rendered = f"{key}:{' ' * max(1, 11 - len(key) - 1)}{value}".rstrip()
-    lines, found = [], False
+    lines, found, replacing = [], False, False
     for line in text.splitlines():
         if line.split(":", 1)[0].strip() == key:
-            line, found = rendered, True
+            lines.append(rendered)
+            found, replacing = True, True
+            continue
+        # The lines the old value spanned go with it (S095). Now that
+        # parse_step_file folds continuations into the field, leaving them here
+        # would fold the replaced text straight back in — the same silent defect
+        # in a new place.
+        if replacing and line.strip() and line[:1].isspace():
+            continue
+        replacing = False
         lines.append(line)
     if not found:
         lines.append(rendered)

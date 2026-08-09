@@ -57,6 +57,19 @@ a `Status: <value>` line in its section; the S008 report template must conform.
 check abstains. INV-3 additionally treats a missing `plan.md` in an enabled
 repo as a violation.
 
+2026-08-09 (S095): a step field folds its indented continuation lines into its value.
+`parse_step_file` matched `^([a-z_]+):\s*(.*)$` once per line, and a continuation line
+matches nothing, so every field was silently truncated to its first line. Found live during
+S059: the Stop stamp gate reported the README and MANUAL check missing from a stamp that
+recorded it two lines down, and the gate was right about what it could see. `goal:`,
+`accepts:`, `touches:` and `excludes:` span lines throughout the plan directories, so every
+reader of those had been seeing the opening line alone. A flush-left `word:` starts a new
+field and a blank line ends the current one; only an indented non-empty line continues it.
+`with_field` drops the lines a replaced value spanned, because leaving them would fold the
+old text straight back in — the same silent defect in a new place. The single-line stamp
+convention every `plan_done/` file follows is unchanged; this is about what happens when a
+field does span lines, which until now was quiet data loss.
+
 2026-08-09 (S094): `--step status` carries everything below `- Parked:` to the end of
 the file through a regeneration, verbatim and whatever its indentation. The collector kept
 only lines beginning with two spaces or a tab and stopped at the first that did not, so a
