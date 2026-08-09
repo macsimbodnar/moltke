@@ -241,14 +241,36 @@ def _limit(config, key, default):
     return value if isinstance(value, int) and not isinstance(value, bool) and value >= 1 else default
 
 
+def pauser_id(fields):
+    """The step id a `paused_by` names, or None. The field carries a dated
+    comment, so it is matched rather than compared."""
+    found = re.search(r"S\d{3}", field_value(fields, "paused_by"))
+    return found.group(0) if found else None
+
+
 def inv_1_active_max(root, config):
     limit = _limit(config, "plan_active_max", 1)
-    active = [s for s, _p, fields in plan_steps(root)["plan_current"]
+    steps = plan_steps(root)
+    active = [s for s, _p, fields in steps["plan_current"]
               if not field_value(fields, "paused_by")]
+    violations = []
     if len(active) > limit:
-        return [f"INV-1: plan_current/ holds {len(active)} non-paused steps ({', '.join(active)}), "
-                f"limit {limit}; pause or complete until {limit} remain"]
-    return []
+        violations.append(
+            f"INV-1: plan_current/ holds {len(active)} non-paused steps ({', '.join(active)}), "
+            f"limit {limit}; pause or complete until {limit} remain")
+    # A pause is what takes a step out of the active count, so a pause naming
+    # work that is in no plan directory parks a step behind nothing and weakens
+    # the count generally (S090, .4-F03). INV-3 already reports the same shape
+    # for an id plan.md lists with no file; this is that rule for paused_by.
+    known = {found for dirname in PLAN_DIRS for found, _p, _f in steps[dirname]}
+    for step_id, _path, fields in steps["plan_current"]:
+        pauser = pauser_id(fields)
+        if pauser and pauser not in known:
+            violations.append(
+                f"INV-1: {step_id} is paused by {pauser}, which has no step file in any plan "
+                f"directory, so it waits on work that does not exist and no completion can "
+                f"reach it. Clear it with bin/moltke.py --step unpause {step_id}")
+    return violations
 
 
 def inv_2_stack_max(root, config):
@@ -1801,6 +1823,31 @@ def step_start(root, config, step_id):
     return EXIT_OK
 
 
+def step_unpause(root, config, step_id):
+    """The way out of a pause naming work that exists nowhere (S090, DEC-040).
+
+    Narrow on purpose: it clears a pause the plan cannot account for, and refuses
+    one it can. A general unpause would let a step walk out of the accounting
+    INV-1 keeps, which is the opposite of what this exists for."""
+    dirname, path, fields = locate_step(root, step_id)
+    if dirname is None:
+        return refuse(f"{step_id} does not exist")
+    if dirname != "plan_current":
+        return refuse(f"{step_id} is in {dirname}, not plan_current/; only an in-progress "
+                      f"step carries a pause")
+    pauser = pauser_id(fields)
+    if not pauser:
+        return refuse(f"{step_id} is not paused, so there is nothing to clear")
+    steps = plan_steps(root)
+    if pauser in {found for dirname in PLAN_DIRS for found, _p, _f in steps[dirname]}:
+        return refuse(f"{step_id} is paused by {pauser}, which exists. Complete {pauser} with "
+                      f"--step done {pauser}, which unpauses {step_id} on its way out; this "
+                      f"command only clears a pause naming a step that is in no plan directory")
+    set_field(path, "paused_by", "")
+    print(f"moltke: {step_id} unpaused; {pauser} had no step file in any plan directory.")
+    return EXIT_OK
+
+
 def step_block(root, config, parent_id, name):
     dirname, parent_path, fields = locate_step(root, parent_id)
     if dirname != "plan_current":
@@ -2386,7 +2433,7 @@ def _mode_audit(root, config, op, rest):
     return audit_new(root, config, rest[0])
 
 
-STEP_OPS = ("new", "start", "block", "done", "status")
+STEP_OPS = ("new", "start", "block", "unpause", "done", "status")
 
 
 def mode_step(root, config, argv, goal, stamp, marker_violations=()):
@@ -2422,6 +2469,8 @@ def mode_step(root, config, argv, goal, stamp, marker_violations=()):
             return refuse(problem) if problem else step_new(root, config, rest[0], goal)
         if op == "start":
             return step_start(root, config, rest[0])
+        if op == "unpause":
+            return step_unpause(root, config, rest[0])
         if op == "block":
             problem = step_name_problem(rest[1])
             return refuse(problem) if problem else step_block(root, config, rest[0], rest[1])
@@ -2431,6 +2480,7 @@ def mode_step(root, config, argv, goal, stamp, marker_violations=()):
     except IndexError:
         usage = {"new": "new <short_name> [--goal TEXT]", "start": "start <id>",
                  "block": "block <parent_id> <short_name>",
+                 "unpause": "unpause <id>",
                  "done": "done <id> --stamp TEXT"}[op]
         return refuse(f"usage: --step {usage}")
     except OSError as exc:

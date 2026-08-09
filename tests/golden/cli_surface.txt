@@ -9,7 +9,7 @@
 --scaffold
 --session-start
 --stamp VALUE
---step OP...  ops: block,done,new,start,status
+--step OP...  ops: block,done,new,start,status,unpause
 --stop
 --validate
 hooks: PostToolUse,PreToolUse,SessionStart,Stop,UserPromptSubmit

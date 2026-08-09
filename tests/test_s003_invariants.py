@@ -494,5 +494,97 @@ class TestInv7RenameRemedyRestores(unittest.TestCase):
             self.assertFalse((root / "adocs" / "plan_done" / "S001_renamed.md").exists())
 
 
+STAMP = "2026-08-09 suite green; README and MANUAL checked"
+
+
+def run_moltke(cwd, *args):
+    return subprocess.run(
+        [sys.executable, str(MOLTKE), *args],
+        cwd=cwd, capture_output=True, text=True, input="",
+    )
+
+
+class TestPauserMustExist(unittest.TestCase):
+    """S090 (2026-08-08_adversarial.4-F03): INV-1 counts a step as non-active
+    whenever `paused_by` is non-empty, and nothing checked that the named pauser
+    exists. A step waiting on work that is in no plan directory passed every
+    check, could not be completed, and no `--step` operation reached the field —
+    state derivable from tracked files, saying something untrue, with hand-editing
+    the only way out."""
+
+    def stranded(self, root):
+        """The one step in plan_current/, waiting on an id that exists nowhere."""
+        step_file(root / "adocs" / "plan_current", "S003", "active",
+                  paused_by="S999  # 2026-08-08")
+        return root / "adocs" / "plan_current" / "S003_active.md"
+
+    def test_a_pauser_that_exists_nowhere_is_a_violation(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            self.stranded(root)
+            result = run_validate(root)
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn("S003", result.stdout)
+            self.assertIn("S999", result.stdout)
+            self.assertIn("--step unpause", result.stdout,
+                          "the violation must name the command that clears it")
+
+    def test_the_named_command_clears_it(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            self.stranded(root)
+            cleared = run_moltke(root, "--step", "unpause", "S003")
+            self.assertEqual(cleared.returncode, 0, cleared.stdout + cleared.stderr)
+            self.assertEqual(run_validate(root).returncode, 0, run_validate(root).stdout)
+            testing = root / "adocs" / "testing.md"
+            testing.write_text(testing.read_text(encoding="utf-8")
+                               + "| S003 | works | test_S003 | pass |\n", encoding="utf-8")
+            done = run_moltke(root, "--step", "done", "S003", "--stamp", STAMP)
+            self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+
+    def test_unpause_refuses_a_pause_that_is_real(self):
+        # Non-vacuity: a command that cleared any pause would pass the two tests
+        # above while destroying the accounting INV-1 exists to keep.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            step_file(root / "adocs" / "plan_current", "S004", "blocking_child",
+                      blocks="S003")
+            (root / "adocs" / "plan.md").write_text(
+                "# Plan\n\n1. S001 a\n2. S002 b\n3. S003 c\n4. S004 d\n", encoding="utf-8")
+            parent = step_file(root / "adocs" / "plan_current", "S003", "active",
+                               paused_by="S004  # 2026-08-09")
+            result = run_moltke(root, "--step", "unpause", "S003")
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn("S004", result.stderr)
+            self.assertIn("S004", parent.read_text(encoding="utf-8"),
+                          "a real pause may not be cleared")
+
+    def test_a_legitimate_pause_is_still_silent(self):
+        # The other non-vacuity anchor: the new check must not fire on the shape
+        # the workflow creates on purpose.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            step_file(root / "adocs" / "plan_current", "S004", "paused_parent",
+                      paused_by="S003")
+            (root / "adocs" / "plan.md").write_text(
+                "# Plan\n\n1. S001 a\n2. S002 b\n3. S003 c\n4. S004 d\n", encoding="utf-8")
+            result = run_validate(root)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_a_pauser_already_in_plan_done_keeps_the_s070_behaviour(self):
+        # S070's stale-pause path: --step done says so and goes on. This step
+        # must not turn that working path into a refusal.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            step_file(root / "adocs" / "plan_current", "S003", "active",
+                      paused_by="S001  # 2026-08-09")
+            testing = root / "adocs" / "testing.md"
+            testing.write_text(testing.read_text(encoding="utf-8")
+                               + "| S003 | works | test_S003 | pass |\n", encoding="utf-8")
+            done = run_moltke(root, "--step", "done", "S003", "--stamp", STAMP)
+            self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+            self.assertIn("stale", done.stdout)
+
+
 if __name__ == "__main__":
     unittest.main()

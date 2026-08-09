@@ -282,3 +282,41 @@ Context:      2026-08-08_adversarial.3-F01: the retry state write is the one ung
 Decision:     the crash is a defect and is fixed — nothing in `mode_stop` may raise, the problems are printed before anything that can fail, and a state write that fails says so in its own words. The missing cap is not a defect: DEC-031 already weighed this exact trade for a repository with no git and accepted it, so the property is scoped to "wherever moltke can write its state beside the git directory" rather than "wherever git is". An unwritable `.git` gets the same treatment as no git at all: every `Stop` blocks until the problem is fixed, with correct and actionable messages behind it, and the message names the missing cap so nobody has to work out why the waiver never came. (Max's standing choice in DEC-031, applied to the neighbouring case by the agent.)
 Rejected:     waiving on the first block when the count cannot be persisted (it would make the finding's transcript read `2 0 0 0 0` and satisfies the literal acceptance this step was written with, but DEC-031 rejected the same option for the same reason — it turns the gate advisory in exactly the repositories least able to notice, and an unwritable `.git` is a broken tree rather than a normal one); keeping the count somewhere else when `.git` cannot take it, such as the system temp directory (rejected by DEC-031 as state outside the project, contradicting AGENTS.md §12, and it would now be reached by a transient permission problem rather than a deliberate setup); guarding this one write and leaving the rest of the function as it is (that is what S067 did with the reads, and this finding is the result).
 Consequences: INV-12's qualifier widens from "a repository with no git at all" to "anywhere moltke cannot write its state", which is the honest statement of what the code does. `--stop` gains a rule rather than another patch: print first, persist second, and let no exception leave the function. The step's own acceptance criterion, written before this was thought through, asked for `2 2 2 0 0 0 0 0` on an unwritable `.git`; it is amended to the behaviour this entry chooses, with the reason recorded here rather than the criterion quietly relaxed.
+
+## DEC-040  2026-08-09  A stranded pause is cleared by its own command, not by hand
+Tags:         plan, cli, invariants
+Context:      2026-08-08_adversarial.4-F03. A step in plan_current/ carrying
+              paused_by: S999, where S999 is in no plan directory, passed every
+              check. INV-1 counts a step as non-active whenever paused_by is
+              non-empty and nothing verified the pauser existed, so the step was
+              parked behind work that did not exist. --step done on the parent
+              refused and pointed at S999; --step done S999 and --step start S999
+              both answered that it does not exist. No operation reached the
+              field, so the only way out was editing a step file by hand — which
+              is what --step exists to avoid, and which leaves the prime
+              directive's tracked state saying something untrue.
+Decision:     Report it from INV-1, and add --step unpause <id> as the way out.
+              The violation names the step, the missing pauser, and that command.
+              unpause is narrow: it clears a pause whose named step is in no plan
+              directory and refuses one whose step exists, pointing at --step done
+              on the pauser instead. Agent-proposed, from the options the finding
+              itself listed; Max approves the surface addition by accepting this
+              step's plan.
+Rejected:     Extending S070's stale-pause path in step_done to treat a missing
+              pauser as stale, which the finding also suggested: it clears the
+              field only for a parent that is otherwise ready to complete, so a
+              parent blocked on anything else stays stuck with no command to run,
+              and the repair would be a side effect of a different operation
+              rather than something you can ask for.
+              A general --step unpause that clears any pause: it would let a step
+              walk out of the active accounting INV-1 exists to keep, turning a
+              repair into a way around the invariant.
+              Reporting the violation without adding a command: --validate would
+              name a problem whose only remedy is hand-editing, which is the
+              dead-end shape S070 and S084 were both written to remove.
+Consequences: STEP_OPS gains an operation, so tests/golden/cli_surface.txt, the
+              specs surface table, and MANUAL all carry it. INV-1 now returns more
+              than one violation, so its message is a list rather than a single
+              string. A pause naming a step already in plan_done/ is untouched:
+              that is S070's path and --step done still treats it as stale and
+              goes on.

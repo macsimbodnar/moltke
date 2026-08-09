@@ -1822,3 +1822,34 @@ adocs/testing.md (4 rows), adocs/specs.md (dated note), README.md (383 to 387),
 MANUAL.md (--step start and --step done rows),
 adocs/plan_done/S089_done_never_clobbers.md, adocs/status.md.
 Suite 387 OK, --validate green.
+
+## 2026-08-09T02:50+02:00 recap
+
+S090 complete. INV-1 now reports a `paused_by` naming a step that is in no plan
+directory, and `--step unpause <id>` clears it. Closes 2026-08-08_adversarial.4-F03.
+DEC-040 records the surface addition and what was rejected.
+
+Red observed: a step in plan_current/ with `paused_by: S999`, no S999 anywhere,
+and `--validate` said `moltke: all checks pass`. The step was parked behind work
+that did not exist, `--step done` on the parent refused and pointed at S999, and
+no `--step` operation reached the field — hand-editing was the only way out.
+
+`unpause` is narrow on purpose: it refuses a pause whose named step exists and
+points at completing that one instead. A general unpause would be a way around
+INV-1, not a repair. S070's stale-pause path (pauser already in plan_done/) is
+unchanged and now pinned by a test.
+
+Two of the five tests were written wrong first: they set `paused_by` with a string
+replace against a line the fixture never writes, so they asserted nothing. Both
+rebuilt with step_file.
+
+New public operation, so the CLI golden was refreshed — after the specs surface
+table and MANUAL carried it, which is the order README requires.
+
+Files: bin/moltke.py (pauser_id, inv_1_active_max, step_unpause, STEP_OPS,
+dispatch, usage), tests/test_s003_invariants.py (TestPauserMustExist, 5 tests),
+tests/golden/cli_surface.txt, adocs/decisions.md (DEC-040), adocs/testing.md (5 rows),
+adocs/specs.md (dated note plus surface table row), README.md (387 to 392),
+MANUAL.md (--step unpause row), adocs/plan_done/S090_paused_by_must_exist.md,
+adocs/status.md.
+Suite 392 OK, --validate green.
