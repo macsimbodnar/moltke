@@ -57,6 +57,22 @@ a `Status: <value>` line in its section; the S008 report template must conform.
 check abstains. INV-3 additionally treats a missing `plan.md` in an enabled
 repo as a violation.
 
+2026-08-09 (S099): `--goal` and `--stamp` are refused when they contain a line break,
+before anything is written. S095 gave `parse_step_file` a rule for multi-line values and no
+writer honoured the other half of it: `write_step`, `append_to_plan` and `with_field` each
+interpolate the value into one f-string, so a newline landed flush left — the one shape the
+parser is documented to drop (finding 2026-08-09_adversarial-F03). `--goal` with a newline
+put a list entry into `plan.md` that nobody typed and that `--validate` then reported as
+INV-3; `--stamp` with the README and MANUAL mention on its second line passed the gate that
+reads the string, wrote a file that reads back without it, left `--validate` green, and
+blocked every Stop for the rest of the turn with a remedy that cannot be followed — the file
+is under `plan_done/`, which `--pre-write` refuses, and editing it from Bash turns the block
+into INV-7. Refused rather than reflowed, because a stamp is evidence and silently rewriting
+it is the same class of quiet transformation the truncation was. The tests drive both
+operands through the CLI and read the written file back through `parse_step_file`; that
+round trip is what the S095 tests skipped by hand-writing their fixtures, which is why the
+defect survived that step.
+
 2026-08-09 (S098): INV-1's pause rule is "the pause resolves" rather than "the pauser
 exists", and `--step unpause` clears exactly what INV-1 reports. S090 closed the phantom
 pauser and left the neighbouring case: a step whose `paused_by` names itself, or a ring of

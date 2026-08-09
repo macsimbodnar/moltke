@@ -2089,3 +2089,29 @@ tests/test_s003_invariants.py (TestAPauseMustResolve, 7 tests), adocs/testing.md
 (7 rows), adocs/specs.md (dated note), README.md (415 to 422), MANUAL.md (--step
 unpause row), adocs/plan_done/S098_pause_must_resolve.md, adocs/status.md.
 Suite 422 OK, --validate green.
+
+## 2026-08-09T06:55+02:00 recap
+
+S099 complete. `--goal` and `--stamp` are refused when they contain a line break,
+before anything is written. Closes 2026-08-09_adversarial-F03.
+
+Red observed: `--step new --goal "...\n2. S999 injected by a newline"` reported
+success and put that second line into plan.md as a list entry; `--step done` with
+a two-line stamp completed green and wrote a file that reads back without the
+README and MANUAL mention its own gate had accepted.
+
+Refused rather than reflowed. A stamp is evidence, and silently rewriting it is
+the same class of quiet transformation as silently truncating it — which is what
+S095 was about.
+
+Three of the five tests drive the operands through the CLI and read the written
+file back through parse_step_file. That round trip is what the S095 tests skipped
+by hand-writing their fixtures, and it is why this survived that step; the audit's
+mutation testing found the same gap.
+
+Files: bin/moltke.py (field_value_problem, mode_step dispatch for new and done),
+tests/test_s007_step.py (TestWrittenFieldValuesRoundTrip, 5 tests),
+adocs/testing.md (5 rows), adocs/specs.md (dated note), README.md (422 to 427),
+MANUAL.md (--goal and --stamp paragraph),
+adocs/plan_done/S099_field_values_single_line.md, adocs/status.md.
+Suite 427 OK, --validate green.

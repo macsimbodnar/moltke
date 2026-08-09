@@ -1842,6 +1842,26 @@ def next_step_id(root):
     return f"S{highest + 1:03d}"
 
 
+def field_value_problem(operand, value):
+    """S099 (2026-08-09_adversarial-F03): the writers did not honour the rule
+    S095 gave the reader. `write_step`, `append_to_plan` and `with_field` each
+    interpolate a value into one f-string, so a newline lands flush left — the
+    one shape `parse_step_file` is documented to drop, and in `plan.md` a list
+    entry nobody typed.
+
+    Refused at the boundary rather than reflowed, because a `done:` stamp is
+    evidence: silently rewriting it is the same class of quiet transformation
+    the truncation was. This is the shape `step_name_problem` and the `--audit`
+    type check already use.
+    """
+    if value is None or "\n" not in value and "\r" not in value:
+        return None
+    return (f"{operand} contains a line break, and a field is written as one line: the "
+            f"continuation would land flush left, where the step-file parser reads it as a "
+            f"new field and drops it, and where plan.md reads it as another list entry. Pass "
+            f"it as a single line — long is fine, every completed step here is one line")
+
+
 def step_id_ceiling_problem(root):
     """S097 (2026-08-09_adversarial-F01): past S999 the allocator produced an id
     no scanner can read. STEP_FILE_RE and PLAN_ENTRY_RE both require exactly
@@ -2628,7 +2648,8 @@ def mode_step(root, config, argv, goal, stamp, marker_violations=()):
         # naming a step that does not exist. rest is indexed inside the try so a
         # missing argument still reaches the usage handler below (S088).
         if op == "new":
-            problem = step_name_problem(rest[0]) or step_id_ceiling_problem(root)
+            problem = (step_name_problem(rest[0]) or field_value_problem("--goal", goal)
+                       or step_id_ceiling_problem(root))
             return refuse(problem) if problem else step_new(root, config, rest[0], goal)
         if op == "start":
             return step_start(root, config, rest[0])
@@ -2638,7 +2659,8 @@ def mode_step(root, config, argv, goal, stamp, marker_violations=()):
             problem = step_name_problem(rest[1]) or step_id_ceiling_problem(root)
             return refuse(problem) if problem else step_block(root, config, rest[0], rest[1])
         if op == "done":
-            return step_done(root, config, rest[0], stamp)
+            problem = field_value_problem("--stamp", stamp)
+            return refuse(problem) if problem else step_done(root, config, rest[0], stamp)
         return step_status(root, config)
     except IndexError:
         usage = {"new": "new <short_name> [--goal TEXT]", "start": "start <id>",

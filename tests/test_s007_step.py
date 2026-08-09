@@ -1094,6 +1094,93 @@ class TestStepIdCeiling(unittest.TestCase):
             self.assertEqual(validate(root).returncode, 0, validate(root).stdout)
 
 
+class TestWrittenFieldValuesRoundTrip(unittest.TestCase):
+    """S099 (2026-08-09_adversarial-F03): S095 gave `parse_step_file` a rule for
+    multi-line values and no writer honoured the other half of it. `write_step`,
+    `append_to_plan` and `with_field` interpolate a value into one f-string, so a
+    newline lands flush left — the one shape the parser is documented to drop.
+
+    Two consequences, both on a success path. `--goal` with a newline puts a list
+    entry into `plan.md` that no one typed, and `--validate` then reports it.
+    `--stamp` with the README and MANUAL mention on its second line passes the
+    gate that reads the string, writes a file that reads back without it, and
+    blocks every Stop for the rest of the turn with a remedy that cannot be
+    followed: the file is under `plan_done/`, which `--pre-write` refuses, and
+    editing it from Bash turns the block into an INV-7 violation."""
+
+    def parsed(self, path):
+        from surface import moltke
+        return moltke.parse_step_file(path)
+
+    def test_a_goal_with_a_newline_never_reaches_plan_md(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            before = (root / "adocs" / "plan.md").read_bytes()
+            result = run_moltke(root, "--step", "new", "fold_lines",
+                                "--goal", "teach the parser to fold lines\n"
+                                          "2. S999 injected by a newline")
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertEqual((root / "adocs" / "plan.md").read_bytes(), before)
+            self.assertEqual(list((root / "adocs" / "plan_todo").glob("*fold_lines*")), [])
+            self.assertEqual(validate(root).returncode, 0, validate(root).stdout)
+
+    def test_a_stamp_with_a_newline_never_completes_a_step(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            add_testing_row(root, "S003")
+            result = run_moltke(root, "--step", "done", "S003", "--stamp",
+                                "2026-08-09: suite green, 422 tests.\n"
+                                "README and MANUAL checked, no change needed.")
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertTrue((root / "adocs" / "plan_current" / "S003_active.md").is_file())
+            self.assertFalse((root / "adocs" / "plan_done" / "S003_active.md").exists())
+            self.assertEqual(validate(root).returncode, 0, validate(root).stdout)
+
+    def test_a_goal_written_by_the_cli_reads_back_whole(self):
+        # The round trip the S095 tests skipped by hand-writing their fixtures,
+        # which is why that step did not catch this.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            goal = "teach the parser to fold lines, and keep the plan entry on one line"
+            result = run_moltke(root, "--step", "new", "round_trip", "--goal", goal)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            written = self.parsed(root / "adocs" / "plan_todo" / "S004_round_trip.md")
+            self.assertEqual(written["goal"], goal)
+            plan = (root / "adocs" / "plan.md").read_text(encoding="utf-8")
+            self.assertIn(f"S004  {goal}", plan)
+            self.assertEqual(validate(root).returncode, 0, validate(root).stdout)
+
+    def test_a_stamp_written_by_the_cli_reads_back_whole(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            add_testing_row(root, "S003")
+            stamp = ("2026-08-09: suite green, 422 tests. README and MANUAL checked, "
+                     "no change needed.")
+            result = run_moltke(root, "--step", "done", "S003", "--stamp", stamp)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            written = self.parsed(root / "adocs" / "plan_done" / "S003_active.md")
+            self.assertEqual(written["done"], stamp,
+                             "the stamp the gate accepted and the stamp the file carries "
+                             "must be the same string")
+
+    def test_a_completed_step_never_fails_the_gate_that_let_it_through(self):
+        # The wedge, stated as the property: nothing reachable through --step
+        # leaves plan_done/ holding a stamp the Stop gate rejects.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            subprocess.run(["git", "-C", str(root), "init", "-q"], check=True)
+            for args in (("add", "-A"), ("-c", "user.name=t", "-c", "user.email=t@t",
+                                         "commit", "-qm", "base")):
+                subprocess.run(["git", "-C", str(root), *args], check=True,
+                               stdout=subprocess.DEVNULL)
+            add_testing_row(root, "S003")
+            run_moltke(root, "--step", "done", "S003", "--stamp",
+                       "2026-08-09: green. README and MANUAL checked.")
+            run_moltke(root, "--step", "status")
+            problems = run_moltke(root, "--stop").stderr
+            self.assertNotIn("without the README and MANUAL check recorded", problems)
+
+
 class TestMultilineStepFields(unittest.TestCase):
     """S095: `parse_step_file` matched `^([a-z_]+):\\s*(.*)$` per line, and an
     indented continuation line matches nothing, so every field was silently

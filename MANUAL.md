@@ -153,7 +153,10 @@ Cursor) must, since hooks exist only in Claude Code.
 | `--stop` | Stop hook: refuse to end a turn on violations, a stale `status.md`, or unrecapped source changes |
 
 `--step new` takes `--goal TEXT`; `--step done` takes `--stamp TEXT` and
-requires it. Every mode exits 0 immediately in a repository with no marker, or
+requires it. Both are written as one line of a step file, so a value containing
+a line break is refused rather than reflowed: the continuation would land flush
+left, where the parser reads it as a new field and drops it, and where `plan.md`
+reads it as another list entry. Long single lines are the convention here. Every mode exits 0 immediately in a repository with no marker, or
 one whose marker says `enabled: false` — except `--scaffold` and `--decline`,
 which exist to create that marker.
 
