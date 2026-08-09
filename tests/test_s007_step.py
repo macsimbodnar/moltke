@@ -391,6 +391,65 @@ class TestStatus(unittest.TestCase):
             self.assertIn("ask about the licence", status)
             self.assertIn("revisit retry budget", status)
 
+    def test_preserves_an_unindented_parked_entry(self):
+        # S094 (2026-08-08_adversarial.4-F07): the collector stopped at the first
+        # line that did not start with two spaces or a tab, so a Parked list
+        # written flush left — the ordinary markdown for a nested list, and what
+        # the shipped template's bare `- Parked:` invites — was silently dropped
+        # by a regeneration that runs at every step transition and reports
+        # success. Human memory, deleted by a convenience view.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            (root / "adocs" / "status.md").write_text(
+                "# Status\n\n- Next: whatever\n- Parked:\n"
+                "- ask about the licence\n- revisit retry budget\n", encoding="utf-8")
+            result = run_moltke(root, "--step", "status")
+            status = (root / "adocs" / "status.md").read_text(encoding="utf-8")
+            if result.returncode == 0:
+                self.assertIn("ask about the licence", status)
+                self.assertIn("revisit retry budget", status)
+            else:
+                # The other outcome this step allows: refuse, say what could not
+                # be read, and change nothing.
+                self.assertIn("Parked", result.stderr)
+                self.assertIn("ask about the licence", status)
+
+    def test_preserves_a_mixed_parked_list(self):
+        # Indented continuation under a flush-left entry: both shapes at once,
+        # which is what a hand-written list actually looks like.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            (root / "adocs" / "status.md").write_text(
+                "# Status\n\n- Next: whatever\n- Parked:\n"
+                "- ask about the licence\n"
+                "  which the vendor has not answered\n"
+                "  - revisit retry budget\n", encoding="utf-8")
+            self.assertEqual(run_moltke(root, "--step", "status").returncode, 0)
+            status = (root / "adocs" / "status.md").read_text(encoding="utf-8")
+            for kept in ("ask about the licence", "which the vendor has not answered",
+                         "revisit retry budget"):
+                self.assertIn(kept, status)
+
+    def test_a_parked_list_survives_repeated_regeneration(self):
+        # Carrying it through once is not enough: --step status runs at every
+        # transition, so the shape it writes has to be one it can read back.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            (root / "adocs" / "status.md").write_text(
+                "# Status\n\n- Next: whatever\n- Parked:\n"
+                "- ask about the licence\n", encoding="utf-8")
+            for _ in range(3):
+                self.assertEqual(run_moltke(root, "--step", "status").returncode, 0)
+            status = (root / "adocs" / "status.md").read_text(encoding="utf-8")
+            self.assertEqual(status.count("ask about the licence"), 1,
+                             "the entry must survive without being duplicated")
+
+    def test_the_shipped_template_shows_a_parked_entry(self):
+        template = (REPO / "templates" / "adocs" / "status.md").read_text(encoding="utf-8")
+        parked = template.split("- Parked:", 1)[1].strip()
+        self.assertTrue(parked, "the template's Parked list must show the shape, not just "
+                                "the heading, so it is visible rather than inferred")
+
     def test_shows_the_paused_stack(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = workflow_repo(tmp)

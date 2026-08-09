@@ -2088,17 +2088,21 @@ def parked_lines(root):
     status_path = root / DOCS / "status.md"
     if not status_path.is_file():
         return []
+    # Everything after the heading to the end of the file (S094, .4-F07). This
+    # collected only lines starting with two spaces or a tab and stopped at the
+    # first that did not, so a list written flush left — ordinary markdown, and
+    # what the template's bare `- Parked:` invited — was dropped by a
+    # regeneration that runs at every step transition and reports success.
+    # Reading to the end is safe because Parked is the last thing step_status
+    # writes, so nothing derived follows it; and lines are kept verbatim, so
+    # what is read back next time is what was written.
     kept, collecting = [], False
     for line in read_file(status_path).splitlines():
-        if re.match(r"^\s*-\s*Parked:", line):
-            collecting = True
+        if not collecting:
+            collecting = bool(re.match(r"^\s*-\s*Parked:", line))
             continue
-        if collecting:
-            if line.startswith(("  ", "\t")) or not line.strip():
-                if line.strip():
-                    kept.append(line.rstrip())
-            else:
-                break
+        if line.strip():
+            kept.append(line.rstrip())
     return kept
 
 

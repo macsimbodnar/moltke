@@ -114,7 +114,9 @@ Nothing to remember. Hooks fire on their own:
 - session start prints the current stack and the next step, and names any field
   where `status.md` disagrees with the filesystem — Last done, In progress, Next,
   or Blocked. The `Updated:` line and the Parked block are yours; nothing
-  compares them
+  compares them. Everything below `- Parked:` to the end of the file is carried
+  through a regeneration verbatim, whatever its indentation, so that block is
+  where anything worth remembering that no other file holds belongs
 - every prompt is appended verbatim to `adocs/worklog.md`, which is history you
   may correct or trim: only `adocs/decisions.md` is enforced append-only
 - writes into completed history are refused

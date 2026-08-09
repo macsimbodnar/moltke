@@ -57,6 +57,16 @@ a `Status: <value>` line in its section; the S008 report template must conform.
 check abstains. INV-3 additionally treats a missing `plan.md` in an enabled
 repo as a violation.
 
+2026-08-09 (S094): `--step status` carries everything below `- Parked:` to the end of
+the file through a regeneration, verbatim and whatever its indentation. The collector kept
+only lines beginning with two spaces or a tab and stopped at the first that did not, so a
+Parked list written flush left — ordinary markdown, and what the shipped template's bare
+`- Parked:` invited — was deleted by a command that runs at every step transition and
+reports success (finding 2026-08-08_adversarial.4-F07). Reading to the end of the file is
+safe because Parked is the last block `step_status` writes, so nothing derived follows it,
+and keeping lines verbatim means the shape written is the shape read back. The template now
+carries a Parked entry, so the block is visible rather than inferred.
+
 2026-08-09 (S093): INV-8's high-water-mark violation prints the git blob spec, not the
 root-relative path. S081 threaded the top-level prefix through every reader of
 `decisions.md` and missed this one message, so below the git top level the remedy for the

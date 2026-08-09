@@ -1927,3 +1927,30 @@ adocs/testing.md (3 rows), adocs/specs.md (dated note), README.md (397 to 399),
 adocs/plan_done/S093_inv8_remedy_path.md, adocs/status.md.
 MANUAL checked, no change: it does not quote this message.
 Suite 399 OK, --validate green.
+
+## 2026-08-09T04:20+02:00 recap
+
+S094 complete. `--step status` carries everything below `- Parked:` to the end of
+the file through a regeneration, verbatim and whatever its indentation. Closes
+2026-08-08_adversarial.4-F07.
+
+Red observed: a Parked list written flush left vanished entirely — the regenerated
+file held `- Parked:` and nothing after it, and the command reported success. The
+collector kept only lines starting with two spaces or a tab and stopped at the
+first that did not, which is ordinary markdown for a nested list and exactly what
+the shipped template's bare heading invited.
+
+Reading to end of file is safe because Parked is the last block step_status writes,
+so nothing derived follows it. Lines are kept verbatim, so the shape written is the
+shape read back — pinned by a test that regenerates three times and asserts the
+entry appears once.
+
+The template now carries a Parked entry, so the block is visible rather than
+inferred, and says the list is the user's to keep.
+
+Files: bin/moltke.py (parked_lines), templates/adocs/status.md,
+tests/test_s007_step.py (4 new tests in TestStatus), adocs/testing.md (5 rows),
+adocs/specs.md (dated note), README.md (399 to 403), MANUAL.md (hook list),
+skills/step/SKILL.md, adocs/plan_done/S094_parked_survives_regeneration.md,
+adocs/status.md.
+Suite 403 OK, --validate green.
