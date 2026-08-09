@@ -864,5 +864,91 @@ class TestStepNameValidation(unittest.TestCase):
                     self.assertIn("usage", result.stderr)
 
 
+class TestDestinationNeverClobbered(unittest.TestCase):
+    """S089 (2026-08-08_adversarial.4-F02): the completion write went straight to
+    `plan_done/<name>.md`. With the same id in both directories — an INV-6
+    violation, which `--validate` reports rather than prevents — the write
+    overwrote the finished step with the in-progress one, destroying the history
+    AGENTS.md §11 forbids the agent from touching, from the command whose own
+    documentation calls that directory immutable."""
+
+    def duplicate(self, root):
+        """The same id in plan_current/ and plan_done/, with bodies that differ
+        so a clobber is visible rather than inferred."""
+        return step_file(root / "adocs" / "plan_done", "S003", "active",
+                         done="2026-08-01 the original completion, README and MANUAL checked")
+
+    def test_done_refuses_a_duplicate_id_and_leaves_history_byte_identical(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            history = self.duplicate(root)
+            before = history.read_bytes()
+            add_testing_row(root, "S003")
+            result = run_moltke(root, "--step", "done", "S003", "--stamp", STAMP)
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn("S003", result.stderr)
+            self.assertIn("INV-6", result.stderr)
+            self.assertEqual(history.read_bytes(), before,
+                             "plan_done/ is immutable history and may not be overwritten")
+            self.assertIn("2026-08-01 the original completion",
+                          history.read_text(encoding="utf-8"),
+                          "the original done: stamp must survive")
+            self.assertTrue((root / "adocs" / "plan_current" / "S003_active.md").is_file(),
+                            "a refused completion leaves the source where it was")
+
+    def test_done_refuses_before_the_suite_gate_runs(self):
+        # S070's rule: nothing is written, and nothing expensive is run, until
+        # every precondition holds. A gate that runs first would spend the
+        # suite's wall clock to then refuse.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            self.duplicate(root)
+            add_testing_row(root, "S003")
+            marker = json.loads((root / ".moltke.json").read_text(encoding="utf-8"))
+            marker["test_command"] = f"{sys.executable} -c \"open('ran','w').close()\""
+            (root / ".moltke.json").write_text(json.dumps(marker), encoding="utf-8")
+            result = run_moltke(root, "--step", "done", "S003", "--stamp", STAMP)
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertFalse((root / "ran").exists(),
+                             "the duplicate is refused before the suite gate spends its time")
+
+    def test_start_refuses_when_the_destination_name_is_taken(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            # The same id in plan_todo/ and plan_current/. locate_step searches
+            # plan_todo first, so --step start reads the todo copy, decides the
+            # step is not yet current, and renames it onto the file of the same
+            # name already in plan_current/.
+            occupied = step_file(root / "adocs" / "plan_current", "S002", "pending",
+                                 touches="the copy already in plan_current")
+            # The limits are raised so the active and stack gates pass and the
+            # rename is what the test actually reaches; at the default 1 this
+            # refuses on plan_active_max and proves nothing about clobbering.
+            marker = json.loads((root / ".moltke.json").read_text(encoding="utf-8"))
+            marker["plan_active_max"] = 3
+            (root / ".moltke.json").write_text(json.dumps(marker), encoding="utf-8")
+            before = occupied.read_bytes()
+            result = run_moltke(root, "--step", "start", "S002")
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn("INV-6", result.stderr)
+            self.assertEqual(occupied.read_bytes(), before,
+                             "an occupied destination may not be replaced")
+            self.assertTrue((root / "adocs" / "plan_todo" / "S002_pending.md").is_file(),
+                            "a refused start leaves the source where it was")
+
+    def test_an_ordinary_completion_and_start_still_work(self):
+        # Non-vacuity: the guard must not refuse the transitions it protects.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            add_testing_row(root, "S003")
+            done = run_moltke(root, "--step", "done", "S003", "--stamp", STAMP)
+            self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+            self.assertTrue((root / "adocs" / "plan_done" / "S003_active.md").is_file())
+            start = run_moltke(root, "--step", "start", "S002")
+            self.assertEqual(start.returncode, 0, start.stdout + start.stderr)
+            self.assertTrue((root / "adocs" / "plan_current" / "S002_pending.md").is_file())
+            self.assertEqual(validate(root).returncode, 0, validate(root).stdout)
+
+
 if __name__ == "__main__":
     unittest.main()

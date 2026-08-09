@@ -1790,3 +1790,35 @@ tests/test_s007_step.py (TestStepNameValidation, 7 tests), adocs/testing.md (6 r
 adocs/specs.md (dated note), README.md (376 to 383), MANUAL.md (both --step rows),
 adocs/plan_done/S088_validate_step_names.md, adocs/status.md.
 Suite 383 OK, --validate green.
+
+## 2026-08-09T13:14+02:00 prompt
+
+> execute all next steps until my input is required
+
+## 2026-08-09T02:20+02:00 recap
+
+S089 complete. `--step done` and `--step start` refuse when the destination is
+already carried by a file with that id. Closes 2026-08-08_adversarial.4-F02.
+
+The completion write is a plain `write_text` into plan_done/. Red observed: with
+S003 in both plan_current/ and plan_done/, `--step done S003` reported success and
+overwrote the finished step, original `done:` stamp included — history destroyed by
+the command whose own success message calls that directory immutable. `--step
+start`'s `path.rename` is the same shape, silent on POSIX, and reachable because
+locate_step searches plan_todo/ first.
+
+Both checks run before anything is written and before the suite gate spends its
+wall clock, which a test pins by asserting the gate's side-effect file never
+appears. Both refuse rather than resolve: ids are never reused (DEC-008), so one of
+the two files is misnumbered, and choosing which is not the command's call.
+
+Worth recording: the start test first passed for the wrong reason — plan_active_max
+refused before any rename could happen, so it proved nothing about clobbering. The
+fixture now raises the limit so the rename is what the test reaches.
+
+Files: bin/moltke.py (step_done twin check, step_start twin check),
+tests/test_s007_step.py (TestDestinationNeverClobbered, 4 tests),
+adocs/testing.md (4 rows), adocs/specs.md (dated note), README.md (383 to 387),
+MANUAL.md (--step start and --step done rows),
+adocs/plan_done/S089_done_never_clobbers.md, adocs/status.md.
+Suite 387 OK, --validate green.

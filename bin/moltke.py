@@ -1780,6 +1780,15 @@ def step_start(root, config, step_id):
         return refuse(f"{step_id} is in plan_done/, which is immutable history; "
                       f"never resume a completed step, create a new one")
     current = plan_steps(root)["plan_current"]
+    twin = [p for found, p, _f in current if found == step_id]
+    destination = root / DOCS / "plan_current" / path.name
+    if twin or destination.exists():
+        held = (twin[0] if twin else destination).relative_to(root)
+        return refuse(f"{step_id} is already carried by {held}, and starting the copy in "
+                      f"{path.relative_to(root)} would rename onto it. Two files carrying one "
+                      f"id is INV-6 and --validate reports it; resolve the duplicate by hand — "
+                      f"deciding which of the two is the step is not something this command "
+                      f"can do for you")
     active = [s for s, _p, fields in current if not field_value(fields, "paused_by")]
     if len(active) + 1 > _limit(config, "plan_active_max", 1):
         return refuse(f"{', '.join(active)} already active and plan_active_max is "
@@ -1879,6 +1888,20 @@ def step_done(root, config, step_id, stamp):
         return refuse(f"{step_id} is in {dirname}, not plan_current/; only a step that is "
                       f"actually in progress can be completed")
     steps = plan_steps(root)
+    # The completion write is a plain write_text into plan_done/, so a duplicate
+    # id — INV-6, which --validate reports rather than prevents — overwrote the
+    # finished step with the one still in progress: history destroyed by the
+    # command whose own message calls that directory immutable (S089, .4-F02).
+    # Checked before the suite gate, so a repository in this state is told so
+    # rather than after paying for a full test run.
+    twin = [p for found, p, _f in steps["plan_done"] if found == step_id]
+    if twin or (root / DOCS / "plan_done" / path.name).exists():
+        held = (twin[0] if twin else root / DOCS / "plan_done" / path.name).relative_to(root)
+        return refuse(f"{step_id} is already in plan_done/ as {held}, so completing "
+                      f"{path.relative_to(root)} would overwrite finished history. Two files "
+                      f"carrying one id is INV-6 and --validate reports it; ids are never "
+                      f"reused (DEC-008), so one of the two is misnumbered. Resolve it by "
+                      f"hand — nothing here can decide which one is the step")
     pauser = re.search(r"S\d{3}", field_value(fields, "paused_by"))
     if pauser and pauser.group(0) in {done_id for done_id, _p, _f in steps["plan_done"]}:
         # A pause naming a step that is already finished is stale, and refusing

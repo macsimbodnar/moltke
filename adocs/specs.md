@@ -57,6 +57,19 @@ a `Status: <value>` line in its section; the S008 report template must conform.
 check abstains. INV-3 additionally treats a missing `plan.md` in an enabled
 repo as a violation.
 
+2026-08-09 (S089): `--step done` and `--step start` refuse when the destination is
+already carried by a file with that id, before anything is written and before the
+suite gate spends its wall clock. The completion write is a plain `write_text`
+into `plan_done/`, so with the same id in `plan_current/` and `plan_done/` — INV-6,
+which `--validate` reports rather than prevents — the finished step was overwritten
+by the one still in progress, and its `done:` stamp went with it: history destroyed
+by the command whose own success message calls that directory immutable (finding
+2026-08-08_adversarial.4-F02). `--step start`'s `path.rename` has the same shape,
+silently on POSIX; `locate_step` searches `plan_todo/` first, so a duplicate id is
+read from there and renamed onto the copy already current. Both refusals name the
+duplicate and INV-6 and stop: ids are never reused (DEC-008), so one of the two
+files is misnumbered, and deciding which is not something the command can do.
+
 2026-08-09 (S088): `--step new` and `--step block` refuse a short name that is not
 `[A-Za-z0-9_]+`, before either touches the filesystem. The name went unchecked
 into `f"{step_id}_{name}.md"` while `STEP_FILE_RE` requires that character set, so
