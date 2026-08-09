@@ -1906,3 +1906,24 @@ adocs/testing.md (4 rows), adocs/specs.md (dated note with the measurements),
 README.md (396 to 397), adocs/plan_done/S092_cache_git_prefix.md, adocs/status.md.
 MANUAL checked, no change: the caching is invisible at the surface it documents.
 Suite 397 OK, --validate green.
+
+## 2026-08-09T03:55+02:00 recap
+
+S093 complete. INV-8's high-water-mark violation now prints the git blob spec
+rather than the root-relative path. Closes 2026-08-08_adversarial.4-F06.
+
+Red observed: `git show 7fee078b:adocs/decisions.md` answered
+`fatal: path 'packages/foo/adocs/decisions.md' exists, but not 'adocs/decisions.md'`.
+S081 threaded the top-level prefix through every other reader of decisions.md and
+missed this one message; the deletion message beside it was already correct, which
+is what made the gap easy to miss.
+
+One word, `spec` for `rel`. The second test holds the ordinary case where the marked
+root is the git top level, so an unconditional prefix would fail it.
+
+Files: bin/moltke.py (inv_8_append_only high-water-mark message),
+tests/test_s003_invariants.py (TestInv8HighWaterMarkRemedyResolves, 2 tests),
+adocs/testing.md (3 rows), adocs/specs.md (dated note), README.md (397 to 399),
+adocs/plan_done/S093_inv8_remedy_path.md, adocs/status.md.
+MANUAL checked, no change: it does not quote this message.
+Suite 399 OK, --validate green.

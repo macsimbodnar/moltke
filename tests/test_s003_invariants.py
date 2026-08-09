@@ -451,6 +451,69 @@ class TestAMarkedRootBelowTheGitTopLevel(unittest.TestCase):
             self.assertEqual(run_validate(root).returncode, 0)
 
 
+class TestInv8HighWaterMarkRemedyResolves(unittest.TestCase):
+    """S093 (2026-08-08_adversarial.4-F06): S081 gave INV-8 the top-level `spec`
+    and used it everywhere except the high-water-mark message, which printed the
+    root-relative path. `git show <sha>:adocs/decisions.md` does not resolve from
+    a top level where the file is at `packages/foo/adocs/decisions.md`, so the one
+    remedy for the hardest INV-8 violation failed with `fatal: path ... does not
+    exist`. INV-12 calls a remedy actionable; this one could not run."""
+
+    def tampered_below_the_top_level(self, tmp):
+        mono = Path(tmp) / "mono"
+        (mono / "packages" / "foo").mkdir(parents=True)
+        git(mono, "init", "-q")
+        root = workflow_repo(mono / "packages" / "foo")
+        git(mono, "add", "-A")
+        git(mono, "commit", "-qm", "vendored project")
+        decisions = root / "adocs" / "decisions.md"
+        decisions.write_text(decisions.read_text(encoding="utf-8")
+                             + "\n## DEC-002  2026-08-09  second\nTags: t\nContext: c\n"
+                               "Decision: d\nRejected: none\nConsequences: none\n",
+                             encoding="utf-8")
+        git(mono, "add", "-A")
+        git(mono, "commit", "-qm", "second decision")
+        # Remove an earlier line: the high-water mark no longer survives, which
+        # is the branch whose message this step is about.
+        kept = [l for l in decisions.read_text(encoding="utf-8").splitlines()
+                if "base decision" not in l]
+        decisions.write_text("\n".join(kept) + "\n", encoding="utf-8")
+        return root
+
+    def high_water_line(self, root):
+        lines = [l for l in run_validate(root).stdout.splitlines()
+                 if "INV-8" in l and "no longer contains, in order" in l]
+        self.assertTrue(lines, "precondition: the high-water-mark branch must be the one "
+                               "that fired, not the deletion branch")
+        return lines[0]
+
+    def test_the_printed_spec_resolves_below_the_git_top_level(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.tampered_below_the_top_level(tmp)
+            command = "git show " + self.high_water_line(root).split("git show ", 1)[1]
+            command = command.split(". A reversal")[0].rstrip(". ")
+            result = subprocess.run(command, shell=True, cwd=str(root),
+                                    capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0,
+                             f"the printed remedy must run: {command!r} said {result.stderr!r}")
+            self.assertIn("base decision", result.stdout,
+                          "and it must produce the content the violation says was removed")
+
+    def test_the_message_is_unchanged_at_the_git_top_level(self):
+        # Non-vacuity in the other direction: prefixing unconditionally would
+        # break the ordinary case, where the two directories are the same.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            git_baseline(root)
+            decisions = root / "adocs" / "decisions.md"
+            kept = [l for l in decisions.read_text(encoding="utf-8").splitlines()
+                    if "base decision" not in l]
+            decisions.write_text("\n".join(kept) + "\n", encoding="utf-8")
+            line = self.high_water_line(root)
+            spec = line.split("git show ", 1)[1].split(". A reversal")[0].rstrip(". ")
+            self.assertTrue(spec.endswith(":adocs/decisions.md"), spec)
+
+
 class TestInv7RenameRemedyRestores(unittest.TestCase):
     """S084 (2026-08-08_adversarial.3-F05): S071 made the rename message safe to
     paste and left it a no-op. `git checkout -- <new path>` restores the new

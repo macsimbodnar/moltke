@@ -550,7 +550,11 @@ def inv_8_append_only(root, config):
                 f"{required_sha[:8]}; nothing it has held is removed or reordered, because DEC "
                 f"ids are cited from code, commits, and specs and a rewritten entry changes what "
                 f"those citations mean. Put the removed content back where it was and this "
-                f"clears: git show {required_sha[:8]}:{rel}. A reversal is a new entry marking "
+                # `spec`, not `rel` (S093, .4-F06): git show resolves from the top
+                # level, so below it the root-relative path is a path git does not
+                # have. S081 threaded the prefix through every other reader of this
+                # file and missed this one message.
+                f"clears: git show {required_sha[:8]}:{spec}. A reversal is a new entry marking "
                 f"the old one VOID, never an edit")
     for rel in APPEND_ONLY_FILES:
         shown = _git_run(["git", "-C", str(root), "show", f"HEAD:{to_git_path(root, rel)}"])

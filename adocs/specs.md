@@ -57,6 +57,14 @@ a `Status: <value>` line in its section; the S008 report template must conform.
 check abstains. INV-3 additionally treats a missing `plan.md` in an enabled
 repo as a violation.
 
+2026-08-09 (S093): INV-8's high-water-mark violation prints the git blob spec, not the
+root-relative path. S081 threaded the top-level prefix through every reader of
+`decisions.md` and missed this one message, so below the git top level the remedy for the
+hardest INV-8 violation answered `fatal: path 'packages/foo/adocs/decisions.md' exists,
+but not 'adocs/decisions.md'` (finding 2026-08-08_adversarial.4-F06). INV-12 calls a
+remedy actionable, and this one could not run. The deletion message in the same check was
+already correct, which is what made the gap easy to miss.
+
 2026-08-09 (S092): `git_prefix` is computed once per root and cached. It shells out
 to `git rev-parse --show-prefix`, and `from_git_path` and `to_git_path` call it once per
 path, so INV-7 and INV-8 walking every completed step and every history line spawned 257

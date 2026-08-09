@@ -7,7 +7,7 @@ Updated: 2026-08-09 by `moltke --step status`.
 
 - Last done: S059
 - In progress: none
-- Next: S093
+- Next: S094
 - Blocked: none
 - Parked:
   - the installed plugin runs from the plugin cache, not from this checkout, so
