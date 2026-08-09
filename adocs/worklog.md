@@ -1983,3 +1983,18 @@ adocs/specs.md (dated note), README.md (403 to 410),
 adocs/plan_done/S095_multiline_step_fields.md, adocs/status.md.
 MANUAL checked, no change: it documents no step-file field syntax.
 Suite 410 OK, --validate green.
+
+## 2026-08-09T14:45+02:00 prompt
+
+> The plugin is pushed, and installed i think we need to bump the version if we want to upgrade it
+
+## 2026-08-09T05:10+02:00 recap
+
+S096 in progress. Bumped .claude-plugin/plugin.json to 0.7.0 in its own commit.
+The install path keys the plugin cache directory by version, so a reinstall on
+0.6.0 would not have fetched the seven steps of fixes committed since; the bump is
+what makes the upgrade possible. marketplace.json carries no version key, so there
+is nothing to keep in sync. The 0.6.0 mentions in MANUAL and specs are historical
+claims about which release carried a fix and stay true.
+
+Suite 410 OK, --validate green. Audit re-run next, at this commit.

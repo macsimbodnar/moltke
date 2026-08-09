@@ -109,3 +109,4 @@ step instead.
 91. S094  --step status carries an unindented Parked list through, or refuses
 92. S059  verify the installed release in a live session, after reinstall
 93. S095  multiline step fields
+94. S096  bump 0.7.0, re-run the audit, close the findings it no longer reports
