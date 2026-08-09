@@ -19,4 +19,4 @@ decisions:
 closes:     2026-08-09_adversarial-F04
 blocks:
 paused_by:
-done:
+done:      2026-08-09: the Parked block is carried through with its blank lines, closing 2026-08-09_adversarial-F04. S094 carried it to the end of the file and still kept only non-blank lines, while specs and skills/step/SKILL.md both promise verbatim: paragraphs merged and a heading written below the list lost its separation, at every step transition, on a command that reports success. Only trailing blank lines are trimmed, so keeping them cannot grow the file a line per transition, and a test asserts a second and third regeneration are byte-identical — the guard against fixing this by growing the file instead. 2 tests, red observed on one by comparing the whole tail byte for byte; S094's flush-left and mixed-indentation tests stay as the anchors. Suite 429 OK, --validate green. README test count 427 to 429; MANUAL checked, no change — its sentence already says verbatim whatever the indentation and is now true; specs gained a dated note.

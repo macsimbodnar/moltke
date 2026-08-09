@@ -2226,13 +2226,20 @@ def parked_lines(root):
     # Reading to the end is safe because Parked is the last thing step_status
     # writes, so nothing derived follows it; and lines are kept verbatim, so
     # what is read back next time is what was written.
+    # Blank lines included (S100, 2026-08-09_adversarial-F04). S094 carried the
+    # block to the end of the file and still dropped every blank line in it,
+    # while specs and the step skill both promise "verbatim": paragraphs merged
+    # and a heading below the list lost its separation. Only trailing blank lines
+    # are trimmed, so keeping them cannot make the file grow a line per
+    # transition — regeneration stays idempotent, which has its own test.
     kept, collecting = [], False
     for line in read_file(status_path).splitlines():
         if not collecting:
             collecting = bool(re.match(r"^\s*-\s*Parked:", line))
             continue
-        if line.strip():
-            kept.append(line.rstrip())
+        kept.append(line.rstrip())
+    while kept and not kept[-1]:
+        kept.pop()
     return kept
 
 

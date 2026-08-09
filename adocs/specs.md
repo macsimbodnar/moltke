@@ -57,6 +57,15 @@ a `Status: <value>` line in its section; the S008 report template must conform.
 check abstains. INV-3 additionally treats a missing `plan.md` in an enabled
 repo as a violation.
 
+2026-08-09 (S100): the Parked block is carried through with its blank lines. S094 carried
+it to the end of the file and still kept only non-blank lines, while `adocs/specs.md` and
+`skills/step/SKILL.md` both say "verbatim": paragraphs merged and a heading written below
+the list lost its separation, at every step transition, on a command that reports success
+(finding 2026-08-09_adversarial-F04). Only trailing blank lines are trimmed, so keeping them
+cannot grow the file a line per transition; regeneration stays idempotent and has a test
+asserting a second and third run are byte-identical. The documented word and the implemented
+one now agree.
+
 2026-08-09 (S099): `--goal` and `--stamp` are refused when they contain a line break,
 before anything is written. S095 gave `parse_step_file` a rule for multi-line values and no
 writer honoured the other half of it: `write_step`, `append_to_plan` and `with_field` each

@@ -444,6 +444,50 @@ class TestStatus(unittest.TestCase):
             self.assertEqual(status.count("ask about the licence"), 1,
                              "the entry must survive without being duplicated")
 
+    def test_blank_lines_inside_the_parked_block_survive(self):
+        # S100 (2026-08-09_adversarial-F04): S094 carried the block to the end of
+        # the file and still dropped every blank line in it, while specs and the
+        # step skill both say "verbatim". Blank lines are markdown structure:
+        # paragraphs merge and a heading below the list loses its separation.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            block = ("# Status\n\n- Next: whatever\n- Parked:\n"
+                     "  - first note\n"
+                     "\n"
+                     "  - second note, separated for readability\n"
+                     "\n"
+                     "## Notes for humans\n"
+                     "\n"
+                     "  something else entirely\n")
+            (root / "adocs" / "status.md").write_text(block, encoding="utf-8")
+            self.assertEqual(run_moltke(root, "--step", "status").returncode, 0)
+            status = (root / "adocs" / "status.md").read_text(encoding="utf-8")
+            tail = status.split("- Parked:\n", 1)[1]
+            self.assertEqual(
+                tail,
+                "  - first note\n"
+                "\n"
+                "  - second note, separated for readability\n"
+                "\n"
+                "## Notes for humans\n"
+                "\n"
+                "  something else entirely\n")
+
+    def test_regeneration_is_idempotent_and_does_not_grow_the_file(self):
+        # Trailing blank lines are trimmed, so keeping blank lines cannot make
+        # the file grow a line per transition.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            (root / "adocs" / "status.md").write_text(
+                "# Status\n\n- Next: whatever\n- Parked:\n"
+                "  - a note\n\n\n", encoding="utf-8")
+            run_moltke(root, "--step", "status")
+            once = (root / "adocs" / "status.md").read_text(encoding="utf-8")
+            for _ in range(2):
+                run_moltke(root, "--step", "status")
+            self.assertEqual((root / "adocs" / "status.md").read_text(encoding="utf-8"), once,
+                             "a second and third regeneration must be byte-identical")
+
     def test_the_shipped_template_shows_a_parked_entry(self):
         template = (REPO / "templates" / "adocs" / "status.md").read_text(encoding="utf-8")
         parked = template.split("- Parked:", 1)[1].strip()

@@ -5,9 +5,9 @@ this file: on disagreement, `plan_current/` wins.
 
 Updated: 2026-08-09 by `moltke --step status`.
 
-- Last done: S099
+- Last done: S100
 - In progress: none
-- Next: S100
+- Next: S101
 - Blocked: none
 - Parked:
   - the installed plugin runs from the plugin cache, not from this checkout, so

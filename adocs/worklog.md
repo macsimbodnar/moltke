@@ -2115,3 +2115,22 @@ adocs/testing.md (5 rows), adocs/specs.md (dated note), README.md (422 to 427),
 MANUAL.md (--goal and --stamp paragraph),
 adocs/plan_done/S099_field_values_single_line.md, adocs/status.md.
 Suite 427 OK, --validate green.
+
+## 2026-08-09T07:15+02:00 recap
+
+S100 complete. The Parked block keeps its blank lines through a regeneration.
+Closes 2026-08-09_adversarial-F04.
+
+Red observed by comparing the whole tail byte for byte: three blank lines gone,
+two entries merged into one paragraph, and a `## Notes for humans` heading pushed
+flush against the list above it.
+
+Only trailing blank lines are trimmed, so this cannot be a fix that grows the file
+a line per transition — a test regenerates three times and asserts byte-identical
+output.
+
+Files: bin/moltke.py (parked_lines), tests/test_s007_step.py (2 tests in
+TestStatus), adocs/testing.md (3 rows), adocs/specs.md (dated note), README.md
+(427 to 429), adocs/plan_done/S100_parked_blank_lines.md, adocs/status.md.
+MANUAL checked, no change: its sentence already promised verbatim and is now true.
+Suite 429 OK, --validate green.
