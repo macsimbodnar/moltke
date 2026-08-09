@@ -2210,3 +2210,35 @@ Files: bin/moltke.py (inv_6_unique_ids), tests/test_s003_invariants.py
 adocs/plan_done/S103_step_id_field_checked.md, adocs/status.md.
 MANUAL checked, no change: the step-file layout is AGENTS.md's, not MANUAL's.
 Suite 444 OK, --validate green.
+
+## 2026-08-09T16:23+02:00 prompt
+
+> if we keep re-running audit this will never be closed. For now just run tests and checks, if all fine bump the version and claim the project is complete and stable until new orders
+
+## 2026-08-09T09:05+02:00 recap
+
+S104 complete. 0.8.0 bumped at a green tree; the audit loop is stopped by decision.
+
+Checks at the bump: 444 tests OK, `--validate` exit 0, `--audit list` exit 0,
+`--audit check` exit 0. The entries `--audit check` lists are this session's own
+fix commits measured against the 2026-08-09 audit baseline, not stray edits.
+
+DEC-041 records the stop and what it costs. Max's decision: five runs of the fix,
+release, re-run, triage cycle each produced new findings, and DEC-035's threshold
+has not been reached, so the rule as written has no terminal state this codebase
+has hit.
+
+The seven 2026-08-09_adversarial findings stay `planned` on purpose. Each has a
+completed step and red-first tests, so the defects are fixed and covered; what is
+missing is the independent re-measurement. Marking them `closed` would substitute
+"I fixed it" for "the audit no longer finds it", which is what §10 exists to stop.
+`--audit list` will keep saying `planned`, and that is the honest state.
+
+status.md's Parked block now says the project is complete and stable at 0.8.0 and
+awaiting orders, so a resumed session reads an empty plan as the finished state
+rather than as a gap.
+
+Files: .claude-plugin/plugin.json, adocs/decisions.md (DEC-041), adocs/status.md,
+adocs/testing.md (5 rows), adocs/plan_done/S104_bump_0_8_0.md.
+README and MANUAL checked, no change.
+Suite 444 OK, --validate green.

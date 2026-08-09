@@ -320,3 +320,41 @@ Consequences: STEP_OPS gains an operation, so tests/golden/cli_surface.txt, the
               string. A pause naming a step already in plan_done/ is untouched:
               that is S070's path and --step done still treats it as stale and
               goes on.
+
+## DEC-041  2026-08-09  The audit loop stops here, by decision rather than by severity
+Tags:         audit, process, release
+Context:      DEC-035 ends the audit loop when a re-run reports no high and no
+              medium. The 2026-08-09 run reported one high and two medium, so by
+              that rule the loop continues: fix, release, re-run, triage. Five
+              runs have now followed that cycle and each has produced new
+              findings, and each batch of fixes is itself auditable, so the rule
+              as written has no terminal state that this codebase has reached.
+              Max: "if we keep re-running audit this will never be closed."
+Decision:     Stop auditing. 0.8.0 is bumped at a green tree — 444 tests,
+              --validate exit 0, --audit list exit 0, --audit check exit 0 — and
+              the project is declared complete and stable until new orders.
+              Max's decision; the agent supplied the state above and the cost
+              below.
+Rejected:     Continuing until DEC-035 fires on its own terms: it is the rule as
+              written, and it is what was rejected. Five runs of evidence say a
+              fresh reviewer on a clean context finds something every time,
+              which is what an auditor asked to find something does, and the
+              severity profile has not trended to lows.
+              Marking the seven 2026-08-09_adversarial findings `closed`: that
+              would substitute "I fixed it" for "the audit no longer finds it",
+              which is the one substitution §10 exists to prevent. They stay
+              `planned` and the record stays honest.
+              Relaxing DEC-035's threshold to fire on this run: it would make
+              the rule say something it does not, and hide the fact that a
+              deliberate stop was chosen.
+Consequences: The seven 2026-08-09_adversarial findings remain `planned`
+              indefinitely. Each has a completed step and red-first tests, so the
+              defects are fixed and covered; what is missing is the independent
+              re-measurement, and `--audit list` will keep saying so. That is the
+              honest state and is deliberately left visible.
+              INV-10 stays satisfied, because every finding has a step naming it.
+              Restarting is one command: `--audit new adversarial` and a fresh
+              reviewer spawn. Nothing here forecloses it.
+              No further audit is scheduled. If work resumes, the loop resumes
+              with it — this decision covers the project as it stands at 0.8.0,
+              not everything that might be built on it later.

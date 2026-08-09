@@ -5,18 +5,25 @@ this file: on disagreement, `plan_current/` wins.
 
 Updated: 2026-08-09 by `moltke --step status`.
 
-- Last done: S103
+- Last done: S104
 - In progress: none
 - Next: no steps left in plan.md
 - Blocked: none
 - Parked:
+  - **Complete and stable at 0.8.0, awaiting new orders (DEC-041, 2026-08-09).**
+    The plan is empty and that is the finished state, not a gap: 101 steps done,
+    444 tests green, `--validate`, `--audit list` and `--audit check` all exit 0.
+    Do not start work here without an instruction.
+  - the audit loop was stopped by decision rather than by DEC-035's severity rule
+    (DEC-041). The seven `2026-08-09_adversarial` findings stay `planned`, not
+    `closed`: every one has a completed step and red-first tests, and what is
+    missing is the independent re-measurement a re-run would give. That is the
+    honest state and is left visible on purpose. Restarting is one command,
+    `bin/moltke.py --audit new adversarial` plus a fresh reviewer spawn.
   - the installed plugin runs from the plugin cache, not from this checkout, so
     editing `bin/moltke.py` here changes nothing hooks execute until
-    `claude plugin install moltke@moltke` runs again. As of 2026-08-09 the cache
-    is 0.6.0 at `gitCommitSha` `c2e6ad3` and its `bin/moltke.py` is byte-identical
-    to this tree, so what runs is what is committed — but that holds only until
-    the next commit lands here (S059,
-    `adocs/audit/2026-08-09_verification.md`).
+    `claude plugin install moltke@moltke` runs again. 0.8.0 is committed here and
+    the installed cache is 0.7.0 until that runs (S059, DEC-041).
   - DEC-020: the repository root is also the plugin root, so `adocs/`, `tests/`,
     `AGENTS.md`, and `CLAUDE.md` ship inside every install. Escape hatch is a
     `plugin/` subdirectory move.
