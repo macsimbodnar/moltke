@@ -9,6 +9,7 @@ from pathlib import Path
 from fixtures import step_file, workflow_repo
 
 MOLTKE = Path(__file__).resolve().parent.parent / "bin" / "moltke.py"
+REPO = MOLTKE.parent.parent
 
 
 def run_validate(cwd):
@@ -555,6 +556,53 @@ class TestInv7RenameRemedyRestores(unittest.TestCase):
             self.assertNotIn("INV-6", run_validate(root).stdout)
             self.assertTrue((root / "adocs" / "plan_done" / "S001_base.md").is_file())
             self.assertFalse((root / "adocs" / "plan_done" / "S001_renamed.md").exists())
+
+
+class TestTheIdFieldAgreesWithTheFilename(unittest.TestCase):
+    """S103 (2026-08-09_adversarial-F07): `write_step` is the only place `id`
+    appears as a field key, and every reader takes the id from the filename
+    instead, so nothing compared the two. `templates/step_template.md` ships
+    `id:         S000`, and AGENTS.md documents hand-copying that template as the
+    step format — which produces a file whose first line contradicts its name,
+    with `--validate` green. An invariant stated in the ruleset's step layout and
+    enforced nowhere."""
+
+    def test_an_id_field_that_disagrees_with_the_filename_is_a_violation(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            template = (Path(__file__).resolve().parent.parent
+                        / "templates" / "step_template.md").read_text(encoding="utf-8")
+            (root / "adocs" / "plan_todo" / "S050_hand_written.md").write_text(
+                template, encoding="utf-8")
+            (root / "adocs" / "plan.md").write_text(
+                "# Plan\n\n1. S001 a\n2. S002 b\n3. S003 c\n4. S050 hand written\n",
+                encoding="utf-8")
+            result = run_validate(root)
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn("S050", result.stdout)
+            self.assertIn("S000", result.stdout,
+                          "the violation must name both the filename's id and the field's")
+
+    def test_a_step_written_by_the_cli_agrees_with_itself(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            self.assertEqual(run_moltke(root, "--step", "new", "ordinary").returncode, 0)
+            self.assertEqual(run_validate(root).returncode, 0, run_validate(root).stdout)
+
+    def test_a_step_file_with_no_id_field_is_not_reported(self):
+        # Only a field that disagrees is a violation. A file without one is the
+        # fixtures' own shape and is left alone rather than made a new failure.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            (root / "adocs" / "plan_todo" / "S002_pending.md").write_text(
+                "goal:       pending\ndone:\n", encoding="utf-8")
+            self.assertEqual(run_validate(root).returncode, 0, run_validate(root).stdout)
+
+    def test_this_repository_passes(self):
+        # Non-vacuity anchor: every step file across the three plan directories
+        # carries the field today, so a rule that fired wrongly would be loud.
+        result = run_moltke(REPO, "--validate")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
 
 class TestAPauseMustResolve(unittest.TestCase):

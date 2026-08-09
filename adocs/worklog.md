@@ -2188,3 +2188,25 @@ re-targeted), adocs/testing.md (5 rows), adocs/specs.md (dated note and the
 --decline surface row), README.md (435 to 440), MANUAL.md (exit-code prose),
 adocs/plan_done/S102_manual_refusal_claims.md, adocs/status.md.
 Suite 440 OK, --validate green.
+
+## 2026-08-09T08:40+02:00 recap
+
+S103 complete. INV-6 compares a step file's `id:` field against its filename.
+Closes 2026-08-09_adversarial-F07, the last finding of that run.
+
+Red observed: copying `templates/step_template.md` to
+`adocs/plan_todo/S050_hand_written.md`, listing it in plan.md, and `--validate`
+answering `moltke: all checks pass` over a file whose first line says `id: S000`.
+
+Cosmetic in behaviour — every check keys on the filename — and it mattered as the
+class the audit is asked for: a rule stated in AGENTS.md's step layout and enforced
+nowhere. Checking was the smaller of the two fixes offered; dropping the field
+would have moved AGENTS.md, its shipped template and write_step together. An absent
+field is not reported, because the id the tool acts on is the filename either way.
+
+Files: bin/moltke.py (inv_6_unique_ids), tests/test_s003_invariants.py
+(TestTheIdFieldAgreesWithTheFilename, 4 tests, REPO constant), adocs/testing.md
+(4 rows), adocs/specs.md (dated note and the INV-6 row), README.md (440 to 444),
+adocs/plan_done/S103_step_id_field_checked.md, adocs/status.md.
+MANUAL checked, no change: the step-file layout is AGENTS.md's, not MANUAL's.
+Suite 444 OK, --validate green.

@@ -30,7 +30,7 @@ Enforced by `bin/moltke.py` in marked repositories:
 - INV-3  every step file in `plan_todo/` and `plan_current/` is a list entry in `plan.md`, and every id `plan.md` lists has a step file in one of the three directories. An id named only in the description is prose: neither listed nor a phantom. 2026-08-06 (S024): the second half is new; the invariant was one-directional before. 2026-08-07 (S048): "appears in" became "is a list entry in", so this and `derived_next` share one definition.
 - INV-4  no step moves to `plan_done/` while another step names it in `blocks:`.
 - INV-5  no step reaches `plan_done/` without a `done:` stamp and at least one `testing.md` row referencing its id.
-- INV-6  step ids are unique across all three plan directories.
+- INV-6  step ids are unique across all three plan directories. 2026-08-09 (S103): a step file whose `id:` field disagrees with its filename is a violation too; an absent field is left alone, because the id every check acts on is the filename.
 - INV-7  a file under `plan_done/` never changes or disappears after the commit that added it. 2026-08-06 (S018, F12): the original wording, "`plan_done/` is byte-identical to its state at session start", is superseded — it promised a session-scoped guarantee the code never implemented, and the 2026-08-01 amendment below redefined it without saying so.
 - INV-8  no line `decisions.md` has ever held is removed or reordered. Inserting between entries passes; the ordering of the log is a convention, not an enforced property. 2026-08-06 (S030, DEC-025): narrowed from "`worklog.md` and `decisions.md`", which is superseded. The worklog is append-only by convention and no longer checked. 2026-08-07 (S054, DEC-030): the earlier wording, "grows only by appending; earlier bytes are unchanged", is superseded — it described an aspiration, not the check. The threat model is accident and drift, not a hostile author.
 - INV-9  every `decisions.md` entry has a unique `DEC-<nnn>` id.
@@ -56,6 +56,18 @@ a `Status: <value>` line in its section; the S008 report template must conform.
 (append by move only). Repos without git history have no baseline, so the
 check abstains. INV-3 additionally treats a missing `plan.md` in an enabled
 repo as a violation.
+
+2026-08-09 (S103): INV-6 compares a step file's `id:` field against its filename.
+`write_step` was the only place `id` appeared as a field key and every reader took the id
+from the filename, so nothing compared the two: `templates/step_template.md` ships
+`id:         S000`, and copying it by hand — which AGENTS.md documents as the step format —
+produced a file whose first line contradicted its name with `--validate` green (finding
+2026-08-09_adversarial-F07). Low and cosmetic in behaviour, since every check keys on the
+filename; it mattered as the class this audit is asked for, a rule stated in the ruleset's
+step layout and enforced nowhere. Checking is the smaller of the two fixes the finding
+offered and makes the documented layout true; dropping the field would have moved
+`AGENTS.md`, its shipped template, and `write_step` together. An absent field is not
+reported, because the id the tool acts on is the filename either way.
 
 2026-08-09 (S102): the two refusals MANUAL named are the two the code makes.
 `--decline` against an already-enabled repository is routed through `refuse`, so it exits 1

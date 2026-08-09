@@ -410,12 +410,26 @@ def inv_6_unique_ids(root, config):
     seen = {}
     violations = []
     for dirname in PLAN_DIRS:
-        for step_id, path, _fields in plan_steps(root)[dirname]:
+        for step_id, path, fields in plan_steps(root)[dirname]:
             if step_id in seen:
                 violations.append(f"INV-6: duplicate step id {step_id} in {seen[step_id]} and "
                                   f"{dirname}; ids are allocated once, rename one file")
             else:
                 seen[step_id] = dirname
+            # The field was written once by write_step and read by nothing: every
+            # check takes the id from the filename, so a file could say one thing
+            # and be named another with --validate green (S103, .F07). Copying
+            # templates/step_template.md by hand, which AGENTS.md documents as the
+            # step format, produces exactly that — `id: S000` under any name. An
+            # absent field is left alone; only a present one that disagrees is a
+            # violation, because the id the tool acts on is still the filename.
+            declared = field_value(fields, "id")
+            if declared and declared != step_id:
+                violations.append(
+                    f"INV-6: {DOCS}/{dirname}/{path.name} declares id: {declared}, and every "
+                    f"check reads the id from the filename, which says {step_id}. One of the "
+                    f"two is wrong: fix the field, or rename the file with git mv if the "
+                    f"field is right")
     return violations
 
 
