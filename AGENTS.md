@@ -190,15 +190,35 @@ Ids are referenced from step files, commit messages, code comments, and `specs.m
 
 **The worklog is not a context source.** It is forensic history for humans, and it may be truncated to a stub whenever it grows beyond usefulness — git keeps what came before. Never read it to work out what to do or why something is the way it is; that is what `status.md`, `plan.md`, `specs.md`, and `decisions.md` are for. If something in the worklog turns out to matter, promote it into one of those files. An agent that starts a session by reading the worklog is doing it wrong.
 
-## 10. Audit
+## 10. Review: fast check by habit, full audit by consent
 
-`adocs/audit/` holds reports from adversarial verification, security audits, and bug hunts. One file per run, named `YYYY-MM-DD_type.md`, and a re-run on the same day takes a sequence suffix: `YYYY-MM-DD_type.2.md`. A report is never overwritten, so closing a finding on the day it was found is a normal re-run rather than a wait.
+Three tiers.
+
+**Tier 1 — fast check, every chunk.** After each `--step done`, spawn one small
+subagent over that step's diff (`git show <sha>`): top real problems only, no
+praise, one screen of output, no writes. No report file, no finding ids, no
+ceremony. Route what it finds with rules that already exist — trivial and in
+scope is fixed now (§4), real work becomes a step, nothing means one console
+line and moving on. A habit, never a gate: it does not block and needs no
+consent.
+
+**Tier 2 — proposed audit.** When risk warrants it — a security-touching
+change, a change to the public surface, many steps since the last audit — the
+agent proposes a full adversarial audit. The user accepts or postpones. A
+postponed proposal becomes one line in `status.md`'s Parked block, so it
+survives sessions without nagging.
+
+**Tier 3 — full audit, on demand.** `/moltke:audit` runs whenever the user
+asks. Its mechanics keep their teeth:
+
+`adocs/audit/` holds one report per run, named `YYYY-MM-DD_type.md`, with a
+`.2` sequence suffix for a same-day re-run. A report is never overwritten.
 
 - The auditor runs on a **clean context** and learns the repository only from the repository. The prompt that spawns it carries the report path, the commit, the audit type, and the scope boundary — never what changed, what the spawning session believes, what to prioritise, or which findings it expects. Red team and blue team: the blue team does not brief the red team. A run is always a fresh spawn, never a continuation of an earlier reviewer.
 - The report is written **before** any fix. A report edited while fixing stops being evidence of what was found.
 - Every finding gets an id `YYYY-MM-DD_type-F<nn>`, a severity, and a status of `open`, `planned`, `closed`, or `accepted`.
 - Every finding ends in one of two places: a plan step whose `closes:` field names it, or a `decisions.md` entry stating why it will not be acted on, which moves it to `accepted`.
-- A finding moves to `closed` only after the audit is re-run and no longer reports it. Fixing without re-running leaves it `planned`.
+- A finding moves to `closed` on a re-run that no longer reports it — the stronger evidence — or by a recorded decision, which is how the loop ends when the user says it ends.
 - A report with open findings and no corresponding steps is not finished work.
 
 Audits run against the code, not against the specs. An audit that only confirms the documentation is a documentation review.

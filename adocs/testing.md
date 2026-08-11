@@ -559,3 +559,7 @@ never after. Append only.
 | S107 | §2, §4, §7, §8, §9, §11 match S105/S106 reality: specs current-state, plan pruned, decisions compact-freely with stable ids, worklog trimmable, the decisions.md prohibition dropped, plan_done/ prohibitions kept | AGENTS.md sections rewritten; full suite green including the scaffold drift and template-generic tests | pass 2026-08-11 |
 | S107 | one permission line states subagents spawn freely, and a survey found no sentence constraining spawning anywhere in the ruleset | grep survey over AGENTS.md recorded in the worklog recap; the two remaining matches enable spawning (audit clean-context) or are unrelated (stack escape hatch) | pass 2026-08-11 |
 | S107 | templates/AGENTS.md is byte-identical to AGENTS.md | test_s006_scaffold.py drift test, green | pass 2026-08-11 |
+| S108 | AGENTS.md §10 describes the three tiers, keeping the clean-context, report-before-fix, and finding-home rules for tier-3 runs, and closure by re-run or by recorded decision | §10 rewritten; template byte-identical, drift test green | pass 2026-08-11 |
+| S108 | the step skill carries the tier-1 fast check in its completion flow, including the proposal escalation | skills/step/SKILL.md "Fast check, after the commit" section | pass 2026-08-11 |
+| S108 | the audit skill states it is tier 3, carries the propose/accept/postpone etiquette, and closes by re-run or decision | skills/audit/SKILL.md, header and step 5 rewritten | pass 2026-08-11 |
+| S108 | MANUAL describes the model in one section | MANUAL.md "Review model" | pass 2026-08-11 |

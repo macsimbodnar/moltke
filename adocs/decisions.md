@@ -218,3 +218,8 @@ Why: DEC-035 ends the audit loop when a re-run reports no high and no medium.
 Tags: context, documents, invariants, philosophy
 Decision: The always-read documents hold current state only and are bounded by construction. History lives in git and in plan_done/, which are never read into context. Concretely: INV-8 is retired (number never reused); decisions.md is compacted freely with stable ids; specs.md carries current wording only, the narrative living in step stamps and commit messages; worklog.md is trimmable; --step done prunes plan.md to the last 5 completed entries.
 Why: The token analysis measured the always-read set at ~180 KB and growing 1.4 KB per completed step without bound, with 84% of specs.md being dated history notes and decisions.md unshrinkable because INV-8 enforced append-only.
+
+## DEC-044  2026-08-11  Review has three tiers: fast check by habit, audit by consent
+Tags: review, audit, process
+Decision: After every completed step, one small subagent reviews that step's diff — no report file, no finding ids; trivial findings fixed on the spot, real ones become steps. A full adversarial audit runs when the user asks, or when the user accepts an agent proposal made on real risk; postponed proposals park as one status.md line. Findings close on a re-run or by recorded decision, so the loop always has a user-controlled end; the reviewer fence and clean-context rule keep binding actual audit runs.
+Why: mandatory full audits produced an endless loop (DEC-041 stopped it by hand); a per-chunk fast check catches most defects at a fraction of the ceremony.

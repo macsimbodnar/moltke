@@ -127,6 +127,19 @@ Nothing to remember. Hooks fire on their own:
 Drive the plan with `/moltke:step`, audit with `/moltke:audit`. Both refuse
 rather than repair, and name the condition that is missing.
 
+## Review model
+
+Three tiers. After each completed step the agent runs a fast check — one small
+subagent over that step's diff, top problems only, no report file; trivial
+findings are fixed on the spot, real ones become steps. When a change carries
+risk (security-adjacent, public surface, a long stretch unaudited) the agent
+proposes a full adversarial audit and you accept or postpone; a postponed
+proposal waits as one line in `status.md`'s Parked block. And `/moltke:audit`
+runs the full machinery whenever you ask, unchanged: clean-context reviewer,
+report before fixes, every finding landing in a step or a decision. A finding
+closes on a re-run that no longer reports it, or by a recorded decision — the
+loop ends when you say it ends.
+
 ## Reference: every mode
 
 Skills call `bin/moltke.py`. You can run it by hand, and other tools (Codex,

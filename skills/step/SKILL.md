@@ -59,6 +59,20 @@ unpauses its parent automatically.
 The move to `plan_done/` is the last action of the step. Commit after it.
 `plan_done/` is immutable history: never reopen or resume a checklist from it.
 
+## Fast check, after the commit
+
+One small subagent over the step's diff — the tier-1 review of AGENTS.md §10:
+
+- scope: `git show <sha>` of the completion commit, nothing wider
+- instruction: top real problems only, no praise, one screen, no writes
+- routing: trivial and in scope → fix now; real → `--step new`; nothing → say
+  so in one line and move on
+
+No report file, no finding ids. If what it surfaces looks like risk rather than
+a defect — security-adjacent, surface-changing — propose a full audit and let
+the user accept or postpone (a postponed proposal is one Parked line in
+status.md).
+
 ## Keep status honest
 
 ```

@@ -27,4 +27,4 @@ decisions:  DEC-044
 closes:
 blocks:
 paused_by:
-done:
+done:      2026-08-11: review has three tiers (DEC-044). Tier 1, a fast check after every --step done — one small subagent over the completion commit's diff, top real problems only, no report file, no finding ids, routed by rules that already exist: trivial fixed under §4, real becomes a step, nothing is one console line. Tier 2, the agent proposes a full audit on real risk and the user accepts or postpones, a postponed proposal parking as one status.md line. Tier 3, /moltke:audit on demand with its teeth intact: clean-context spawn, report before fix, every finding homed (INV-10 unchanged), closure by re-run or by recorded decision with DEC-041 as precedent. The reviewer fence is untouched and binds only audit runs, which are consent-based now, so nothing about it is mandatory. AGENTS.md §10 rewritten, template byte-identical, skills/step and skills/audit carry their halves, MANUAL gained the Review model section. No code changed, so no new tests; the drift, template-generic and surface suites hold the documents. Suite 438 OK, --validate green. README checked, no change.

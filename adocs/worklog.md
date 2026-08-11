@@ -26,3 +26,15 @@ mentions enable audit spawns or are the stack metaphor. Template copied,
 byte-identical, drift test green. Suite 438 OK.
 Files: AGENTS.md, templates/AGENTS.md, adocs/testing.md (4 rows),
 adocs/plan_done/S107_ruleset_reading_protocol.md.
+
+## 2026-08-11T recap (S108)
+
+S108 complete. Three-tier review model (DEC-044): fast check after every step
+completion (small subagent, diff-scoped, no ceremony), audit proposals with
+accept/postpone and Parked persistence, /moltke:audit on demand unchanged in
+mechanics but closing by re-run or by recorded decision. AGENTS.md §10 rewritten,
+template identical, both skills updated, MANUAL gained a Review model section.
+No code change. Suite 438 OK.
+Files: AGENTS.md, templates/AGENTS.md, skills/step/SKILL.md,
+skills/audit/SKILL.md, MANUAL.md, adocs/decisions.md (DEC-044),
+adocs/testing.md (4 rows), adocs/plan_done/S108_three_tier_review_model.md.

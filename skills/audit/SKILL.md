@@ -7,6 +7,13 @@ description: Run an adversarial audit, security review, or bug hunt through the 
 
 Evidence first, fixes second, and never in the same breath.
 
+This is tier 3 of the review model (AGENTS.md §10): it runs on the user's ask,
+or after the user accepts a proposal. Propose one when risk warrants it — a
+security-touching change, a public-surface change, a long stretch since the
+last run — and take "postpone" for an answer: park the proposal as one line in
+status.md's Parked block and do not ask again unprompted. The per-step fast
+check is not this and needs none of the machinery below.
+
 ## 1. Open the report
 
 ```
@@ -105,9 +112,10 @@ accordingly rather than appending them at the end out of politeness.
 
 ## 5. Close by re-running, never by asserting
 
-A finding moves to `closed` only after the audit is re-run and no longer
-reports it. Fixing without re-running leaves it `planned`. That is deliberate:
-"I fixed it" is a claim, "the audit no longer finds it" is evidence.
+A finding moves to `closed` on a re-run that no longer reports it, or by a
+recorded decision naming it. The re-run is the stronger evidence — "I fixed it"
+is a claim, "the audit no longer finds it" is proof — and the decision route is
+how the loop ends when the user says it ends rather than when the rule fires.
 
 Re-running means step 1 again and comparing. It does not mean waiting for
 tomorrow: a same-day re-run gets its own suffixed report.
