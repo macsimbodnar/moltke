@@ -14,3 +14,15 @@ status.md Parked block rewritten to current truth. Always-read set measured:
 180,518 bytes at e22a911 to 49,900 (~12.5k tokens). Suite 438 OK.
 Files: adocs/specs.md, adocs/decisions.md, adocs/worklog.md, adocs/status.md,
 adocs/testing.md (4 rows), adocs/plan_done/S106_compact_the_documents.md.
+
+## 2026-08-11T recap (S107)
+
+S107 complete. AGENTS.md §1 rewritten to the tiered reading protocol (zero doc
+reads on routine turns, grep-first for decisions.md), precedence chain stated
+(.moltke.local.md > Project rules > base), §2/§4/§7/§8/§9/§11 aligned with
+S105/S106, decisions.md prohibition dropped from §11, subagent-freedom line
+added. Spawning survey: no constraining sentence found; the two remaining
+mentions enable audit spawns or are the stack metaphor. Template copied,
+byte-identical, drift test green. Suite 438 OK.
+Files: AGENTS.md, templates/AGENTS.md, adocs/testing.md (4 rows),
+adocs/plan_done/S107_ruleset_reading_protocol.md.

@@ -23,17 +23,25 @@ Absent: ask once whether to set the workflow up, then write the marker either wa
 
 `test_command` is optional. Set it and step completion runs it and refuses on failure; leave it out and the green-suite rule of §4 and §11 rests on the agent alone, which the tool will say out loud each time rather than implying the suite was checked.
 
-## 1. Reading order and precedence
+## 1. Reading protocol and precedence
 
-Read in this order before acting:
+The SessionStart hook injects the stack, the derived next step, and any
+staleness. **A routine turn starts from that alone — zero document reads.**
+Enter the documents on demand, smallest sufficient scope first:
 
-1. `adocs/status.md` where we are
-2. `adocs/plan.md` what is planned and in which order
-3. `adocs/specs.md` what the software must do
-4. `adocs/decisions.md` why things are the way they are
+1. `adocs/status.md` and `adocs/plan.md` — read whole when orientation is
+   needed; both are small and bounded by construction.
+2. `adocs/specs.md` — read whole before changing behaviour; it holds current
+   state only and stays small.
+3. `adocs/decisions.md` — never read whole. It opens with an index; grep by id,
+   tag, or topic. "What did we decide about retries" is one grep, not a read.
 
 Precedence when documents disagree: **specs > plan > status**.
 Code that disagrees with specs is a bug or an unrecorded decision. It is never silently the new truth.
+
+Instructions layer, most specific wins: `.moltke.local.md` (machine-local,
+uncommitted, created by the tool) overrides the `## Project rules` section at
+the end of this file, which overrides the base ruleset above it.
 
 **Filesystem state beats prose.** `status.md` is a convenience view, not the source of truth. If it disagrees with the contents of `plan_current/`, the directory wins and `status.md` is regenerated from it before any work starts. This matters because `status.md` is written at the end of a turn, so a crashed or interrupted session leaves it stale.
 
@@ -47,17 +55,17 @@ Code that disagrees with specs is a bug or an unrecorded decision. It is never s
 | `MANUAL.md` | end user facing: install, operate, known bugs | rewrite in place | checked at every step completion |
 | `.moltke.json` | marker, schema version, limits | rewrite in place | schema change only |
 | `adocs/status.md` | last done, in progress, next, blocked, parked | rewrite in place | end of every work turn |
-| `adocs/specs.md` | prime directive, invariants, required behavior | edit in place, dated inline notes | same commit as any behavior change |
-| `adocs/plan.md` | plan description and ordered step list | rewrite in place | any plan change |
+| `adocs/specs.md` | prime directive, invariants, required behavior — current state only | rewrite in place | same commit as any behavior change |
+| `adocs/plan.md` | plan description and the ordered open steps; `--step done` prunes completed entries to the last 5 | rewrite in place | any plan change |
 | `adocs/plan_todo/` | one file per pending step | add and remove | step created or started |
 | `adocs/plan_current/` | active step plus any paused parents, as a stack | add and remove | step started, paused, or completed |
 | `adocs/plan_done/` | completed steps, immutable history | append by move only | step completed |
 | `adocs/testing.md` | acceptance ledger | append rows | with the feature, never after |
-| `adocs/decisions.md` | decision log, newest last | append only | before or alongside the change |
-| `adocs/worklog.md` | prompts and recaps | append by convention, not enforced | every prompt, recap on work turns |
+| `adocs/decisions.md` | living decisions with index, newest last | compact freely, ids stable | before or alongside the change |
+| `adocs/worklog.md` | prompts and recaps | append by convention; trim when it grows beyond usefulness | every prompt, recap on work turns |
 | `adocs/audit/` | adversarial, security, bug hunt reports | add files | per audit run |
 
-`adocs/decisions.md` and `adocs/plan_done/` are never reordered, rewritten, or trimmed, and this is enforced: superseded content is marked, not deleted. The worklog follows the same habit but is not checked, so a genuine correction — a mistyped recap, a secret pasted into a prompt — is a normal edit rather than a rule violation.
+`adocs/plan_done/` is never rewritten or trimmed, and this is enforced: it is the project history. The other documents hold current state and may be compacted — git is the archive, and every superseded version stays recoverable there.
 
 ## 3. Prime directive and invariants
 
@@ -89,7 +97,7 @@ paused_by:  S043                  # set only while paused
 done:       completion stamp, filled in last
 ```
 
-Order lives in `plan.md` and nowhere else.
+Order of open work lives in `plan.md` and nowhere else; completed entries are pruned to the newest 5, and `plan_done/` is the full record.
 
 Transitions:
 
@@ -148,26 +156,26 @@ A planning session ends in a commit exactly like a coding session. Do not hold a
 - The trigger is **checked**, not updated. At every step completion both files are checked. Concluding that neither needs a change is a valid outcome. Not checking is not.
 - A golden test over the project's public surface is **mandatory**, covering whatever `surface_guard` names. It fails when a command, flag, or endpoint is added, renamed, or removed, and stays failing until MANUAL and the specs rows are updated in the same commit. Opting out requires setting `surface_guard` to `none` and recording the reason in `decisions.md`.
 - Prose style: minimal and information dense, fragments over sentences. Compression never drops a fact. Copy verbatim and never reword code, commands, flags, paths, config keys, URLs, versions, and dates.
-- Spec edits carry a dated inline note in the same commit as the behavior change they describe.
+- A behaviour change updates `specs.md`'s current wording in the same commit. The narrative of the change — what was wrong, what moved — lives in the step file's `done:` stamp and the commit message, never as accumulating notes in specs.
 
 ## 8. Decisions
 
-`adocs/decisions.md`, append only, newest last: appending costs no read, append-only stays literal (earlier bytes never move), recency is `tail`, lookup is grep. Every entry has a stable id `DEC-<nnn>` and topic tags, so a question like "what did we decide about retries" is one grep, not a read of the whole file. Entry format:
+`adocs/decisions.md`, newest last, opening with a one-line-per-entry index.
+Every entry has a stable id `DEC-<nnn>` and topic tags, so a question like
+"what did we decide about retries" is one grep, not a read of the whole file.
+Entry format, compact:
 
 ```
 ## DEC-012  2026-08-01  short title
-Tags:         retry, network
-Context:      what forced a choice
-Decision:     what was chosen, and by whom
-Rejected:     options not taken, each with the reason
-Consequences: what this now constrains
+Tags: retry, network
+Decision: what was chosen — the operative sentences only
+Why: one line
 ```
 
 Ids are referenced from step files, commit messages, code comments, and `specs.md`. That makes the link traceable in both directions: from a line of code to the reason it exists, and from a decision to everywhere it was applied.
 
-- Decisions belong to the user. Agents propose. When an agent supplied the analysis and the options, record that.
-- Recording rejected options is mandatory. It is what stops the same question being re-derived later.
-- A reversal does not delete the old entry. Mark it `VOID`, dated, with a pointer to the superseding entry.
+- Decisions belong to the user. Agents propose. When an agent supplied the analysis and the options, record that in the Why.
+- The file holds current constraints, compressed. Superseding a decision rewrites or deletes its entry; the id is never reused, and git history keeps every earlier version and the fuller reasoning.
 - Trigger: before or alongside the change, never after.
 
 ## 9. Worklog
@@ -180,7 +188,7 @@ Ids are referenced from step files, commit messages, code comments, and `specs.m
 
 **Every completed unit of work also ends with a short console recap**: a couple of sentences saying what was done and what it means, then `bin/moltke.py --roadmap` for where that leaves the plan. Two sentences, not a report — anything longer is written when it is asked for. This is additional to the worklog recap and applies to work that is not a step completion too, such as a planning session or an audit run. The worklog is forensic and nobody reads it live; the console is where the user finds out what happened.
 
-**The worklog is not a context source.** It is forensic history for humans, and it grows without bound. Never read it to work out what to do or why something is the way it is; that is what `status.md`, `plan.md`, `specs.md`, and `decisions.md` are for. If something in the worklog turns out to matter, promote it into one of those files. An agent that starts a session by reading the worklog is doing it wrong.
+**The worklog is not a context source.** It is forensic history for humans, and it may be truncated to a stub whenever it grows beyond usefulness — git keeps what came before. Never read it to work out what to do or why something is the way it is; that is what `status.md`, `plan.md`, `specs.md`, and `decisions.md` are for. If something in the worklog turns out to matter, promote it into one of those files. An agent that starts a session by reading the worklog is doing it wrong.
 
 ## 10. Audit
 
@@ -201,12 +209,15 @@ The agent does not:
 
 - push, force push, or rewrite git history
 - write to `adocs/plan_done/`
-- reorder, rewrite, or delete entries in `adocs/decisions.md`
 - delete or weaken a test to make a change pass
 - create plan step files outside the three plan directories
 - claim a step complete before the suite is green and `testing.md` rows exist
 - complete a step that another step still declares in `blocks`
 - start independent work while a paused step sits in `plan_current/`
+
+And one permission, stated so no rule above is misread as denying it: **subagents
+may be spawned freely whenever useful** — audits, fast checks, parallel
+exploration, anything. Nothing in this ruleset requires or forbids spawning.
 
 ## 12. Memory lives in the repository
 
