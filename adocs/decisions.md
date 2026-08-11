@@ -1,386 +1,220 @@
 # Decisions
 
-Append only, newest last. Every entry: stable `DEC-<nnn>` id, tags, context,
-decision, rejected options, consequences. A reversal marks the old entry `VOID`,
-dated, with a pointer to the superseding entry; it never deletes.
+Compacted (S106, DEC-042): ids stable, never reused, newest last. Full context and rejected options live in this file's git history.
 
-DEC-001..DEC-012 seeded during S001 from `bootstrap.md` §2: locked by Max in the
-planning session of 2026-08-01, analysis and options supplied by the agent in
-that session. Not to be relitigated during implementation. Originally seeded
-newest first; reordered oldest first under DEC-013, same day, before any
-enforcement existed.
+## Index
+
+- DEC-001 2026-08-01 — Package as a plugin, not a loose skill
+- DEC-002 2026-08-01 — Repository is public, with an explicit version field
+- DEC-003 2026-08-01 — AGENTS.md is the single source of truth for the rules
+- DEC-004 2026-08-01 — The workflow directory is project/, not agents/
+- DEC-005 2026-08-01 — Marker file .workflow.json at target repo root
+- DEC-006 2026-08-01 — Enforcement is blocking, gated on the marker
+- DEC-007 2026-08-01 — plan_current/ is a stack, not a set
+- DEC-008 2026-08-01 — Step ids are stable and never renumbered
+- DEC-009 2026-08-01 — status.md added; ideas.md and history/ rejected
+- DEC-010 2026-08-01 — The public-surface golden test is mandatory
+- DEC-011 2026-08-01 — worklog.md is forensic, never a context source
+- DEC-012 2026-08-01 — This repository self-hosts the workflow
+- DEC-013 2026-08-01 — decisions.md orders oldest first, newest appended at bottom
+- DEC-014 2026-08-01 — GitHub configuration is Max's own; agent git surface is commits only
+- DEC-015 2026-08-01 — Project renamed to moltke
+- DEC-016 2026-08-01 — Build moltke rather than adopt an existing tool
+- DEC-017 2026-08-01 — Setup modes are exempt from the INV-11 marker gate
+- DEC-018 2026-08-01 — Cursor pointer kept thin; Cursor reads AGENTS.md natively
+- DEC-019 2026-08-01 — S010 narrowed to what the agent can verify; install checks become S012
+- DEC-020 2026-08-01 — The plugin ships this repository's own workflow state
+- DEC-021 2026-08-02 — The workflow directory is renamed project/ to adocs/
+- DEC-022 2026-08-06 — The reviewer's write fence gives way to post-hoc reconciliation
+- DEC-023 2026-08-06 — --step done gains an optional test_command gate
+- DEC-024 2026-08-06 — Worklog secrets are detected in the suite, never redacted at write time
+- DEC-025 2026-08-06 — worklog.md drops out of INV-8; decisions.md keeps append-only
+- DEC-026 2026-08-07 — A committed immutability violation clears when the content is restored
+- DEC-027 2026-08-07 — INV-8 judges one fixed baseline, and the gap that leaves is accepted for now
+- DEC-028 2026-08-07 — INV-8 tracks a high-water mark of legitimate content
+- DEC-029 2026-08-07 — The Stop waiver counts retries within a turn, derived from the worklog rather than from an unobserved payload field
+- DEC-030 2026-08-07 — moltke defends against drift and forgetting, not against a hostile author
+- DEC-031 2026-08-07 — No deadlock cap without git, accepted and scoped
+- DEC-032 2026-08-07 — The worklog secret check becomes an invariant, so it travels
+- DEC-033 2026-08-08 — A report may not hide a finding it names, checked by heading rather than by fence
+- DEC-034 2026-08-08 — Release 0.5.0, close the .2 findings by re-running, and stop planning after that
+- DEC-035 2026-08-08 — The audit loop stops when a re-run finds nothing above low
+- DEC-036 2026-08-08 — The auditor runs on a clean context: red team, blue team, no handover
+- DEC-037 2026-08-08 — Every unit of work ends with a short console recap
+- DEC-038 2026-08-08 — The console recap is two sentences, and the roadmap is drawn by the tool
+- DEC-039 2026-08-08 — The Stop cap exists wherever moltke can write its state, not wherever git is
+- DEC-040 2026-08-09 — A stranded pause is cleared by its own command, not by hand
+- DEC-041 2026-08-09 — The audit loop stops here, by decision rather than by severity
+- DEC-042 2026-08-11 — Memory is current state; git is the archive
+
 
 ## DEC-001  2026-08-01  Package as a plugin, not a loose skill
-Tags:         distribution, plugin
-Context:      the workflow must work on several dev machines.
-Decision:     plugin in a git repo, installed via marketplace. (Max, planning session)
-Rejected:     personal skill in `~/.claude/skills/` (per machine, unversioned, drifts); dotfiles symlink (no versioning, no update path).
-Consequences: skills are namespaced `/max_agent_workflow:name`; updates land only when `version` in `plugin.json` is bumped.
+Decision: plugin in a git repo, installed via marketplace.
 
 ## DEC-002  2026-08-01  Repository is public, with an explicit version field
-Tags:         distribution, security
-Context:      public exposes the workflow but not any project data. The real risk is write access, not read access, because plugin hooks execute shell commands on every machine where the plugin is installed.
-Decision:     public repository, explicit `version` in `plugin.json` so updates require a deliberate bump, branch protection on `main`, 2FA on the account, no blind PR merges. (Max, planning session)
-Rejected:     private repo (hides internal conventions, but the templates carry no project-specific content, and private adds a credential requirement on each new machine).
-Consequences: templates must stay generic. Nothing about any employer, product, or internal architecture goes into this repository. Confirm this decision with Max before the first push.
+Decision: public repository, explicit `version` in `plugin.json` so updates require a deliberate bump, branch protection on `main`, 2FA on the account, no blind PR merges.
 
 ## DEC-003  2026-08-01  AGENTS.md is the single source of truth for the rules
-Tags:         rules, tools
-Context:      Codex and Cursor may run in the same repositories.
-Decision:     rules live in `AGENTS.md` at the target repo root; `CLAUDE.md` contains only `@AGENTS.md`; Cursor gets a thin `.cursor/rules` pointer. (Max, planning session)
-Rejected:     maintaining parallel rule files per tool (guaranteed drift).
-Consequences: Claude Code reads `CLAUDE.md`, not `AGENTS.md`, so the import line is mandatory and must be verified against current docs.
+Decision: rules live in `AGENTS.md` at the target repo root; `CLAUDE.md` contains only `@AGENTS.md`; Cursor gets a thin `.cursor/rules` pointer.
 
 ## DEC-004  2026-08-01  The workflow directory is project/, not agents/
-Tags:         layout, naming
-Context:      `agents/` collides with `AGENTS.md`, with `.claude/agents/` for subagent definitions, and with the plugin layout's own `agents/` directory.
-Decision:     `project/`. (Max, planning session)
-Rejected:     `agents/` (the collisions above).
-Consequences: this repository, being a plugin, has a real `agents/` directory for subagents, and it must not be confused with workflow state.
+Decision: `project/`.
 
 ## DEC-005  2026-08-01  Marker file .workflow.json at target repo root
-Tags:         marker, hooks
-Context:      hooks need one fixed path to check, and declining setup must be recordable without creating the directory the user declined.
-Decision:     `.workflow.json` at root carries `schema`, `enabled`, `plan_active_max`, `plan_stack_max`, `surface_guard`. (Max, planning session)
-Rejected:     none recorded in the planning session.
-Consequences: every hook exits 0 immediately when the file is absent or `enabled` is false. No marker, no friction.
+Decision: `.workflow.json` at root carries `schema`, `enabled`, `plan_active_max`, `plan_stack_max`, `surface_guard`.
 
 ## DEC-006  2026-08-01  Enforcement is blocking, gated on the marker
-Tags:         hooks, enforcement
-Context:      Max asked for maximum strictness conditional on correct setup.
-Decision:     hooks block rather than warn, but only in marked repositories. (Max, planning session)
-Rejected:     warn-only (ignored in practice); always-on (unusable in third-party checkouts).
-Consequences: every blocking message must state exactly what to do to unblock, because a `Stop` hook has a cap on consecutive blocks and an unactionable message deadlocks the session.
+Decision: hooks block rather than warn, but only in marked repositories.
 
 ## DEC-007  2026-08-01  plan_current/ is a stack, not a set
-Tags:         plan, concurrency
-Context:      work discovered mid-step often blocks the step in progress.
-Decision:     blocking discoveries are promoted as children with `blocks:` and `paused_by:` links; `plan_active_max` non-paused steps (default 1), `plan_stack_max` total depth (default 3). (Max, planning session)
-Rejected:     simply raising a concurrency counter (loses the dependency, conflates blocking work with parallel work).
-Consequences: exceeding the depth limit is a signal the plan is wrong at design level and routes to a decision plus a replan.
+Decision: blocking discoveries are promoted as children with `blocks:` and `paused_by:` links; `plan_active_max` non-paused steps (default 1), `plan_stack_max` total depth (default 3).
 
 ## DEC-008  2026-08-01  Step ids are stable and never renumbered
-Tags:         plan, naming
-Context:      position-encoding filenames make insertion and reordering expensive.
-Decision:     `S<nnn>_short_name.md` allocated in creation order; plan order lives only in `plan.md`. (Max, planning session)
-Rejected:     position-encoding filenames (renaming cascades on every insertion or reorder).
-Consequences: reordering is a one-line edit; ids stay valid as references from commits, decisions, and audit findings.
+Decision: `S<nnn>_short_name.md` allocated in creation order; plan order lives only in `plan.md`.
 
 ## DEC-009  2026-08-01  status.md added; ideas.md and history/ rejected
-Tags:         layout, status
-Context:      a prior working system used all three.
-Decision:     keep `status.md` (session pointer, rewritten in place). (Max, planning session)
-Rejected:     `ideas.md` (its function is covered by a Parked section in `status.md` and by recorded rejected options in `decisions.md`); `history/` (`plan_done/` plus git already is the history, and a second copy invites resuming retired checklists).
-Consequences: the rule "never resume a checklist from `plan_done/`" carries the weight `history/` would have carried.
+Decision: keep `status.md` (session pointer, rewritten in place).
 
 ## DEC-010  2026-08-01  The public-surface golden test is mandatory
-Tags:         testing, docs, surface
-Context:      documentation drifts silently from code.
-Decision:     a golden test over whatever `surface_guard` names, failing until MANUAL and specs are updated in the same commit. Opting out requires `surface_guard: "none"` plus a recorded reason. (Max, planning session)
-Rejected:     none recorded in the planning session.
-Consequences: this repository's own surface is the `workflow_check` CLI, so `surface_guard` here is `cli`.
+Decision: a golden test over whatever `surface_guard` names, failing until MANUAL and specs are updated in the same commit.
 
 ## DEC-011  2026-08-01  worklog.md is forensic, never a context source
-Tags:         worklog, context
-Context:      an append-only prompt log grows without bound and would become the largest and least useful file in the repo.
-Decision:     agents never read `worklog.md` to determine state or reasoning. (Max, planning session)
-Rejected:     none recorded in the planning session.
-Consequences: anything in it that matters must be promoted into `status.md`, `specs.md`, or `decisions.md`.
+Decision: agents never read `worklog.md` to determine state or reasoning.
 
 ## DEC-012  2026-08-01  This repository self-hosts the workflow
-Tags:         process, dogfood
-Context:      the conventions should be tested somewhere low-stakes before being applied to real work.
-Decision:     `max_agent_workflow` is the first project to use the workflow, with `bootstrap.md` becoming its `project/specs.md` and this build becoming its first plan. (Max, planning session)
-Rejected:     none recorded in the planning session.
-Consequences: the root `AGENTS.md` is the live ruleset, `templates/AGENTS.md` is the shipped copy, and a test asserts the two are identical.
+Decision: `max_agent_workflow` is the first project to use the workflow, with `bootstrap.md` becoming its `project/specs.md` and this build becoming its first plan.
 
 ## DEC-013  2026-08-01  decisions.md orders oldest first, newest appended at bottom
-Tags:         decisions, layout, efficiency
-Context:      AGENTS.md mandated newest-first ordering while INV-8 required append-only growth with earlier bytes unchanged; a new entry at the top shifts earlier bytes. Surfaced during S001, routed to S004, resolved by Max the same day.
-Decision:     newest last. Entries append at the bottom via shell append, costing no reads; INV-8 stays literal byte-append for both `worklog.md` and `decisions.md`. (Max)
-Rejected:     newest-first with an entry-integrity check (every write costs a partial read; INV-8 becomes entry-based — more code, weaker guarantee; recency reads are `tail -n` and lookups are grep either way, so top ordering bought nothing).
-Consequences: AGENTS.md §2 and §8 amended; the seeded DEC-001..DEC-012 reordered oldest first in the same commit, authorized by this decision as a one-time exception to the §11 reorder prohibition; the S004 reconcile clause dropped.
+Decision: newest last.
 
 ## DEC-014  2026-08-01  GitHub configuration is Max's own; agent git surface is commits only
-Tags:         git, github, process
-Context:      S001 surfaced open items around repository visibility (DEC-002 confirmation), branch naming versus the `main` protection target, and pushing.
-Decision:     Max handles GitHub configuration personally: visibility, remotes, branch naming and protection, pushes, app installs. The agent creates commits and nothing else, until new orders. (Max)
-Rejected:     agent-driven branch rename and push preparation (offered, declined).
-Consequences: DEC-002 confirmation resolves whenever Max pushes; master/main naming is Max's call; status.md parked items updated accordingly.
+Decision: Max handles GitHub configuration personally: visibility, remotes, branch naming and protection, pushes, app installs.
 
 ## DEC-015  2026-08-01  Project renamed to moltke
-Tags:         naming, distribution
-Context:      Max renamed the project before implementation started. Moltke commanded armies he could not see by writing orders that survived his absence; same problem, smaller scale.
-Decision:     full rename: plugin and repository `moltke`; skills `init`, `step`, `audit` (commands /moltke:init, /moltke:step, /moltke:audit); CLI `bin/moltke.py`; marker `.moltke.json`; template `templates/moltke.json`. (Max)
-Rejected:     namespace-only rename keeping `workflow_check.py`, `.workflow.json`, and the long skill names (smallest diff, but a generic marker name can collide with other tools, and nothing is coded yet, so the full rename is free now versus a migration later).
-Consequences: earlier entries and immutable history naming `max_agent_workflow`, `workflow_check`, or `.workflow.json` (DEC-001, DEC-005, DEC-010, DEC-012, plan_done/S001, old testing.md rows, worklog) read through this entry; specs, AGENTS.md, plan, and step files updated in the same commit; GitHub repository rename and local directory rename are Max's own (DEC-014).
+Decision: full rename: plugin and repository `moltke`; skills `init`, `step`, `audit` (commands /moltke:init, /moltke:step, /moltke:audit); CLI `bin/moltke.py`; marker `.moltke.json`; template `templates/moltke.json`.
 
 ## DEC-016  2026-08-01  Build moltke rather than adopt an existing tool
-Tags:         scope, ecosystem
-Context:      before S002, Max asked whether an existing tool makes this redundant. Web evaluation of 2026-08-01: GitHub Spec Kit (~93k stars, constitution + specify/plan/tasks loop), GSD Core (STATE.md/CONTEXT.md phase loop, ex-GSD after archive/fork churn), BMAD (multi-agent personas), OpenSpec (change proposals with deltas), Beads (git-backed graph issue tracker as agent memory), SpillwaveSolutions/project-memory (memory-files skill, explicitly no enforcement). All are convention- or prompt-based: none ships marker-gated blocking enforcement, an append-only decision log with mandatory rejected options, report-before-fix audit discipline, or a red-first testing ledger.
-Decision:     proceed with moltke as planned. (Max, after agent-supplied evaluation)
-Rejected:     Spec Kit or GSD Core plus Beads (~70% coverage — planning structure and task state — at zero build cost, but compliance stays advisory and the evidence discipline is absent); adopting project-memory (no enforcement, no plan lifecycle, no testing ledger).
-Consequences: the differentiator to protect is DEC-006 enforcement plus the evidence discipline; AGENTS.md as single source (DEC-003) matches the now-standard convention; the S002..S011 plan stands unchanged.
+Decision: proceed with moltke as planned.
 
 ## DEC-017  2026-08-01  Setup modes are exempt from the INV-11 marker gate
-Tags:         marker, cli, invariants
-Context:      INV-11 requires every mode to exit 0 immediately when the marker is absent, but `--scaffold` exists precisely to create the marker in a repository that has none. Surfaced during S002, resolved at S006.
-Decision:     INV-11 applies to every mode except the setup modes `--scaffold` and `--decline`, which run before the gate. `--decline` is added to the surface so declining is mechanical and durable rather than hand-written JSON. (Max, agent-supplied analysis)
-Rejected:     dropping the gate for all modes (unmarked third-party checkouts would gain friction, defeating DEC-005); having the skill hand-write the declined marker (untestable, and the decline path is exactly what must be reliable).
-Consequences: specs INV-11 carries a dated amendment; the CLI surface grows `--decline`, which the S009 golden test must cover; both setup modes still refuse to touch a repository whose marker says `enabled: false`.
+Decision: INV-11 applies to every mode except the setup modes `--scaffold` and `--decline`, which run before the gate.
 
 ## DEC-018  2026-08-01  Cursor pointer kept thin; Cursor reads AGENTS.md natively
-Tags:         cursor, tools, templates
-Context:      DEC-003 planned a `.cursor/rules` pointer. Cursor documentation checked 2026-08-01 states Cursor reads `AGENTS.md` natively and calls it a simple alternative to `.cursor/rules`; the legacy `.cursorrules` file is gone and project rules are `.cursor/rules/*.mdc` with `description`, `globs`, `alwaysApply` frontmatter.
-Decision:     scaffold a minimal always-applied `.cursor/rules/moltke.mdc` that points at `AGENTS.md` and states no rules of its own. (agent-supplied analysis and choice, low-stakes; reversible by deleting the template)
-Rejected:     dropping the pointer entirely (native support makes it redundant, but the pointer costs five lines and covers Cursor versions or configurations where native reading is off); a full parallel ruleset for Cursor (DEC-003 forbids it: guaranteed drift).
-Consequences: the pointer must never carry rule content, only a reference, so `AGENTS.md` stays the single source of truth.
+Decision: scaffold a minimal always-applied `.cursor/rules/moltke.mdc` that points at `AGENTS.md` and states no rules of its own.
 
 ## DEC-019  2026-08-01  S010 narrowed to what the agent can verify; install checks become S012
-Tags:         plan, verification, git
-Context:      S010's acceptance included "marketplace entry installs on a second machine" and "DEC-002 confirmed before the first push". DEC-014 reserves all GitHub and environment configuration to Max: the agent commits and nothing else. Installing the plugin also mutates the local Claude Code configuration, which is outside "create commits".
-Decision:     S010 covers what is mechanically verifiable without changing any environment: the manifest, the marketplace entry, component discoverability, and `claude plugin validate --strict`. Real installation, first-session hook firing, and second-machine verification move to S012, owned by Max, with the agent supplying exact commands. (agent-proposed under DEC-014, applied to the plan)
-Rejected:     installing the plugin locally to satisfy the criterion (changes Max's Claude configuration without being asked, and a self-install is not the second-machine check the criterion actually wanted); marking S010 complete while claiming an unverified install (a completion stamp that overstates what was checked poisons every later reading of plan_done).
-Consequences: `plan.md` gains S012 after S011; until it passes, the hooks and skills in this repository remain wired but never exercised by a live session, which is recorded in `status.md` rather than assumed away.
+Decision: S010 covers what is mechanically verifiable without changing any environment: the manifest, the marketplace entry, component discoverability, and `claude plugin validate --strict`.
 
 ## DEC-020  2026-08-01  The plugin ships this repository's own workflow state
-Tags:         plugin, layout, dogfood
-Context:      `claude plugin validate --strict` on the plugin root warns that `CLAUDE.md` there is not loaded as project context. It is a symptom of a deliberate layout: DEC-012 self-hosts the workflow, so the repository root is simultaneously the plugin root, and `project/`, `tests/`, `.moltke.json`, `AGENTS.md`, and `CLAUDE.md` are copied into every install's plugin cache.
-Decision:     keep the layout and record the consequence as a known issue in MANUAL rather than restructuring. (agent-supplied analysis; reversible)
-Rejected:     moving the plugin into a `plugin/` subdirectory with `source: "./plugin"` (removes the cruft, but breaks the layout specs describe, splits the self-hosting story, and rewrites every hook and test path for a cosmetic gain); deleting the root `CLAUDE.md` (it is what makes Claude Code read `AGENTS.md` in this repository, per DEC-003).
-Consequences: installs carry inert extra files, including this repository's worklog and plan history; the repository is public by DEC-002, so nothing is exposed that was not already. If the cache size or the confusion ever matters, the `plugin/` subdirectory move is the escape hatch.
+Decision: keep the layout and record the consequence as a known issue in MANUAL rather than restructuring.
 
 ## DEC-021  2026-08-02  The workflow directory is renamed project/ to adocs/
-Tags:         naming, layout, distribution
-Context:      `project/` is a generic name that collides with what many repositories already call their source or their build output, and it says nothing about who the files are for. The directory holds agent documentation: `adocs`.
-Decision:     rename the directory to `adocs/` everywhere — scaffold output, every path in `bin/moltke.py`, the hook messages, the templates, the rules, the tests, and this repository's own state. No migration path is provided: no repository other than this one has the plugin installed, so there is nothing to migrate. `plugin.json` bumps to 0.2.0 so an install picks the change up deliberately (DEC-002). (Max; agent-supplied analysis of the blast radius)
-Rejected:     making the directory name configurable through `.moltke.json` (turns a one-time rename into a permanent branch in every path expression, and a workflow whose file map varies per repository is exactly the drift AGENTS.md §2 exists to prevent); keeping `project/` and documenting the intent instead (the name is the documentation, and it is wrong); providing a migration mode that renames the directory in a target repository (no target repositories exist).
-Consequences: paths inside immutable and append-only files still read `project/` — every file in `plan_done/`, and `worklog.md` and `decisions.md` entries before this one. They are history and are never rewritten; they read through this entry, exactly as DEC-015 governs the earlier `max_agent_workflow` naming. INV-8 has no HEAD baseline at the new path for exactly one commit and abstains; byte-identity across the move was verified by hand instead. Hooks in an already-installed plugin keep running the cached older copy against `project/` until the install is updated, so S012's install verification is redone against the renamed build.
+Decision: rename the directory to `adocs/` everywhere — scaffold output, every path in `bin/moltke.py`, the hook messages, the templates, the rules, the tests, and this repository's own state.
 
 ## DEC-022  2026-08-06  The reviewer's write fence gives way to post-hoc reconciliation
-Tags:         audit, reviewer, enforcement, hooks
-Context:      the 2026-08-06 adversarial audit found (F03) that `adversarial_reviewer` holds `Bash` alongside `Write` while the fence is a `Write|Edit` PreToolUse matcher, so any shell redirect writes anywhere in the repository. The confinement specs.md and MANUAL.md described as enforced was enforced only for two tools. The deeper cause is that Claude Code expresses subagent limits in two places that do not compose: frontmatter names tools but not paths, hooks see paths but only for the tools their matcher names. The audit also exposed an incoherence: under the old fence the reviewer could not write a regression test at all except by shelling around its own fence.
-Decision:     mutation during an audit is legitimate — the reviewer needs to create tests and reproduce defects, and git is the backstop. Prevention gives way to detection. `--audit new` records a working-tree baseline; a new `--audit check` reports what the run actually changed and flags anything beyond this run's report and new files under `tests/`. The fence stays but widens to `adocs/audit/` plus new files under `tests/`, as a fast clear failure on the common path rather than as the guarantee. `Bash` stays unconstrained by design. (Max, after agent-supplied analysis and options)
-Rejected:     dropping `Bash` from the reviewer (makes the fence real for every write path it has, but kills reproduction — the four strongest findings in the 2026-08-06 report were Bash transcripts, and the agent's own standard is that a finding without evidence is an opinion); inspecting Bash command strings in the hook (arbitrary shell is not reliably parseable, `python3 -c "open(...,'w')"` defeats any matcher, and it would document a stronger guarantee than exists today); leaving the fence as it was and adding reconciliation on top (keeps the incoherence that the reviewer cannot write a test through the tool it is granted).
-Consequences: `specs.md`'s claim that the hook "is the only place the limit can be real" is corrected, as is the `audit` skill's "that fence is enforced by a hook, not by good manners". A contaminated report is now detected rather than prevented, and detection happens between skill steps 2 and 3 so it is known before any finding is acted on. `AUDIT_OPS` grows `check`, which the S009 golden and the specs and MANUAL cross-check cover. The behavioural concern the fence existed for — a reviewer that patches stops reporting — is now addressed by the agent prompt plus reconciliation, not by the tool layer.
+Tags: audit, reviewer, enforcement, hooks
+Decision: mutation during an audit is legitimate — the reviewer needs to create tests and reproduce defects, and git is the backstop. Prevention gives way to detection. `--audit new` records a working-tree baseline; a new `--audit check` reports what the run actually changed and flags anything beyond this run's report and new files under `tests/`.
+Why: the 2026-08-06 adversarial audit found (F03) that `adversarial_reviewer` holds `Bash` alongside `Write` while the fence is a `Write|Edit` PreToolUse matcher, so any shell redirect writes anywhere in the repository.
 
 ## DEC-023  2026-08-06  --step done gains an optional test_command gate
-Tags:         testing, cli, marker, enforcement
-Context:      the 2026-08-06 adversarial audit found (F07) that AGENTS.md section 4 and section 11 require a full green suite before a step completes, while `--step done` checks only that a `testing.md` row exists and that the stamp mentions README and MANUAL. It never runs or consults a test suite, and nothing else does. The workflow's headline quality gate was honour-system while MANUAL disclosed only the weaker README/MANUAL mechanical-gate problem, which made the suite check read as real.
-Decision:     add an optional `test_command` key to `.moltke.json`. When present, `--step done` runs it and refuses on a non-zero exit, naming the failure. When absent, behaviour is exactly as today and the refusal path says the gate is not configured. Schema stays 1. (Max, after agent-supplied analysis and options)
-Rejected:     accepting the gap and documenting it as advisory (cheapest and honest, but leaves the differentiator DEC-016 names — enforcement plus evidence discipline — resting on a gate nothing enforces); requiring `test_command` and bumping to schema 2 (strongest, but forces a migration on every existing marker and blocks completion in repositories that have no suite yet, which is exactly the state a fresh `--scaffold` leaves behind).
-Consequences: the marker gains a key the S009 surface guard must cover, which is why S023 extends that guard to marker keys. `--step done` can now take as long as the suite does, so it runs with a timeout and reports the output tail. A repository that wants the old behaviour simply omits the key, so nothing existing breaks.
+Tags: testing, cli, marker, enforcement
+Decision: add an optional `test_command` key to `.moltke.json`. When present, `--step done` runs it and refuses on a non-zero exit, naming the failure. When absent, behaviour is exactly as today and the refusal path says the gate is not configured.
+Why: the 2026-08-06 adversarial audit found (F07) that AGENTS.md section 4 and section 11 require a full green suite before a step completes, while `--step done` checks only that a `testing.md` row exists and that the stamp mentions README and MANUAL.
 
 ## DEC-024  2026-08-06  Worklog secrets are detected in the suite, never redacted at write time
-Tags:         security, worklog, testing, invariants
-Context:      the 2026-08-06 adversarial audit found (F08) that `--log-prompt` writes every prompt verbatim into `adocs/worklog.md`, a tracked file, and INV-8 then forbids altering earlier bytes — so a pasted secret is committed and cannot be removed without violating the workflow's own invariant, while AGENTS.md section 11 bars rewriting history outright. For moltke itself DEC-002 makes the repository public. AGENTS.md section 6 already mandates that secret-leak checks run inside the normal suite; none existed.
-Decision:     detect, do not redact. A suite test fails when a prefixed key shape or a PEM private-key header appears in the worklog, and it is non-vacuous by construction: it first asserts a known-bad fixture string is caught. MANUAL records the exposure and the escape procedure for a real leak — a decisions.md entry authorising a one-time redaction, exactly as DEC-013 authorised a one-time reorder. (Max, after agent-supplied analysis and options)
-Rejected:     redacting inside `mode_log_prompt` before appending (strongest containment, but it contradicts the verbatim guarantee of AGENTS.md section 9, and a false positive silently destroys forensic content, so the log stops being evidence of what was actually said); documenting the exposure with no detection at all (leaves the section 6 mandate unmet and a leak is found only when a human happens to notice).
-Consequences: detection uses prefixed key shapes and PEM headers only, with no generic entropy or bare-hex rule, because this worklog is full of git shas and those heuristics would false-positive constantly. That is a deliberate sensitivity trade: the check catches the shapes worth catching and stays quiet otherwise. A leak still requires a human decision to clean, and that decision is now a documented procedure rather than an improvisation.
+Tags: security, worklog, testing, invariants
+Decision: detect, do not redact. A suite test fails when a prefixed key shape or a PEM private-key header appears in the worklog, and it is non-vacuous by construction: it first asserts a known-bad fixture string is caught. MANUAL records the exposure and the escape procedure for a real leak — a decisions.md entry authorising a one-time redaction, exactly as DEC-013 authorised a one-time reorder.
+Why: the 2026-08-06 adversarial audit found (F08) that `--log-prompt` writes every prompt verbatim into `adocs/worklog.md`, a tracked file, and INV-8 then forbids altering earlier bytes — so a pasted secret is committed and cannot be removed without violating the workflow's own invariant, while AGENTS.md section 11 bars rewriting history outright.
 
 ## DEC-025  2026-08-06  worklog.md drops out of INV-8; decisions.md keeps append-only
-Tags:         worklog, invariants, immutability, decisions
-Context:      INV-8 covers `adocs/worklog.md` and `adocs/decisions.md` in one rule, and AGENTS.md section 11 bars rewriting either. Max, reviewing S014, judged the worklog to be a useful history list rather than something worth an enforced invariant: it is forensic, never a context source (DEC-011), it grows without bound, and nothing cites a line of it by id. The cost of enforcing it is real — DEC-024 exists only because a secret pasted into a prompt becomes uneditable once committed.
-Decision:     narrow INV-8 to `decisions.md` alone. The worklog stays append-only by convention and is no longer checked, so it can be trimmed, corrected, or redacted without violating anything. `decisions.md` keeps enforcement because `DEC-<nnn>` ids are cited from code comments, commit messages, `specs.md`, and step files, and a rewritten entry silently changes what every one of those citations means. (Max, choosing from agent-supplied options)
-Rejected:     dropping INV-8 entirely, worklog and decisions together (one fewer invariant and no git-baseline logic left, but then nothing detects a decision entry being rewritten or dropped, and a DEC id cited in a commit can end up pointing at text it was never written against — the bidirectional traceability of section 8 is the thing INV-8 protects); keeping INV-8 as it stands (no change, but leaves an enforced invariant on a file whose only reader is a human doing forensics, and keeps a committed secret unremovable by rule).
-Consequences: `INV-8`'s wording, `APPEND_ONLY_FILES`, AGENTS.md sections 2, 9 and 11, and `templates/AGENTS.md` all change together; the S004 INV-8 tests are re-targeted, not deleted, so the worklog case now asserts the check abstains while `decisions.md` still bites. S018 narrows to `plan_done/` and `decisions.md`. DEC-024 is not void — detection in the suite still beats redaction at write time — but its escape procedure gets simpler: cleaning a leaked secret from the worklog no longer needs a decisions.md entry authorising it. S015 is unaffected: its recap gate keys on a recap heading after the last logged prompt, not on worklog immutability.
+Tags: worklog, invariants, immutability, decisions
+Decision: narrow INV-8 to `decisions.md` alone. The worklog stays append-only by convention and is no longer checked, so it can be trimmed, corrected, or redacted without violating anything. `decisions.md` keeps enforcement because `DEC-<nnn>` ids are cited from code comments, commit messages, `specs.md`, and step files, and a rewritten entry silently changes what every one of those citations means.
+Why: INV-8 covers `adocs/worklog.md` and `adocs/decisions.md` in one rule, and AGENTS.md section 11 bars rewriting either.
 
 ## DEC-026  2026-08-07  A committed immutability violation clears when the content is restored
-Tags:         invariants, immutability, git, audit
-Context:      the 2026-08-07 adversarial audit found (F03) that S018's history baselines gave INV-7 and INV-8 no legal terminal state. They report any commit whose `plan_done/` status is not `A`, or that removed a line from `decisions.md`, and that commit is in history forever — so following the violation message exactly, restoring the content in a new commit, leaves `--validate` at exit 1 and `--stop` blocking every turn. The only operation that would clear it is a history rewrite, which the same message forbids and AGENTS.md section 11 prohibits. One accident therefore makes a repository permanently red, and after three blocks the Stop waiver fires and waves through every other Stop check for that prompt. This is not hypothetical: `e8084d3` removed 67 lines from `project/decisions.md` under DEC-013's authorised reorder, and this repository is green only because S013's rename moved the file and `--no-renames` starts its history there.
-Decision:     the invariants judge current content against history, not the existence of a bad commit. A `plan_done/` file is clean when its bytes match the version at the commit that added it; `decisions.md` is clean when its current content still starts with every version it has ever had. Restoring what was removed, in a new commit, therefore clears the violation, and leaving it tampered keeps reporting it. History stays intact as the record and is never rewritten. (Max, choosing from agent-supplied options)
-Rejected:     demoting a repaired violation to a non-failing note (keeps the event visible forever, but puts two severities inside one invariant and produces standing notes that people learn to skim past); requiring a dated waiver entry in `decisions.md` naming the commit sha, which is what DEC-013 did by hand (strongest audit trail, but the ceremony lands on whoever is cleaning up someone else's accident, and waivers accumulate unrevisited); repair-clears plus a waiver path for cases where restoration is wrong, such as an intended deletion or the DEC-013 reorder (covers both shapes, at the cost of two mechanisms to build, document, and test — deferred rather than dismissed, and worth revisiting the first time a legitimate removal has nowhere to go).
-Consequences: the checks move from `git log --name-status` and `--numstat`, which read what happened, to content comparison against the add-commit blob and against every historical version, which reads what is true now. That costs blob fetches rather than a diff summary, so both use a single batched `git cat-file`. A tampering that is repaired leaves no standing signal in the tool — the commit is still in the log, and nothing points at it — which is the accepted cost of being able to return to green. The uncommitted-window checks against HEAD are unaffected. Under this rule the DEC-013 reorder would still be a violation until the removed lines were restored, because it genuinely removed content; that case is what a future waiver path would serve.
+Tags: invariants, immutability, git, audit
+Decision: the invariants judge current content against history, not the existence of a bad commit. A `plan_done/` file is clean when its bytes match the version at the commit that added it; `decisions.md` is clean when its current content still starts with every version it has ever had. Restoring what was removed, in a new commit, therefore clears the violation, and leaving it tampered keeps reporting it.
+Why: the 2026-08-07 adversarial audit found (F03) that S018's history baselines gave INV-7 and INV-8 no legal terminal state.
 
 ## DEC-027  2026-08-07  INV-8 judges one fixed baseline, and the gap that leaves is accepted for now
-Tags:         invariants, immutability, git, decisions
-Context:      DEC-026 chose "a repair commit clears it" and described INV-8 as "current content still starts with every version it has ever had". Implementing it in S034 showed that rule can never be satisfied after a repair: the tampered version is itself history, and no restoration can make the file start with it again, so the naive form has exactly the permanence problem DEC-026 set out to remove. Two escapes were tried and measured. Forgiving a version when a longer version is a prefix of the current file clears the repair case but also clears a same-position edit that lengthens the file — it passed `test_committing_a_rewrite_does_not_hide_it`, which is a real rewrite. Forgiving per adjacent pair does not clear the repair either, because the restoring commit does not start with the tampered version.
-Decision:     INV-8's history check compares the current content against one fixed baseline, the version at the file's first commit, exactly as INV-7 compares against the version at the commit that added the file. Restoring the baseline content clears it; leaving it rewritten keeps reporting it. The HEAD comparison for the uncommitted window is unchanged. (Agent-chosen during implementation, from options measured against the suite; Max's DEC-026 decision on the terminal state is unchanged and this only settles the mechanism.)
-Rejected:     requiring every historical version to be a prefix (unsatisfiable after any repair, so it reintroduces the permanent-red defect); forgiving a version when a longer one is a prefix (measured: clears a genuine same-position rewrite); pairwise adjacent-version checks (measured: does not clear a correct repair); keeping the `--numstat` "a commit removed lines" rule (strongest detection, and the exact rule DEC-026 rejected for having no terminal state).
-Consequences: detection is weaker than the rule it replaces, in one stated way, measured rather than assumed: a rewrite of text that was appended after the file's first commit is reported while uncommitted and not once committed. Verified in a throwaway repository — legitimate append exit 0, post-baseline rewrite uncommitted exit 1, the same rewrite committed exit 0, baseline rewrite committed exit 1. That gap is planned as S046 rather than left in a code comment. `git_blobs` batches the blob fetches into one `git cat-file --batch` so both invariants stay at two or three git processes per run.
+Tags: invariants, immutability, git, decisions
+Decision: INV-8's history check compares the current content against one fixed baseline, the version at the file's first commit, exactly as INV-7 compares against the version at the commit that added the file. Restoring the baseline content clears it; leaving it rewritten keeps reporting it. The HEAD comparison for the uncommitted window is unchanged.
+Why: DEC-026 chose "a repair commit clears it" and described INV-8 as "current content still starts with every version it has ever had".
 
 ## DEC-028  2026-08-07  INV-8 tracks a high-water mark of legitimate content
-Tags:         invariants, immutability, git, decisions
-Context:      DEC-027 settled INV-8 on one fixed baseline, the first committed version, and accepted a measured gap: a rewrite of text appended after that commit was reported while uncommitted and not once committed. S046 closed the gap and needed a rule satisfying both halves at once. Two more candidates were implemented and run. Comparing the current file against every past version, by line subsequence rather than prefix, catches the rewrite but still cannot pass after a repair — a rewrite introduces a line that the repair rightly discards, so the tampered version is not a subsequence of the corrected file either. Comparing against the longest past version misses a rewrite that lengthens the file, which is the common shape of an in-place edit.
-Decision:     INV-8 walks the versions oldest first and maintains a high-water mark: a version that still contains, in order, every line the mark requires becomes the new mark, and a version that dropped something is a tampering and is skipped rather than becoming the mark. The file as it stands must then contain the mark's lines, in order. Restoring the text puts the mark back and clears the whole history at once; a removal, an in-place rewrite, and a line moved to the end are each caught, because in every one of them a required line is no longer in order. (Agent-chosen during implementation, from candidates measured against the suite.)
-Rejected:     the fixed first-commit baseline of DEC-027, superseded here because it could not see a post-baseline rewrite; every-version subsequence without skipping (measured: `test_a_repair_of_post_baseline_text_clears_it` stayed red, because the tampered version holds a line the repair removed); comparing against the longest past version (measured earlier: clears a same-position rewrite that lengthens the file); returning to `--numstat`, which DEC-026 rejected for having no terminal state.
-Consequences: DEC-027's accepted gap is closed and its mechanism sentence is superseded by this entry; DEC-027 stays as the record of why a fixed baseline was tried and what it cost. Re-measured in a throwaway repository against the same five states DEC-027 used: legitimate append exit 0, post-baseline rewrite uncommitted exit 1, the same rewrite committed exit 1 where it was 0, the repair exit 0, baseline rewrite committed exit 1. Two behaviours worth stating rather than discovering later: mid-file insertion is permitted, since only removal and reordering break a subsequence, and reordering entries is a violation until reversed — which is what DEC-013's authorised reorder would be today, and the case a waiver path would serve if one is ever built.
+Tags: invariants, immutability, git, decisions
+Decision: INV-8 walks the versions oldest first and maintains a high-water mark: a version that still contains, in order, every line the mark requires becomes the new mark, and a version that dropped something is a tampering and is skipped rather than becoming the mark. The file as it stands must then contain the mark's lines, in order. Restoring the text puts the mark back and clears the whole history at once; a removal, an in-place rewrite, and a line moved to the end are each caught, because in every one of them a required line is no longer in order.
+Why: DEC-027 settled INV-8 on one fixed baseline, the first committed version, and accepted a measured gap: a rewrite of text appended after that commit was reported while uncommitted and not once committed.
 
 ## DEC-029  2026-08-07  The Stop waiver counts retries within a turn, derived from the worklog rather than from an unobserved payload field
-Tags:         hooks, stop, invariants, deadlock
-Context:      the 2026-08-07 re-run found (.2-F01) that the deadlock waiver counted consecutive blocks per `prompt_id`, a Stop payload field nothing in this repository establishes exists. Every other hook field in `bin/moltke.py` carries a dated live observation and this one did not. When the key is absent the counter is global and persists on disk, so from the fourth blocked turn onward every Stop check — invariants, stale `status.md`, the recap gate, the README and MANUAL stamp — is waved through, and stays waved through across sessions. Two routes reach the empty key regardless of what Claude Code sends: `hook_input` returns `{}` on a parse error, which is deliberate fail-open, and again when stdin is a tty. Measured: eight turns read `2 2 2 0 0 0 0 0`, with `{"prompt_id": "", "count": 8}` on disk.
-Decision:     the waiver counts retries within one turn, and "the same turn" is `prompt_id` and `session_id` when the payload carries them, plus the number of prompt headings in `adocs/worklog.md`, which `UserPromptSubmit` advances exactly once per turn. The count also resets when the set of problems changes, so making partial progress does not spend attempts. The waived turn prints the problems before allowing the stop. (Agent-chosen during implementation; the alternative was put to the same standard S016 set for `agent_type`.)
-Rejected:     observing a live Stop payload and keying on `prompt_id` alone, the way S016 established `agent_type` (correct in spirit, but it needs instrumenting the installed plugin again for one field, and it would still fail open on both `hook_input` fallbacks — the redesign removes the dependency instead of confirming it); keying on the problem fingerprint alone (resets correctly on progress, but a repository broken the same way every turn would be waived from the fourth turn onward, which is the defect); removing the cap (INV-12 and DEC-006 require it, and a hook that blocks forever with an unactionable message is the deadlock it exists to prevent).
-Consequences: the worklog is now load-bearing for a hook decision, which is new — it was forensic and never a context source (DEC-011), and this reads its shape rather than its content, but the coupling is real and worth knowing. A repository whose `UserPromptSubmit` is failing keeps a constant prompt count, so retries within what is really several turns share a key and the cap can fire early; that failure is itself reported at SessionStart since S014. `mode_stop` now reads stdin once and shares the payload, because two `hook_input()` calls in one process would give the second an empty dict.
+Tags: hooks, stop, invariants, deadlock
+Decision: the waiver counts retries within one turn, and "the same turn" is `prompt_id` and `session_id` when the payload carries them, plus the number of prompt headings in `adocs/worklog.md`, which `UserPromptSubmit` advances exactly once per turn. The count also resets when the set of problems changes, so making partial progress does not spend attempts. The waived turn prints the problems before allowing the stop.
+Why: the 2026-08-07 re-run found (.2-F01) that the deadlock waiver counted consecutive blocks per `prompt_id`, a Stop payload field nothing in this repository establishes exists.
 
 ## DEC-030  2026-08-07  moltke defends against drift and forgetting, not against a hostile author
-Tags:         scope, principle, invariants, security, triage
-Context:      the 2026-08-07 re-runs produced a class of findings about what a determined author could get past the checks — a forged decision entry inserted mid-file (.2-F07), the reviewer appending to the worklog through Bash (.2-F09), the fence boundary at the repository edge (.2-F10). Each is real and each invites a tightening. Max stated the scope plainly when asked to choose on the first of them: moltke exists so he does not have to repeat the same instructions to every agent and so memory survives between agents and sessions. Practicality and correctness of the work come first; immutability for its own sake does not.
-Decision:     the threat model is accident and drift, not malice. Checks exist to stop an agent forgetting, contradicting a decision, or letting documentation diverge from code — not to make tampering impossible for someone with a shell and intent. Where those two goals conflict, the simpler behaviour wins, and the documentation is corrected to describe what actually runs rather than the code being grown to match an aspirational sentence. A finding that describes only what a hostile author could do is `accepted` with this entry cited, not planned. (Max, stated directly.)
-Rejected:     hardening the invariants against a determined author (every route out of it costs more code on a path that already took three attempts to get right, and the reviewer holds Bash regardless, so the guarantee would still be partial while reading as total); leaving the invariant wording aspirational and treating the gap as a known issue (AGENTS.md section 7 makes a doc claim a claim about code, and an invariant that overclaims is worse than one that is modest, because `AGENTS.md` section 3 points a new agent at the invariant list first).
-Consequences: INV-8's wording changes to what it enforces, in S054. Three queued steps are re-triaged against this entry rather than built: S056 and S057 become documentation or are accepted outright, and any future finding of the same shape is closed the same way. Nothing about DEC-025, DEC-026, or DEC-028 is reversed — the invariants still catch removal and rewriting, which is what accident looks like. The cost accepted here is stated once so it is not rediscovered as a surprise: a mid-file insertion into `decisions.md` commits green, so the log's ordering is a convention that a careless edit can break without the tool noticing.
+Tags: scope, principle, invariants, security, triage
+Decision: the threat model is accident and drift, not malice. Checks exist to stop an agent forgetting, contradicting a decision, or letting documentation diverge from code — not to make tampering impossible for someone with a shell and intent. Where those two goals conflict, the simpler behaviour wins, and the documentation is corrected to describe what actually runs rather than the code being grown to match an aspirational sentence.
+Why: the 2026-08-07 re-runs produced a class of findings about what a determined author could get past the checks — a forged decision entry inserted mid-file (.2-F07), the reviewer appending to the worklog through Bash (.2-F09), the fence boundary at the repository edge (.2-F10).
 
 ## DEC-031  2026-08-07  No deadlock cap without git, accepted and scoped
-Tags:         hooks, stop, invariants, git, scope
-Context:      the 2026-08-07 re-run found (.2-F06) that a marked repository with no git at all has no `Stop` deadlock cap: the counter lives beside the git directory, there is none, so every `Stop` blocks and the agent cannot end its turn. Measured `2 2 2 2 2 2` against a clone's `2 2 2 0 0`. S035 fixed the linked-worktree and submodule cases and left this one. INV-12 and DEC-006 state no-deadlock as a property rather than a nicety, so leaving it silently would make an invariant knowingly untrue — the same defect S054 had just corrected in INV-8.
-Decision:     accept the gap and scope the property to repositories with git. A repository without git is already outside most of what moltke does: INV-7 and INV-8 abstain there, `--audit check` refuses, and the prompt-failure breadcrumb has nowhere to go. Adding a state file outside the repository to serve that one case is the first thing moltke would keep outside the project, and it is not worth it. INV-12's wording says so, and MANUAL's known issues name the symptom and the one-line escape: `git init`, or delete `.moltke.json`. (Max, choosing from agent-supplied options.)
-Rejected:     waiving on the first block when no state is writable (simplest, and safe in the direction that matters, but it makes the Stop gate advisory rather than blocking in exactly the repositories least likely to notice — a repository with no git also has no recap gate and no immutability checks, so the remaining enforcement would be the part that stops mattering); keeping the counter under the system temp directory keyed by the repository root (the cap would then work everywhere, at the cost of state outside the project that survives sessions and that the user never sees, which contradicts AGENTS.md section 12 — the repository is the memory and everything else is a cache).
-Consequences: `.2-F06` is `accepted`, not planned, and S053 is dropped from the plan rather than built. INV-12 gains the qualifier in `specs.md`, so the invariant list stops claiming something the code does not do in that case. A user who hits it sees every `Stop` refuse with an actionable message — the message is correct, there is just no cap behind it — and `git init` fixes it permanently. If moltke is ever used somewhere git is genuinely absent by design, this is the entry to revisit.
+Tags: hooks, stop, invariants, git, scope
+Decision: accept the gap and scope the property to repositories with git. A repository without git is already outside most of what moltke does: INV-7 and INV-8 abstain there, `--audit check` refuses, and the prompt-failure breadcrumb has nowhere to go. Adding a state file outside the repository to serve that one case is the first thing moltke would keep outside the project, and it is not worth it.
+Why: the 2026-08-07 re-run found (.2-F06) that a marked repository with no git at all has no `Stop` deadlock cap: the counter lives beside the git directory, there is none, so every `Stop` blocks and the agent cannot end its turn.
 
 ## DEC-032  2026-08-07  The worklog secret check becomes an invariant, so it travels
-Tags:         security, worklog, invariants, distribution
-Context:      DEC-024 chose detection over redaction and S022 built it as `tests/test_s022_secrets.py`. That protects moltke's own worklog, which DEC-002 makes public, and nothing else: a repository that installs the plugin runs moltke's hooks, not moltke's suite, so it inherits verbatim prompt logging into a tracked file with no check at all. The exposure is a property of every repository moltke is installed into, which is what the S022 recap recorded as the open gap and planned as S031.
-Decision:     the shapes move into `bin/moltke.py` and run as an invariant, so `--validate` reports them and the `Stop` hook refuses on them, in every marked repository. The suite test stays and imports the shapes, so the detector keeps exactly one definition and its non-vacuity guard — each shape asserted against its own example before anything is scanned — keeps covering the version that ships. (Max, choosing from agent-supplied options.)
-Rejected:     leaving it in moltke's suite and treating secret scanning as somebody else's job, which pre-commit hooks and provider-side scanning do cover (defensible, and it keeps moltke to memory rather than security, but the tool is the thing writing the secret to disk — logging a prompt verbatim into a tracked file is moltke's own behaviour, so warning about it is moltke's own responsibility); reporting it only as SessionStart context, never blocking (visible and safe, but it arrives once per session rather than when the secret is committed, and a warning nobody must act on is one nobody does).
-Consequences: a false positive turns `--validate` red in someone else's repository until the worklog is edited. That is survivable precisely because DEC-025 removed the worklog from INV-8: cleaning it is an ordinary edit and an ordinary commit, with no invariant to work around and no authorising entry needed. The shapes stay prefixed keys and PEM headers only, with no entropy or bare-hex rule, because every recap here carries a commit sha — DEC-024's sensitivity trade is inherited unchanged. Rotation remains the real fix and the check only tells you to do it; MANUAL already says so. S031's acceptance is rewritten against this entry.
+Tags: security, worklog, invariants, distribution
+Decision: the shapes move into `bin/moltke.py` and run as an invariant, so `--validate` reports them and the `Stop` hook refuses on them, in every marked repository. The suite test stays and imports the shapes, so the detector keeps exactly one definition and its non-vacuity guard — each shape asserted against its own example before anything is scanned — keeps covering the version that ships. (Max, choosing from agent-supplied options.)
+Why: DEC-024 chose detection over redaction and S022 built it as `tests/test_s022_secrets.py`.
 
 ## DEC-033  2026-08-08  A report may not hide a finding it names, checked by heading rather than by fence
-Tags:         audit, invariants, fences, evidence
-Context:      S033 closed one half of 2026-08-07_adversarial-F02 and recorded the other as unresolvable: two unclosed fences are two markers, so they pair as one closed fence, the count stays even, INV-13 is silent, and the finding between them is stripped before INV-10 or `--audit list` sees it. The 2026-08-07 re-run (.2-F04) re-measured the J2 case verbatim at `b8b4345` — `--validate` exit 0, `--audit list` naming F01 alone — and said this needed a decision rather than a patch, because no rule can tell the two shapes apart by counting markers and the templates put finding headings inside fences on purpose.
-Decision:     add INV-14, which compares the `### <id>` headings a report states in its raw text against the ones that survive `strip_guidance`, scoped to the report's own stem. A heading naming this file's own report that no scanner can read is a violation, whatever the markers around it meant. It runs in `--post-write` as well, so the reviewer learns on save. The shipped template stops substituting the real stem into its fenced example and writes `<report>-F01` there instead, since guidance written under this report's own name is byte-identical to a swallowed finding. (Max, choosing from agent-supplied options.)
-Rejected:     changing the fence grammar so openers and closers are distinguishable — a language tag on every opener, or a mandatory blank line after a closer (it fixes the general case rather than findings alone, but it rewrites every existing report and template, and it asks reviewers pasting transcripts to obey a markdown dialect nothing else uses, trading a silent hole for constant friction); reporting the visible-finding count next to the raw heading count as advisory output from `--audit new` and `--post-write` (cheapest, no false positives, and it needs no ruling on the ambiguity, but `--validate` still exits 0 and `--audit list` still omits the finding, so the report that loses evidence still passes every gate).
-Consequences: the rule detects rather than un-hides: the finding stays stripped, and what changes is that the report cannot pass while unreadable. What it deliberately cannot see is stated in `specs.md` — hidden content that is not a finding heading, a hidden heading carrying another report's stem, and hidden content anywhere outside `adocs/audit/`. Any report already scaffolded from the old template in another repository will report its own example heading until that heading is rewritten as `<report>-F01`; moltke's own reports have all replaced the template body and are clean. Findings that quote each other, which every re-run's verdict section does, stay quiet because a foreign stem is evidence.
+Tags: audit, invariants, fences, evidence
+Decision: add INV-14, which compares the `### <id>` headings a report states in its raw text against the ones that survive `strip_guidance`, scoped to the report's own stem. A heading naming this file's own report that no scanner can read is a violation, whatever the markers around it meant. It runs in `--post-write` as well, so the reviewer learns on save.
+Why: S033 closed one half of 2026-08-07_adversarial-F02 and recorded the other as unresolvable: two unclosed fences are two markers, so they pair as one closed fence, the count stays even, INV-13 is silent, and the finding between them is stripped before INV-10 or `--audit list` sees it.
+Findings: 2026-08-07_adversarial-F02
 
 ## DEC-034  2026-08-08  Release 0.5.0, close the .2 findings by re-running, and stop planning after that
-Tags:         release, audit, plan, versioning
-Context:      the plan emptied: all 55 steps are in `plan_done/` and `plan.md` has nothing after them. Three things were left hanging by that. Nine findings of `2026-08-07_adversarial.2` are fixed and still `open`, correctly, because §10 closes a finding only when a re-run stops reporting it. `plugin.json` still reads 0.4.0, so every fix from S045 onward — ten steps, INV-14, INV-15, and changed behaviour in five modes — is inert in live sessions, which execute the plugin cache at the installed version. And `specs.md` has no open items and three deliberate non-goals, so nothing in the documents says what should come next.
-Decision:     one step bumps to 0.5.0 and re-runs the audit, closing every finding the re-run no longer reports; a second, separate step verifies the installed 0.5.0 in a live session, since that can only happen after Max reinstalls the plugin. Nothing is planned beyond those two: the plan stops empty on purpose, and the next input is real use rather than invented work. 0.5.0 rather than 0.4.1 because INV-15 turns on a new blocking check in every repository that installs the plugin and S028/S029 change what `init` does, neither of which is a patch. (Max, choosing from agent-supplied options.)
-Rejected:     closing the nine findings by inspection with a decisions entry, since every one has a re-measured transcript in `testing.md` (cheaper and honest about what was verified, but it overrides the §10 rule this project wrote for itself, and the rule exists because "I fixed it" is a claim while "the audit no longer finds it" is evidence); leaving them `open` indefinitely (truthful today, and the ambiguity grows as the report ages); folding the live verification into the release step (honest that a bump nobody installs changes nothing, but the step could not complete in this session and would hold `plan_current/` across a session boundary, blocking everything under `plan_active_max`); 1.0.0 (defensible — the first plan is complete, every invariant has tests, the tool self-hosts — but stability is a claim only use in other repositories can back, and moltke is installed in one); planning further work now, either adopting moltke in a second repository, reversing the migration non-goal, or hunting the paired-definition defect shape three audits have kept finding (each is real work and each was deliberately not scheduled: the specs have no open items, so scheduling now would be inventing requirements rather than discovering them).
-Consequences: `--audit list` stays non-zero until the re-run happens, which is the intended pressure. The re-run will almost certainly produce new findings — the previous two produced 11 and 10 — and those get triaged into steps as usual, so the empty plan is a resting state rather than an end state. Live verification stays unfinished business until Max reinstalls; `status.md` keeps parking that. Anything that follows comes from using moltke somewhere real, and this entry is what a later reader should find when asking why the plan stopped here.
+Tags: release, audit, plan, versioning
+Decision: one step bumps to 0.5.0 and re-runs the audit, closing every finding the re-run no longer reports; a second, separate step verifies the installed 0.5.0 in a live session, since that can only happen after Max reinstalls the plugin. Nothing is planned beyond those two: the plan stops empty on purpose, and the next input is real use rather than invented work. 0.5.0 rather than 0.4.1 because INV-15 turns on a new blocking check in every repository that installs the plugin and S028/S029 change what `init` does, neither of which is a patch. (Max, choosing from agent-supplied options.)
+Why: the plan emptied: all 55 steps are in `plan_done/` and `plan.md` has nothing after them.
 
 ## DEC-035  2026-08-08  The audit loop stops when a re-run finds nothing above low
-Tags:         audit, process, stopping, drift
-Context:      four adversarial runs have produced 14, 11, 10, 6 and now 12 findings, and each release triggers the next re-run because §10 closes a finding only on evidence. The count is not falling, but the severity profile has changed: the first run found silent enforcement failures, and the fourth found one high — a regression introduced by the batch it was auditing — plus six lows of the order "a `unittest.main()` sits above two classes". A loop with no stopping rule keeps producing work regardless of whether the work is worth doing, and an auditor asked to find something will find something.
-Decision:     when a re-run reports no `high` and no `medium` finding, the loop stops. The lows are recorded in the report as always and then discharged as `accepted` by a decision entry rather than planned one step each, and no further audit is scheduled: the next input becomes real use in another repository, per DEC-034. A regression introduced by the batch being audited does not count towards continuing either — it is fixed, but it is evidence that the batch was wrong, not that the codebase has more to give. Two sanity conditions guard the rule, because "only lows" must mean the auditor looked and found little, not that it did not look: the run re-measured every prior finding from its own reproduction, and its mutation testing killed what it planted. If either is missing the run does not count as a stopping run. (Max, 2026-08-08.)
-Rejected:     fixing every finding regardless of severity until a run comes back empty (the honest reading of "leave nothing broken", and it is what the last four releases did — but it treats the reviewer's output as a work queue rather than as evidence, and the queue never empties because each fix is new code to audit); stopping on a count threshold, say fewer than five findings (simple and objective, but it makes a run of six trivia continue while a run of two serious defects stops, which is backwards); trusting the agent to judge when the findings stopped mattering without writing the rule down (this is exactly the memory that does not survive a new session, which is what AGENTS.md section 12 exists to prevent).
-Consequences: severity is the reviewer's own label, so this rule inherits whatever calibration the agent applies — a reviewer that inflates a low to a medium keeps the loop running one more turn, which is the safe direction. The stopping run's lows stay in the report as `accepted`, visible and greppable, so a later session can pick one up deliberately rather than finding it by accident. The rule lives in `skills/audit/SKILL.md` so it applies wherever moltke is installed, not only here. Nothing about it forbids a targeted audit later — a security review, a run against a specific subsystem — it ends the release-audit-fix cycle, not the practice.
+Tags: audit, process, stopping, drift
+Decision: when a re-run reports no `high` and no `medium` finding, the loop stops. The lows are recorded in the report as always and then discharged as `accepted` by a decision entry rather than planned one step each, and no further audit is scheduled: the next input becomes real use in another repository, per DEC-034. A regression introduced by the batch being audited does not count towards continuing either — it is fixed, but it is evidence that the batch was wrong, not that the codebase has more to give.
+Why: four adversarial runs have produced 14, 11, 10, 6 and now 12 findings, and each release triggers the next re-run because §10 closes a finding only on evidence.
 
 ## DEC-036  2026-08-08  The auditor runs on a clean context: red team, blue team, no handover
-Tags:         audit, process, bias, subagent
-Context:      the reviewer has always been a separate subagent, but the prompt spawning it was written by the session that had just done the work. Today's two runs were told which steps had landed, what each one changed, and what to bias towards — "the recurring shape four audits have found", "the new code paths S060 added". That is the implementing session handing the auditor its own model of the code, including its own blind spots: an auditor told where to look looks there, and an auditor told what the last batch fixed is primed to agree that it is fixed. The separation §10 already asks for was procedural and half-kept.
-Decision:     the auditor is spawned with a clean context and learns the repository only from the repository. The spawning prompt carries the report path, the commit, the type of audit, and the scope boundary — nothing about what changed, what the session believes, what to prioritise, or which findings it expects. Verdicts on prior findings stay in scope, because those live in the tracked reports the auditor reads for itself. A run is always a fresh spawn; continuing an earlier reviewer with more context is exactly the handover this forbids. Red team and blue team, and the blue team does not brief the red team. (Max, 2026-08-08.)
-Rejected:     keeping the informative prompt because it makes runs faster and more targeted (true, and it is why the last four runs were written that way — but speed is not what an audit is for, and every minute saved was bought by telling the auditor what to think); having the auditor read the session transcript instead of the repository, so it sees the reasoning rather than a summary of it (worse in the same direction, and it contradicts AGENTS.md §12: if something matters it is in a tracked file, and if it is not tracked the auditor should not be the one to see it); enforcing this in the hook layer by inspecting the spawn prompt (nothing in this repository establishes that a PreToolUse matcher can see a subagent prompt, and a rule claimed to be enforced but not enforced is worse than one known to rest on the agent).
-Consequences: audits get slower and less targeted, and the first run under this rule may re-derive things the previous run already knew. That is the cost of the property. The rule rests on the agent, like the reviewer's `Bash` limit does, so `skills/audit/SKILL.md` states it where the spawn happens and `--audit new` is where a future enforcement hook would go if one is ever proven possible. Nothing stops a targeted audit — "review the fence logic" is a scope, not a briefing — the line is between naming an area and supplying an opinion about it.
+Tags: audit, process, bias, subagent
+Decision: the auditor is spawned with a clean context and learns the repository only from the repository. The spawning prompt carries the report path, the commit, the type of audit, and the scope boundary — nothing about what changed, what the session believes, what to prioritise, or which findings it expects. Verdicts on prior findings stay in scope, because those live in the tracked reports the auditor reads for itself.
+Why: the reviewer has always been a separate subagent, but the prompt spawning it was written by the session that had just done the work.
 
 ## DEC-037  2026-08-08  Every unit of work ends with a short console recap
-Tags:         process, output, worklog
-Context:      the worklog gets a recap on every work turn (§9) and the user gets whatever the agent chooses to write at the end of a turn, which has ranged from one line to several screens. The worklog is forensic and nobody reads it live; the console is where the user actually finds out what happened, and it had no rule at all.
-Decision:     after every completed unit of work — a step reaching `plan_done/`, a planning session, an audit run — the agent prints a short recap to the console: what was done, what changed, what proves it, and the commit sha. Short means a handful of lines, not a report. It is additional to the worklog recap, not a replacement, and it is the agent's own output rather than something the tool prints. (Max, choosing from agent-supplied options, 2026-08-08.)
-Rejected:     having `--step done` print a condensed form of the completion stamp (mechanical, cannot be forgotten, and it survives a tired agent — but it costs a CLI surface change with the golden test, the specs table, and MANUAL moving in the same commit, and it can only ever say what the stamp already says, which is not the same as saying what the user needs to hear); both together (the sum of the costs, and the two recaps would overlap for exactly the case that matters most).
-Consequences: nothing enforces this, by choice: it is an output convention like the worklog's, and the tool has no way to tell a good recap from a bad one. It applies to work that is not a step completion too, which is where the gap was largest — a planning session or an audit run could previously end with nothing said. `AGENTS.md` §9 carries it, so it travels to every repository that installs moltke.
+Tags: process, output, worklog
+Decision: after every completed unit of work — a step reaching `plan_done/`, a planning session, an audit run — the agent prints a short recap to the console: what was done, what changed, what proves it, and the commit sha. Short means a handful of lines, not a report. It is additional to the worklog recap, not a replacement, and it is the agent's own output rather than something the tool prints.
+Why: the worklog gets a recap on every work turn (§9) and the user gets whatever the agent chooses to write at the end of a turn, which has ranged from one line to several screens.
 
 ## DEC-038  2026-08-08  The console recap is two sentences, and the roadmap is drawn by the tool
-Tags:         process, output, roadmap, cli
-Context:      DEC-037 asked for a short console recap and defined short as "a handful of lines, not a report". In practice the recaps ran to several paragraphs with tables, which is a report by any other name, and the thing actually wanted — a sense of what just happened and where that leaves the plan — was buried in it. Separately there was no way to see the plan's shape at all: `plan.md` is a 77-line list, `status.md` names four fields, and neither answers "how far along is this".
-Decision:     the recap narrows to a couple of sentences: what was done and what it means, no more. Anything longer is a report and is written when asked for. The roadmap becomes a `--roadmap` mode in `bin/moltke.py`, printed after the recap, rendering the plan as one timeline strip with the current step named beneath it. Deriving it in the tool rather than drawing it by hand is the prime directive applied to itself: it reads `plan.md` order and the three plan directories, the same filesystem every other check reads, so it cannot say something the repository does not. It stays out of `--session-start`. (Max, choosing from agent-supplied options, 2026-08-08.)
-Rejected:     having the agent draw the roadmap each turn (free, no CLI surface change, and adaptable to whatever the moment needs — but it is a second copy of derivable facts redrawn by hand every turn, which is exactly the drift `status.md` needed a staleness check to survive, and here it would go wrong silently); emitting the roadmap from `--session-start` as well (it would arrive without anyone asking, at the cost of lengthening the one channel that already carries staleness warnings, the planning nudge, and the prompt-failure breadcrumb — that channel grows every time something is added to it and nothing has ever been removed); the grouped-band and bar-plus-window renderings (both readable, both showing more; the strip was chosen because it answers the one question asked of it in three lines and stays that size at any plan length).
-Consequences: DEC-037's "handful of lines" is superseded by "a couple of sentences"; the rest of that entry stands. `--roadmap` is public surface, so the golden test, the specs CLI table, and MANUAL move with it and it cannot be renamed quietly afterwards. The strip buckets steps once the plan is longer than the strip is wide, so on a long plan one cell covers several steps and a single unfinished step in a finished run makes its cell read as unfinished — deliberate, since the alternative is a bar that lies in the optimistic direction. Nothing reads the roadmap programmatically; it is for a human at a terminal.
+Tags: process, output, roadmap, cli
+Decision: the recap narrows to a couple of sentences: what was done and what it means, no more. Anything longer is a report and is written when asked for. The roadmap becomes a `--roadmap` mode in `bin/moltke.py`, printed after the recap, rendering the plan as one timeline strip with the current step named beneath it.
+Why: DEC-037 asked for a short console recap and defined short as "a handful of lines, not a report".
 
 ## DEC-039  2026-08-08  The Stop cap exists wherever moltke can write its state, not wherever git is
-Tags:         hooks, stop, invariants, state, scope
-Context:      2026-08-08_adversarial.3-F01: the retry state write is the one unguarded write in `mode_stop`, so with `.git` unwritable the `OSError` escaped to `main`'s backstop, which returns before the problems are printed and before the cap is consulted. Eight consecutive stops read `2 2 2 2 2 2 2 2` against `2 2 2 0 0` for a writable `.git`, and the only message called a write a read and named `--validate`, which reports all checks pass on that tree. It is the third wedge found in this function and the second introduced while fixing the first: S067 guarded every read here and left this write.
-Decision:     the crash is a defect and is fixed — nothing in `mode_stop` may raise, the problems are printed before anything that can fail, and a state write that fails says so in its own words. The missing cap is not a defect: DEC-031 already weighed this exact trade for a repository with no git and accepted it, so the property is scoped to "wherever moltke can write its state beside the git directory" rather than "wherever git is". An unwritable `.git` gets the same treatment as no git at all: every `Stop` blocks until the problem is fixed, with correct and actionable messages behind it, and the message names the missing cap so nobody has to work out why the waiver never came. (Max's standing choice in DEC-031, applied to the neighbouring case by the agent.)
-Rejected:     waiving on the first block when the count cannot be persisted (it would make the finding's transcript read `2 0 0 0 0` and satisfies the literal acceptance this step was written with, but DEC-031 rejected the same option for the same reason — it turns the gate advisory in exactly the repositories least able to notice, and an unwritable `.git` is a broken tree rather than a normal one); keeping the count somewhere else when `.git` cannot take it, such as the system temp directory (rejected by DEC-031 as state outside the project, contradicting AGENTS.md §12, and it would now be reached by a transient permission problem rather than a deliberate setup); guarding this one write and leaving the rest of the function as it is (that is what S067 did with the reads, and this finding is the result).
-Consequences: INV-12's qualifier widens from "a repository with no git at all" to "anywhere moltke cannot write its state", which is the honest statement of what the code does. `--stop` gains a rule rather than another patch: print first, persist second, and let no exception leave the function. The step's own acceptance criterion, written before this was thought through, asked for `2 2 2 0 0 0 0 0` on an unwritable `.git`; it is amended to the behaviour this entry chooses, with the reason recorded here rather than the criterion quietly relaxed.
+Tags: hooks, stop, invariants, state, scope
+Decision: the crash is a defect and is fixed — nothing in `mode_stop` may raise, the problems are printed before anything that can fail, and a state write that fails says so in its own words. The missing cap is not a defect: DEC-031 already weighed this exact trade for a repository with no git and accepted it, so the property is scoped to "wherever moltke can write its state beside the git directory" rather than "wherever git is". An unwritable `.git` gets the same treatment as no git at all: every `Stop` blocks until the problem is fixed, with correct and actionable messages behind it, and the message names the missing cap so nobody has to work out why the waiver never came.
+Why: 2026-08-08_adversarial.3-F01: the retry state write is the one unguarded write in `mode_stop`, so with `.git` unwritable the `OSError` escaped to `main`'s backstop, which returns before the problems are printed and before the cap is consulted.
+Findings: 2026-08-08_adversarial.3-F01
 
 ## DEC-040  2026-08-09  A stranded pause is cleared by its own command, not by hand
-Tags:         plan, cli, invariants
-Context:      2026-08-08_adversarial.4-F03. A step in plan_current/ carrying
-              paused_by: S999, where S999 is in no plan directory, passed every
-              check. INV-1 counts a step as non-active whenever paused_by is
-              non-empty and nothing verified the pauser existed, so the step was
-              parked behind work that did not exist. --step done on the parent
-              refused and pointed at S999; --step done S999 and --step start S999
-              both answered that it does not exist. No operation reached the
-              field, so the only way out was editing a step file by hand — which
-              is what --step exists to avoid, and which leaves the prime
-              directive's tracked state saying something untrue.
-Decision:     Report it from INV-1, and add --step unpause <id> as the way out.
-              The violation names the step, the missing pauser, and that command.
-              unpause is narrow: it clears a pause whose named step is in no plan
-              directory and refuses one whose step exists, pointing at --step done
-              on the pauser instead. Agent-proposed, from the options the finding
-              itself listed; Max approves the surface addition by accepting this
-              step's plan.
-Rejected:     Extending S070's stale-pause path in step_done to treat a missing
-              pauser as stale, which the finding also suggested: it clears the
-              field only for a parent that is otherwise ready to complete, so a
-              parent blocked on anything else stays stuck with no command to run,
-              and the repair would be a side effect of a different operation
-              rather than something you can ask for.
-              A general --step unpause that clears any pause: it would let a step
-              walk out of the active accounting INV-1 exists to keep, turning a
-              repair into a way around the invariant.
-              Reporting the violation without adding a command: --validate would
-              name a problem whose only remedy is hand-editing, which is the
-              dead-end shape S070 and S084 were both written to remove.
-Consequences: STEP_OPS gains an operation, so tests/golden/cli_surface.txt, the
-              specs surface table, and MANUAL all carry it. INV-1 now returns more
-              than one violation, so its message is a list rather than a single
-              string. A pause naming a step already in plan_done/ is untouched:
-              that is S070's path and --step done still treats it as stale and
-              goes on.
+Tags: plan, cli, invariants
+Decision: Report it from INV-1, and add --step unpause <id> as the way out. The violation names the step, the missing pauser, and that command. unpause is narrow: it clears a pause whose named step is in no plan directory and refuses one whose step exists, pointing at --step done on the pauser instead. Agent-proposed, from the options the finding itself listed; Max approves the surface addition by accepting this step's plan.
+Why: 2026-08-08_adversarial.4-F03.
+Findings: 2026-08-08_adversarial.4-F03
 
 ## DEC-041  2026-08-09  The audit loop stops here, by decision rather than by severity
-Tags:         audit, process, release
-Context:      DEC-035 ends the audit loop when a re-run reports no high and no
-              medium. The 2026-08-09 run reported one high and two medium, so by
-              that rule the loop continues: fix, release, re-run, triage. Five
-              runs have now followed that cycle and each has produced new
-              findings, and each batch of fixes is itself auditable, so the rule
-              as written has no terminal state that this codebase has reached.
-              Max: "if we keep re-running audit this will never be closed."
-Decision:     Stop auditing. 0.8.0 is bumped at a green tree — 444 tests,
-              --validate exit 0, --audit list exit 0, --audit check exit 0 — and
-              the project is declared complete and stable until new orders.
-              Max's decision; the agent supplied the state above and the cost
-              below.
-Rejected:     Continuing until DEC-035 fires on its own terms: it is the rule as
-              written, and it is what was rejected. Five runs of evidence say a
-              fresh reviewer on a clean context finds something every time,
-              which is what an auditor asked to find something does, and the
-              severity profile has not trended to lows.
-              Marking the seven 2026-08-09_adversarial findings `closed`: that
-              would substitute "I fixed it" for "the audit no longer finds it",
-              which is the one substitution §10 exists to prevent. They stay
-              `planned` and the record stays honest.
-              Relaxing DEC-035's threshold to fire on this run: it would make
-              the rule say something it does not, and hide the fact that a
-              deliberate stop was chosen.
-Consequences: The seven 2026-08-09_adversarial findings remain `planned`
-              indefinitely. Each has a completed step and red-first tests, so the
-              defects are fixed and covered; what is missing is the independent
-              re-measurement, and `--audit list` will keep saying so. That is the
-              honest state and is deliberately left visible.
-              INV-10 stays satisfied, because every finding has a step naming it.
-              Restarting is one command: `--audit new adversarial` and a fresh
-              reviewer spawn. Nothing here forecloses it.
-              No further audit is scheduled. If work resumes, the loop resumes
-              with it — this decision covers the project as it stands at 0.8.0,
-              not everything that might be built on it later.
+Tags: audit, process, release
+Decision: Stop auditing. 0.8.0 is bumped at a green tree — 444 tests, --validate exit 0, --audit list exit 0, --audit check exit 0 — and the project is declared complete and stable until new orders. Max's decision; the agent supplied the state above and the cost below.
+Why: DEC-035 ends the audit loop when a re-run reports no high and no medium.
 
-## DEC-042  2026-08-09  Memory is current state; git is the archive
-Tags:         context, documents, invariants, philosophy
-Context:      The token analysis measured the always-read set at ~180 KB and
-              growing 1.4 KB per completed step without bound, with 84% of
-              specs.md being dated history notes and decisions.md unshrinkable
-              because INV-8 enforced append-only. Max: immutability and
-              enforcement are not requirements; context budget is.
-Decision:     The always-read documents hold current state only and are bounded
-              by construction. History lives in git and in plan_done/, which are
-              never read into context. Concretely: INV-8 is retired (number never
-              reused); decisions.md is compacted freely with stable ids; specs.md
-              carries current wording only, the narrative living in step stamps
-              and commit messages; worklog.md is trimmable; --step done prunes
-              plan.md to the last 5 completed entries. Max's decision; the agent
-              supplied the measurements.
-Rejected:     Keeping INV-8 and splitting history into side files: relocates the
-              bytes but keeps the growth and the ceremony.
-              Rewording the reading order alone: fixes the instruction, leaves
-              every accidental full read as expensive as before.
-              Rotating files per version: bounded but sprawls, and someone has to
-              remember to rotate.
-Consequences: The repository can no longer prove its documents were not
-              rewritten; git history still shows every version. Tests pinning
-              append-only were deleted deliberately (S105 recap names them).
-              Audit reports that cite INV-8 describe the rule as it stood then.
+## DEC-042  2026-08-11  Memory is current state; git is the archive
+Tags: context, documents, invariants, philosophy
+Decision: The always-read documents hold current state only and are bounded by construction. History lives in git and in plan_done/, which are never read into context. Concretely: INV-8 is retired (number never reused); decisions.md is compacted freely with stable ids; specs.md carries current wording only, the narrative living in step stamps and commit messages; worklog.md is trimmable; --step done prunes plan.md to the last 5 completed entries.
+Why: The token analysis measured the always-read set at ~180 KB and growing 1.4 KB per completed step without bound, with 84% of specs.md being dated history notes and decisions.md unshrinkable because INV-8 enforced append-only.

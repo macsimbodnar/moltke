@@ -16,7 +16,6 @@ list below and nowhere else in this file: the derived next step is the first id
 in document order, so an id mentioned in prose above the list becomes the next
 step instead.
 
-99. S101  a malformed agent_type is fenced, not mistaken for the main thread
 100. S102  the two documented refusals match what the code does
 101. S103  a step file's id: field agrees with its filename, or does not exist
 102. S104  bump 0.8.0 and stop the audit loop by decision

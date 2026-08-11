@@ -22,4 +22,4 @@ decisions:  DEC-042
 closes:
 blocks:
 paused_by:
-done:
+done:      2026-08-11: the always-read documents hold current state, not history (DEC-042). specs.md rewritten 84,637 to 8,413 bytes — prime directive, sixteen invariants in current wording with INV-8 marked retired, layout, the golden-guarded CLI surface table, non-goals; the dated notes are deleted and their narrative lives in step stamps and commit messages. decisions.md compacted 70,505 to 23,258 bytes keeping all 42 entries with stable ids, an index at top, decisions capped to their operative sentences, one-line whys, and every finding id that discharges an accepted audit finding — --audit list exit 0 proves the references held. worklog.md truncated to a stub naming the commit holding its history. status.md's stale Parked claim from DEC-041 rewritten to the current state. Measured always-read set: 180,518 bytes at e22a911 to 49,900 now (~12.5k tokens), under the 50 KB acceptance. Suite 438 OK, --validate green. README checked, no change — the test count did not move; MANUAL checked, no change — S105 already rewrote its INV-8 passages and nothing here changes documented behaviour.
