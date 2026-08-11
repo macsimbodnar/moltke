@@ -1053,6 +1053,81 @@ class TestDestinationNeverClobbered(unittest.TestCase):
             self.assertEqual(validate(root).returncode, 0, validate(root).stdout)
 
 
+class TestStepOwnership(unittest.TestCase):
+    """S121 (DEC-045): the plan is common and a step is claimed at start.
+    --step start stamps author: from git config user.name, and INV-1 counts
+    non-paused steps per author, so branch-per-member merges where each branch
+    carries its owner's active step stay green while one person still cannot
+    hold two."""
+
+    def repo(self, tmp, name="alice"):
+        root = workflow_repo(tmp)
+        subprocess.run(["git", "-C", str(root), "init", "-q"], check=True)
+        subprocess.run(["git", "-C", str(root), "config", "user.name", name], check=True)
+        subprocess.run(["git", "-C", str(root), "config", "user.email", "t@t"], check=True)
+        return root
+
+    def test_start_stamps_the_author(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.repo(tmp)
+            (root / "adocs" / "plan_current" / "S003_active.md").rename(
+                root / "adocs" / "plan_todo" / "S003_active.md")
+            result = run_moltke(root, "--step", "start", "S003")
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            fields = self.parse(root / "adocs" / "plan_current" / "S003_active.md")
+            self.assertEqual(fields.get("author"), "alice")
+
+    def parse(self, path):
+        from surface import moltke
+        return moltke.parse_step_file(path)
+
+    def test_two_authors_may_each_hold_an_active_step(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.repo(tmp)
+            step_file(root / "adocs" / "plan_current", "S003", "active", author="alice")
+            step_file(root / "adocs" / "plan_current", "S004", "second", author="bob")
+            (root / "adocs" / "plan.md").write_text(
+                "# Plan\n\n1. S001 a\n2. S002 b\n3. S003 c\n4. S004 d\n", encoding="utf-8")
+            result = validate(root)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_one_author_still_cannot_hold_two(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.repo(tmp)
+            step_file(root / "adocs" / "plan_current", "S003", "active", author="alice")
+            step_file(root / "adocs" / "plan_current", "S004", "second", author="alice")
+            (root / "adocs" / "plan.md").write_text(
+                "# Plan\n\n1. S001 a\n2. S002 b\n3. S003 c\n4. S004 d\n", encoding="utf-8")
+            result = validate(root)
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn("alice", result.stdout)
+
+    def test_start_is_refused_only_against_your_own_active_step(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.repo(tmp, name="bob")
+            step_file(root / "adocs" / "plan_current", "S003", "active", author="alice")
+            mine = run_moltke(root, "--step", "start", "S002")
+            self.assertEqual(mine.returncode, 0,
+                             "alice's active step must not block bob: "
+                             + mine.stdout + mine.stderr)
+            again = run_moltke(root, "--step", "new", "third_thing")
+            self.assertEqual(again.returncode, 0)
+            blocked = run_moltke(root, "--step", "start", "S004")
+            self.assertEqual(blocked.returncode, 1, blocked.stdout + blocked.stderr)
+            self.assertIn("bob", blocked.stderr)
+
+    def test_unowned_steps_share_one_bucket(self):
+        # The solo fixture shape, unchanged: no git config, no author fields,
+        # and two unowned active steps still violate.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            step_file(root / "adocs" / "plan_current", "S004", "second")
+            (root / "adocs" / "plan.md").write_text(
+                "# Plan\n\n1. S001 a\n2. S002 b\n3. S003 c\n4. S004 d\n", encoding="utf-8")
+            result = validate(root)
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+
+
 class TestStepIdCeiling(unittest.TestCase):
     """S097 (2026-08-09_adversarial-F01): `next_step_id` has no upper bound, and
     `STEP_FILE_RE` and `PLAN_ENTRY_RE` both require exactly three digits. Past

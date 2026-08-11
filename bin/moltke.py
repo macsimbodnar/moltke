@@ -313,16 +313,37 @@ def unresolvable_pauses(root, steps=None):
     return problems
 
 
+def git_author(root):
+    """git config user.name, or "" — the unowned bucket.
+
+    Gated on an actual repository first: `git config` answers from the global
+    config even outside one, which would claim steps in an ungitted directory
+    for whoever owns the machine."""
+    if git_dir(root) is None:
+        return ""
+    lines = _git_lines(root, "config", "user.name")
+    return lines[0].strip() if lines else ""
+
+
 def inv_1_active_max(root, config):
     limit = _limit(config, "plan_active_max", 1)
     steps = plan_steps(root)
-    active = [s for s, _p, fields in steps["plan_current"]
-              if not field_value(fields, "paused_by")]
+    # Per author since S121 (DEC-045): the plan is common and a step is claimed
+    # at --step start, so two branches each carrying their owner's active step
+    # merge green while one person still cannot hold two. Steps with no author:
+    # field share the unowned bucket, which keeps the solo shape unchanged.
+    by_author = {}
+    for step_id, _p, fields in steps["plan_current"]:
+        if not field_value(fields, "paused_by"):
+            by_author.setdefault(field_value(fields, "author"), []).append(step_id)
     violations = []
-    if len(active) > limit:
-        violations.append(
-            f"INV-1: plan_current/ holds {len(active)} non-paused steps ({', '.join(active)}), "
-            f"limit {limit}; pause or complete until {limit} remain")
+    for author, active in sorted(by_author.items()):
+        if len(active) > limit:
+            who = f"author {author!r}" if author else "no author"
+            violations.append(
+                f"INV-1: plan_current/ holds {len(active)} non-paused steps with {who} "
+                f"({', '.join(active)}), limit {limit} per author; pause or complete "
+                f"until {limit} remain")
     # INV-3 already reports the same shape for an id plan.md lists with no file;
     # this is that rule for paused_by.
     for step_id, (kind, detail) in sorted(unresolvable_pauses(root, steps).items()):
@@ -994,10 +1015,13 @@ def session_context_lines(root, config):
     current = plan_steps(root)["plan_current"]
     if current:
         lines.append("moltke stack (plan_current/):")
+        author = git_author(root)
         for step_id, _path, fields in current:
             pauser = field_value(fields, "paused_by")
             paused = f" [paused by {pauser}]" if pauser else ""
-            lines.append(f"  {step_id}: {field_value(fields, 'goal')}{paused}")
+            owner = field_value(fields, "author")
+            tag = "" if not owner else (" (yours)" if owner == author else f" ({owner})")
+            lines.append(f"  {step_id}: {field_value(fields, 'goal')}{tag}{paused}")
     else:
         lines.append("moltke: plan_current/ is empty.")
     nxt = derived_next(root)
@@ -1814,15 +1838,25 @@ def step_start(root, config, step_id):
                       f"id is INV-6 and --validate reports it; resolve the duplicate by hand — "
                       f"deciding which of the two is the step is not something this command "
                       f"can do for you")
-    active = [s for s, _p, fields in current if not field_value(fields, "paused_by")]
+    # Your own active steps are what block you (S121, DEC-045): the plan is
+    # common, a teammate's claimed step is their business.
+    author = git_author(root)
+    active = [s for s, _p, fields in current
+              if not field_value(fields, "paused_by")
+              and field_value(fields, "author") == author]
     if len(active) + 1 > _limit(config, "plan_active_max", 1):
-        return refuse(f"{', '.join(active)} already active and plan_active_max is "
-                      f"{_limit(config, 'plan_active_max', 1)}; complete it, or if it is "
-                      f"blocked by this work use --step block {active[0]} <name> instead")
+        whose = f"author {author!r}" if author else "no author"
+        return refuse(f"{', '.join(active)} already active with {whose} and plan_active_max "
+                      f"is {_limit(config, 'plan_active_max', 1)} per author; complete it, or "
+                      f"if it is blocked by this work use --step block {active[0]} <name> "
+                      f"instead")
     if len(current) + 1 > _limit(config, "plan_stack_max", 3):
         return refuse(f"plan_current/ stack is full ({len(current)}); complete something first")
     path.rename(root / DOCS / "plan_current" / path.name)
-    print(f"moltke: {step_id} is now current.")
+    if author:
+        set_field(root / DOCS / "plan_current" / path.name, "author", author)
+    print(f"moltke: {step_id} is now current"
+          + (f", claimed by {author}." if author else "."))
     return EXIT_OK
 
 

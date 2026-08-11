@@ -16,7 +16,7 @@ working on moltke itself.
 .claude-plugin/plugin.json       manifest: name, explicit version
 .claude-plugin/marketplace.json  single-plugin marketplace entry
 bin/moltke.py                    every check and command, one entry point
-hooks/hooks.json                 five hook events, all shelling out to bin/moltke.py
+hooks/hooks.json                 four hook events, all shelling out to bin/moltke.py
 skills/init|step|audit/SKILL.md  the three skills, invoked as /moltke:<name>
 agents/adversarial_reviewer.md   auditor: reads anything, writes adocs/audit/ and new tests/
 templates/                       what `--scaffold` copies into a target repository
@@ -26,7 +26,7 @@ adocs/                         moltke's own workflow state (it uses itself)
 ```
 
 `adocs/` is not part of the plugin's behaviour. It is this repository's own
-plan, decisions, testing ledger, and worklog, because moltke is the first
+plan, decisions, and testing ledger, because moltke is the first
 project to use moltke. Read `adocs/specs.md` before changing anything.
 
 ## Build
@@ -44,7 +44,7 @@ Full suite:
 python3 -m unittest discover -s tests
 ```
 
-414 tests, no skips. A test whose precondition is genuinely absent skips with a
+419 tests, no skips. A test whose precondition is genuinely absent skips with a
 message saying what would activate it, rather than passing silently.
 
 Check this repository against its own rules, which is also what other tools

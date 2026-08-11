@@ -90,7 +90,7 @@ file only you can write would be a deadlock.
 ```
 
 `enabled: false` disables every check, permanently, until the file is deleted.
-`plan_active_max` is how many steps may be in progress at once, `plan_stack_max`
+`plan_active_max` is how many steps one author may have in progress at once (per-author since 0.11.0, DEC-045), `plan_stack_max`
 how deep the paused stack may go. `surface_guard` is `cli`, `api`, `both`, or
 `none`, and `none` is only valid alongside a decision entry saying why the
 project has no checkable surface.
@@ -162,7 +162,7 @@ Cursor) must, since hooks exist only in Claude Code.
 | `--scaffold` | create the marker, `AGENTS.md`, `CLAUDE.md`, the Cursor pointer, and `adocs/` from templates; never overwrites an existing file, and reports for each kept ruleset file whether it still matches the installed template |
 | `--decline` | record that this repository declines the workflow, durably; refuses to disable an already-enabled repository |
 | `--step new <name>` | allocate the next step id, write the step file, list it in `plan.md`. The name must match `[A-Za-z0-9_]+`, because it becomes the second half of `S000_<name>.md` and every invariant check reads that pattern; a hyphen or a dot would file a step no check can see |
-| `--step start <id>` | move a step from `plan_todo/` to `plan_current/`; refuses when the destination is already carried by another file with that id, rather than renaming onto it |
+| `--step start <id>` | move a step from `plan_todo/` to `plan_current/` and claim it: `author:` is stamped from `git config user.name`. Refuses when *your* active step is already at `plan_active_max` — a teammate's claimed step never blocks you — or when the destination id is already carried |
 | `--step block <parent> <name>` | create a blocking child in `plan_current/` and pause its parent; the name follows the same `[A-Za-z0-9_]+` rule as `--step new` |
 | `--step unpause <id>` | clear a `paused_by` that never resolves: one naming a step in no plan directory, one naming the step itself, or one in a ring of steps pausing each other. Exactly the cases `--validate` reports. Refuses when the pauser exists and is reachable — complete that one instead, which unpauses the parent on its way out |
 | `--step done <id>` | complete a step and move it to `plan_done/`, refusing if anything is missing, and refusing before the suite gate runs when `plan_done/` already holds that id — history is never overwritten. Runs the `test_command` suite gate when the marker sets one, and refuses on a non-zero exit |
