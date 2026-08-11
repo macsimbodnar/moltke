@@ -151,3 +151,12 @@ DEC-041's stop stands, S112-S117 await the next version bump.
 ## 2026-08-11T recap (S118)
 
 S118 complete. 0.10.0 bumped; S112-S117 ship with it. Suite 453 OK.
+
+## 2026-08-11T recap (product review)
+
+Fresh-context product review at 7ebebef, preserved verbatim in
+adocs/audit/2026-08-11_product_review.md. Clean-context spawn, questions only, no
+briefing. Verdict: right tool for its actual design point (solo author, long-lived
+repo, Claude Code primary); not yet the general product README implies. It found
+one live defect while measuring: --pre-write reads stdin before the PATH argument
+and hangs on a never-EOF pipe. No fixes started; findings await Max's direction.

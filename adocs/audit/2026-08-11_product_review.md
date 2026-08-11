@@ -1,0 +1,96 @@
+# Product review — usability, architecture, requirements (2026-08-11)
+
+Type: product/usability review, not an adversarial audit: no finding ids, no
+statuses, INV-10 does not read it. Produced by a fresh-context subagent at
+commit 7ebebef, prompt carrying only the repository path and the questions —
+same clean-context rule as an audit run. Preserved verbatim below (§12: memory
+lives in the repository). Actions taken on it are the session's, recorded in
+the worklog and, where they become work, in plan steps.
+
+---
+
+# moltke 0.10.0 — product evaluation (commit 7ebebef)
+
+## Context measured, not assumed
+
+- 2,944-line stdlib `bin/moltke.py`, ~40% of it comment narratives citing the audit finding that shaped each line. 453 tests, all green (verified: `python3 -m unittest discover -s tests` → OK; `--validate` → clean). 155 commits in 11 calendar days, 116 completed steps, 10 audit reports.
+- Hook latency on this repo: `--session-start` 0.18s, `--post-write` 0.30s, `--stop` 0.65s. Per-session injected context: ~860 bytes from the hook, plus `AGENTS.md` at 18 KB via `@AGENTS.md`. Always-read set post-compaction: ~54 KB (was 180 KB before DEC-042).
+- One live defect found while testing: `--pre-write PATH` calls `hook_input()` before consulting the PATH argument (`bin/moltke.py:1253`), so with stdin an open non-tty pipe that never EOFs it blocks forever — observed hanging 120s+ in a shell here. Real hook use is unaffected (Claude Code closes stdin); manual/scripted use, which MANUAL explicitly endorses for Codex/Cursor users, can hang.
+
+---
+
+## 1. USABILITY
+
+**Install → scaffold → first plan: good.** `/moltke:init` asks once, records a durable decline, never overwrites (`--scaffold` reports `kept` per file with template-drift verdicts), and on a fresh clone verifies instead of scaffolding — the right instinct in every branch. The planning phase (elicit prime directive → invariants → ordered plan → `--step new` per step → commit) is a genuinely good onboarding script, and the "planning pending" nudge being a note rather than a gate (a gate on a file only the human can write would deadlock) shows unusual care. Gap the skill itself admits: adopting a repo with work already in flight is "a manual exercise" — which is most real adopters.
+
+**Daily use: the happy path is near-zero friction; the tax lands on turn ends.** SessionStart tells the agent the stack and derived next step — this is the product working. But every work turn must end with: a recap heading appended to `worklog.md`, a fresh `status.md`, `testing.md` rows, and for completions a stamp containing the literal substrings "README" and "MANUAL". The Stop hook enforces all of it. Two concrete annoyances:
+
+- **A dirty tree poisons question-only turns.** `porcelain_problems` blocks any turn end while uncommitted non-`adocs/` changes exist without a recap after the last prompt. MANUAL admits it: "an uncommitted change carried across a question-only turn is asked about again." Humans keep dirty trees; this converts that habit into a recurring block (escaped after 3 retries by the cap, with warnings each time).
+- **The stamp gate trains boilerplate.** `step_done` (`bin/moltke.py:2237`) checks for the substrings; MANUAL concedes "the check enforces that the question was asked, not that it was answered honestly." Look at any `plan_done/` stamp: they converge on a formula. Related wart: the one-line field rule (newlines refused rather than reflowed as continuations, which `parse_step_file` actually supports) produces 1.4 KB single-line `done:` stamps — unreadable in an editor, unreviewable in a diff.
+
+**Failure modes: best-in-class, and that is the headline strength.** Every refusal names the exact command that clears it (INV-1 violations literally print `bin/moltke.py --step unpause S042`). The Stop cap (3 same-problem retries per turn, then waived with the problems still printed) means a session can never wedge — and the three historical wedge bugs that motivated it (S047, S067, S080) are each documented and tested. No mode ends in a traceback since 0.6.0. Stale `status.md` self-heals with one named command. This is the part of the product a competitor should copy.
+
+**The one failure mode that will genuinely confuse people: fences.** INV-13/14/16 exist because code fences are stripped as "guidance." A human who pastes a code block into a decision entry, or a reviewer who pastes two transcripts, hits violations whose explanation requires understanding the stripping model. The messages are as good as such messages can be; the concept is the problem (see Architecture).
+
+**Teammate handoff: serial works, parallel does not.** A fresh clone plus `/moltke:init` verify-mode is clean. But two people (or one person on two branches) break the design by construction: `worklog.md` gets an append per prompt on both branches → guaranteed merge conflict; `--step new` allocates ids from local filesystem state (`highest_step_id`) → both branches mint S119 → INV-6 duplicate on merge; `plan.md` (append+prune), `status.md` (regenerated), `testing.md` (append) all conflict. Nothing in AGENTS.md or MANUAL mentions branches, merges, or concurrent authors at all. The single-author assumption is load-bearing and undocumented. Also cultural: every prompt a teammate types is committed to the shared repo verbatim — beyond the secrets risk INV-15 patches, that's business context, half-thoughts, names, all in git forever unless someone remembers the trim is allowed.
+
+**Coming back after a month: the strongest flow.** SessionStart derives everything from the filesystem; `--roadmap` draws the strip; `status.md` staleness is detected and the fix is one command. The prime directive — "an agent that trusts nothing but the filesystem knows what to do next and why" — is genuinely achieved.
+
+**CLI learnability: adequate, with scripting debt.** Post-S116 `--help` is complete. But: mode flags rather than subcommands; exit 1 means findings-on-stdout *or* refusal-on-stderr depending on mode (MANUAL needs two paragraphs and a bold "capture both" to explain it); no `--json` on any mode; and **no `--version`** — notable because the #1 known issue is exactly version skew (hooks run the pinned plugin-cache copy, not your checkout), and there is no way to ask a running moltke what it is. `python3` hardcoded in `hooks.json` also means Windows users get a failing hook command on every prompt in every repo; README only claims macOS 3.9/3.14.
+
+## 2. ARCHITECTURE
+
+**One stdlib file run by five hooks: the right shape for the goal.** Startup cost is the binding constraint of on-every-prompt enforcement, and 60–300 ms with zero dependencies beats any daemon, SQLite, or MCP alternative on the axes that matter here: no lifecycle, no install beyond the plugin, works from a bare checkout in Codex/Cursor by hand, state fully in git. A daemon would buy latency nobody needs and break the "any tool, any machine" directive; an MCP server would add cross-tool *querying* but cannot provide *blocking* enforcement, which is the distinctive bet. The non-goals in `specs.md` (no daemon, no state outside repo+`.git/`, no auto-fix) are correct and consistently held. At 2,944 lines the single file is at its limit but held together by the test suite and an unusual comment discipline (every scar documented with its finding id — as institutional memory, this works).
+
+**State in markdown parsed by regex: half right.** The step files' `key: value` format, plan-order-as-list-entries, and DEC/finding ids are robust enough and stay human-writable — correct for a medium agents and humans share, diff in PRs, and grep. The mistake is one convention: **fenced blocks mean "guidance" and are stripped before every scan.** That single choice generated `strip_guidance`'s in-order pairing logic, three invariants (INV-13 parity, INV-14 hidden findings, INV-16 hidden directive), the comments-before-fences ordering rule, roughly fifteen audit findings across six audits (S033, S049, S055, S063, S075, S078...), and several pages of MANUAL. HTML comments alone (already stripped, unambiguous, no pairing problem) would have carried template guidance; fences could then be inert content. This is the clearest case in the codebase of complexity that a format decision could delete outright. Similarly self-inflicted: `parse_step_file` continuation folding (S095) plus writer-side newline refusals (S099) — freeform markdown as machine data keeps charging rent.
+
+**Three plan directories as a state machine: sound.** Filesystem-as-truth means the state survives crashes, is diffable, and needs no index; `derived_next` is a fold over `plan.md` order and `plan_done/` membership. The pause machinery grew real edge cases (phantom/self/ring/stale pauses — four iterations: S070, S090, S098, S114) but landed coherent, with `--step unpause` clearing exactly what `--validate` reports, by shared code rather than by matching descriptions. Scaling caveat: `plan_steps()` re-lists and re-parses all three directories on every call and is called ~8× per `run_checks`; with 116 done steps that is ~1,000 file reads per `--stop` (measured 0.65s), and INV-5 regex-scans the whole `testing.md` row-blob per done step — `testing.md` is the largest file in the repo (208 KB), append-only by rule, never read by anyone, and makes per-prompt cost O(project age × ledger size). Not a problem at 116 steps; a 1,000-step, 3-year project will feel it on every prompt.
+
+**Enforcement via blocking hooks: the distinctive bet, and it holds — inside Claude Code only.** The direction-of-failure choices are consistently right: logging fails open (a lost prompt is worse than a lost check), fences and gates fail closed (a malformed `agent_type` is fenced, not waved through — S101), and every closed path has the anti-wedge cap behind it. The reviewer fence being explicitly *not* the guarantee (Bash is unfenced; `--audit check` reconciles post-hoc against a recorded baseline, DEC-022) is honest security design under the declared threat model of drift-not-malice (DEC-030). But outside Claude Code the entire enforcement layer evaporates: Cursor/Codex get prose rules plus a manual `--validate`. The obvious cheap universal backstop — a scaffolded git pre-commit hook running `--validate` — is absent, and it would also catch the human editing `plan_done/` by hand, the case the PreToolUse hook can't see.
+
+**The repo doubling as its own plugin (DEC-020):** 1.7 MB of inert `adocs/`, `tests/`, and ten audit reports copied into every install's cache, plus a `validate --strict` warning. Harmless, known, escape hatch recorded — but it is the kind of unsloppiness the rest of the project would refuse in its own step gates, and the `plugin/` subdirectory move is one step of work.
+
+**What's missing at the architecture level:** any concurrency story (file locking is absent, but the real gap is the merge/branch semantics above); a machine-readable output; a version handshake between marker (`schema: 1`) and running code (`--version`); and any notion of archiving — `plan_done/` and `testing.md` grow forever by rule, and unlike the always-read set, DEC-042's compaction logic was not extended to the files the *checker* reads.
+
+## 3. THE REQUIREMENTS THEMSELVES
+
+**The premise is right where it is narrow.** Agents genuinely lose everything between sessions; tracked files are the only memory that survives tool, machine, and vendor changes; and prose rules alone demonstrably decay — blocking hooks are what make AGENTS.md real rather than aspirational. The project is its own best evidence: 116 steps of unusually consistent process, six adversarial audits whose findings are traceable end-to-end (finding → step `closes:` → commit → re-run closure), and real regressions caught by its own gates. For **a solo developer driving a long-lived project primarily through Claude Code — which is exactly what moltke is —** value exceeds cost across the core loop.
+
+Where value clearly exceeds cost: derived-next + regenerable status (the actual "what do I do next" memory, near-zero marginal cost); `decisions.md` with grep index (the "why" memory — one grep, cheap, and the compacted format kept ids stable); the `test_command` gate (the only *checked* part of "green suite", honestly labeled when unset); INV-11's opt-in gate (repos without the marker feel ~100 ms of python startup and nothing else); the refusal/remedy discipline (INV-12).
+
+Where cost exceeds value:
+
+- **The worklog subsystem.** Verbatim prompt logging is the single most expensive requirement in the design: it created the secrets exposure (INV-15 exists to patch it), the privacy and merge-conflict problems, the recap gate and its dirty-tree false positives, and five of the nastiest historical bugs (the frozen Stop-cap clock, the global off-switch, lost prompts, the breadcrumb machinery) — all in service of a file that DEC-011 *forbids reading* and §9 calls trimmable-to-a-stub. Memory that is never read is not memory; it is forensic exhaust, and the Stop-cap turn counter is the only functional consumer of it.
+- **`testing.md` as a ledger.** INV-5 checks only that a row *mentions* the step id — mechanical compliance, and the append-only-forever rule contradicts DEC-042's own philosophy for a file that is scanned on every prompt and read by no one. The red-first evidence in it is real but nothing verifies it; the true verification gate is `test_command`.
+- **The mechanical README/MANUAL stamp**, as above — keep the check-question, drop the pretense of evidence.
+- **The original audit loop.** Closure-only-by-re-run created a treadmill the project had to legislate itself out of *twice* (DEC-035 severity stop, DEC-041 stop-by-fiat) before landing the three-tier model (DEC-044). The final shape — fast per-step check by habit, audit by consent, closure by re-run *or* recorded decision — is right, and the clean-context red-team rule (DEC-036) is the best idea in the audit design. The history is a warning worth keeping in mind: every rule strict enough to enforce eventually needs an escape hatch, and each hatch is more machinery.
+
+**The DEC-042 pivot (immutable history → compacted current state) is unambiguously the right direction, executed with evidence** (180,518 → ~50,000 bytes measured, all 44 decision ids stable, `--audit list` exit 0 proving the accepted-finding references survived, INV-8's number retired not reused). It resolved the workflow's one real self-contradiction — memory files that could never shrink in a context-priced world. But it stopped early: `AGENTS.md` at 18 KB is now the largest always-paid item and is untouched (a 3–4 KB operative core with the rationale layered elsewhere would fit the same philosophy); the worklog regrows every prompt with only a by-hand trim; `testing.md` is exempted by rule. The pivot's logic — current state in the file, narrative in git — applies to all three.
+
+**Who this is for, honestly stated:** solo-or-serial authors, long-lived repos, Claude Code as primary tool, projects that will outlive any one session — strong fit. Weekend prototypes (ceremony swamps value), parallel teams (conflicts by construction), mixed-tool teams (enforcement halves) — poor fit until the docs say so or the gaps close.
+
+---
+
+## Top findings, ranked by how much they matter
+
+1. **Undocumented single-author constraint.** Parallel branches/teammates produce merge conflicts and step-id collisions by construction (`worklog.md`, `plan.md`, `status.md`, `testing.md`, `highest_step_id`). Either build the team story or state the constraint in MANUAL — silence here will burn the first team that tries.
+2. **The worklog subsystem's cost/benefit is inverted.** Highest bug density, privacy and secrets exposure, per-turn recap tax, dirty-tree false blocks — for a never-read file. Should be opt-in (a marker key), with the Stop-cap turn key decoupled from it.
+3. **Fence-stripping is self-inflicted architecture debt.** Guidance-as-comments-only would retire INV-13/14/16, `strip_guidance` pairing, and the largest single class of audit findings and MANUAL prose.
+4. **Enforcement ends at Claude Code's border with no shipped backstop.** A scaffolded pre-commit `--validate` is cheap, universal, and also covers hand edits the hooks can't see.
+5. **DEC-042 unfinished:** 18 KB AGENTS.md always paid; `testing.md` unbounded, scanned every prompt, read never; per-prompt cost O(project age).
+6. **Ops gaps:** no `--version` (despite version-skew being the top known issue), no `--json`, overloaded exit-1 semantics, `--pre-write` stdin hang (observed), `python3` hardcoded (Windows).
+7. **Compliance-theater gates** (README/MANUAL substrings, testing-row-mentions-id) are honest about their limits in MANUAL but still train formulaic stamps; the 1.4 KB single-line `done:` stamps are a readability tax of the writer-side newline refusal.
+
+## (a) The three changes I would make first
+
+1. **Decide the team question and make the tool match.** Minimum: a MANUAL section stating the single-active-author assumption and the branch/merge behavior. Better: worklog per-machine or opt-in, collision-resistant step ids (or an id-reservation rule), and merge guidance for `adocs/`.
+2. **Demote the worklog to an opt-in feature** (`"worklog": true` in the marker): no prompt logging, no recap gate, no INV-15 exposure by default; keep the Stop cap keyed on payload fields plus its breadcrumb. This deletes the most dangerous code paths and the most annoying daily friction in one move.
+3. **Retire fence-stripping in favor of comments-only guidance**, then delete INV-13/14/16 and the pairing logic. One migration (templates re-issued, three invariants marked retired like INV-8) removes a whole defect class and pages of MANUAL. Fold in the small ops wins while touching the surface: `--version`, `--json`, pre-commit scaffold.
+
+## (b) The one thing I would absolutely keep
+
+**The enforcement ergonomics: INV-12 plus the anti-wedge design.** Every blocking exit names the exact command that clears it, remedies are generated from the same code that detects the violation (so they are true by construction), no mode ever ends in a traceback, and the Stop cap guarantees a session can never be wedged while still printing everything that was wrong. This is the rarest quality in the codebase and the reason blocking enforcement is livable at all — most workflow tools that block do not earn the right to; this one does.
+
+## (c) Verdict
+
+For its actual design point — one developer driving one long-lived repository primarily through Claude Code — moltke is the right tool, demonstrably works (it built itself, 116 steps and six audits deep, with every claim traceable to a file), and its derived-from-filesystem memory plus remedy-naming enforcement deliver the stated purpose at an acceptable per-turn cost. As the general-purpose durable-memory product its README implies, it is not yet right: enforcement stops at Claude Code's border, a second concurrent author breaks the state files by construction, and its sharpest recurring defects are self-inflicted by parsing freeform markdown as machine data — the architecture is sound, but the honest move is to shrink the claim to what it is excellent at, or close those three gaps.
