@@ -572,3 +572,5 @@ never after. Append only.
 | S110 | the §1 precedence chain is fully real: .moltke.local.md (S109) and the Project rules section (this step) both exist | AGENTS.md §1 and the two surfaces; MANUAL states the chain | pass 2026-08-11 |
 | S110 | plugin.json reads 0.9.0 and the golden plugin test passes, so one install ships S105 through S110 | tests/test_s010_plugin.py, green in the 444-test suite | pass 2026-08-11 |
 | S110 | the always-read set ends the batch at ~51 KB against 180,518 bytes at e22a911, with per-step growth ~0 | measured at completion; recorded in the recap and in the stamp | pass 2026-08-11 |
+| S111 | a superstring line in .git/info/exclude does not satisfy the exclusion check; the exact line is appended | test_s005_hooks.py TestMachineLocalFile.test_a_substring_in_the_exclude_file_does_not_satisfy_the_check (red observed: `'.moltke.local.md' not found in ['.moltke.local.md.bak']`) | pass 2026-08-11 |
+| S111 | the four stale INV-8 comment references in bin/moltke.py now name INV-7 alone | comment-only; covered by the fast check that found them, recorded here for the trail | pass 2026-08-11 |

@@ -1012,7 +1012,9 @@ def local_file_lines(root):
         exclude = resolved / "info" / "exclude"
         try:
             existing = read_file(exclude) if exclude.is_file() else ""
-            if LOCAL_FILE not in existing:
+            # Line-wise, not substring (S111): ".moltke.local.md.bak" must not
+            # read as "already excluded".
+            if LOCAL_FILE not in existing.splitlines():
                 exclude.parent.mkdir(parents=True, exist_ok=True)
                 with open(exclude, "a", encoding="utf-8") as fh:
                     if existing and not existing.endswith("\n"):
@@ -1354,9 +1356,9 @@ def _git_run(*args, **kwargs):
 
     Every call goes through here (S067, .2-F01): `_git_lines` was made tolerant
     of a missing binary and the three direct `subprocess.run` sites were not, so
-    with git off PATH the documented "the check abstains" became INV-7 and INV-8
-    reporting that they could not read the repository, and every --stop blocked
-    behind them.
+    with git off PATH the documented "the check abstains" became INV-7
+    reporting that it could not read the repository, and every --stop blocked
+    behind it.
     """
     try:
         return subprocess.run(*args, capture_output=True, **kwargs)
@@ -1414,12 +1416,10 @@ def git_prefix(root):
     speak in paths relative to the *top level*, and nothing checked the two
     agreed (S081, 2026-08-08_adversarial.3-F02): a project vendored into a
     monorepo had INV-7 calling a present file gone with a remedy that could not
-    run, INV-8 abstaining on real tampering because `HEAD:adocs/decisions.md`
-    does not resolve from the top level, and both `Stop` gates reading every
-    path wrongly.
+    run, and both `Stop` gates reading every path wrongly.
 
     Cached per root (S092, .4-F05). `from_git_path` and `to_git_path` call this
-    once per path, and INV-7 and INV-8 walk every completed step and every history
+    once per path, and INV-7 walks every completed step and every history
     line, so one run_checks over this repository spawned 257 processes to ask a
     question whose answer cannot change while it runs — on every prompt, through
     the Stop and post-write hooks. The key is the root, so a process checking two
@@ -1500,7 +1500,7 @@ def porcelain_problems(root, porcelain):
                              for path in (from_git_path(root, entry)
                                           for entry in porcelain_paths(line)))]
     # No commit yet means no history a recap would sit alongside, and the
-    # scaffold's own files are not work: abstain, as INV-7 and INV-8 do.
+    # scaffold's own files are not work: abstain, as INV-7 does.
     committed = _git_lines(root, "rev-parse", "HEAD") is not None
     if changed_source and committed and recap_pending(root):
         problems.append(f"source changed but {DOCS}/worklog.md has no recap heading after "

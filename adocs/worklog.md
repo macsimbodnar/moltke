@@ -61,3 +61,13 @@ sections and decisions.md by DEC-043/044. Against 180,518 at e22a911 that is a
 70% cut, with per-step growth ~0 by construction. Suite 444 OK.
 Files: AGENTS.md, templates/AGENTS.md, MANUAL.md, .claude-plugin/plugin.json,
 adocs/testing.md (4 rows), adocs/plan_done/S110_project_rules_and_0_9_0.md.
+
+## 2026-08-11T recap (S111)
+
+S111 complete. First live tier-1 fast check (S108 model) ran over the batch's two
+code commits and found five things: one behavioural edge — the exclude check was
+a substring test, so `.moltke.local.md.bak` read as already-excluded — fixed
+line-wise with a red-first test, and four stale INV-8 comment references, now
+naming INV-7 alone. Suite 445 OK.
+Files: bin/moltke.py, tests/test_s005_hooks.py, adocs/testing.md (2 rows),
+README.md (444 to 445), adocs/plan_done/S111_fast_check_findings.md.

@@ -1122,6 +1122,24 @@ class TestMachineLocalFile(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertFalse((Path(tmp) / ".moltke.local.md").exists())
 
+    def test_a_substring_in_the_exclude_file_does_not_satisfy_the_check(self):
+        # S111, from the batch's own fast check: `LOCAL_FILE not in existing`
+        # is a substring test, so a line like ".moltke.local.md.bak" reads as
+        # "already excluded" and the real exclusion is never appended.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            git_baseline(root)
+            exclude = root / ".git" / "info" / "exclude"
+            exclude.parent.mkdir(parents=True, exist_ok=True)
+            exclude.write_text(".moltke.local.md.bak\n", encoding="utf-8")
+            self.session_start(root)
+            lines = exclude.read_text(encoding="utf-8").splitlines()
+            self.assertIn(".moltke.local.md", lines,
+                          "the exact exclusion line must be appended, not satisfied "
+                          "by a superstring")
+            porcelain = git(root, "status", "--porcelain").stdout
+            self.assertNotIn(".moltke.local.md\n", porcelain + "\n")
+
     def test_without_git_the_file_still_works(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = workflow_repo(tmp)   # marked, no git init
