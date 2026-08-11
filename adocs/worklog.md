@@ -50,3 +50,14 @@ templates/moltke_local.md (new), tests/test_s005_hooks.py (TestMachineLocalFile)
 MANUAL.md, AGENTS.md §2 + templates/AGENTS.md, adocs/decisions.md (DEC-043),
 adocs/testing.md (5 rows), README.md (438 to 444),
 adocs/plan_done/S109_machine_local_file.md.
+
+## 2026-08-11T recap (S110)
+
+S110 complete, batch done. Project rules section in AGENTS.md + template
+(byte-identical), MANUAL precedence paragraph, 0.9.0 bumped. Correction to the
+stamp: the measured always-read set at completion is 53,704 bytes (~13.4k
+tokens), not the ~51 KB the stamp estimated — AGENTS.md grew by the two new
+sections and decisions.md by DEC-043/044. Against 180,518 at e22a911 that is a
+70% cut, with per-step growth ~0 by construction. Suite 444 OK.
+Files: AGENTS.md, templates/AGENTS.md, MANUAL.md, .claude-plugin/plugin.json,
+adocs/testing.md (4 rows), adocs/plan_done/S110_project_rules_and_0_9_0.md.

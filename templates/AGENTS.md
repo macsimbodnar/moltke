@@ -245,3 +245,14 @@ exploration, anything. Nothing in this ruleset requires or forbids spawning.
 Nothing that matters is allowed to exist only in an agent's own memory, session transcript, or tool-local notes. Those are per machine, per tool, and per account, and they do not survive a new agent, a new session, or a colleague opening the repo.
 
 If it is worth remembering, it goes into a tracked file: state into `status.md`, intent into `specs.md`, reasoning into `decisions.md`, work into the plan directories. The repository is the memory. Everything else is a cache.
+
+## Project rules
+
+Rules written here override the base ruleset above, for this repository only.
+This section is committed and travels with the project; machine-specific
+instructions go in `.moltke.local.md` instead, which overrides both.
+
+<!-- Loosen, harden, or replace any rule above. Examples:
+     "The fast check after each step is skipped; this project reviews weekly."
+     "test_command is the smoke suite; the full suite runs in CI only."
+     Delete this comment when adding the first rule. -->

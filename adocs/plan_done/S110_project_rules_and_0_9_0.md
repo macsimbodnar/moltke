@@ -21,4 +21,4 @@ decisions:  DEC-043
 closes:
 blocks:
 paused_by:
-done:
+done:      2026-08-11: the Project rules override section lands in AGENTS.md and its template, byte-identical and generic — rules there override the base ruleset for that repository and travel in git, while .moltke.local.md overrides both per machine, the chain §1 states and MANUAL now documents. plugin.json bumped 0.9.0 so one install ships S105 through S110: INV-8 retirement, plan pruning, the compacted documents, the reading protocol, the three-tier review model, and the two override surfaces. Always-read set measured at completion: ~51 KB against 180,518 bytes at e22a911, with per-step growth approximately zero by construction. Suite 444 OK, --validate green. README checked, no change — the test count already reads 444; MANUAL gained the precedence paragraph alongside the local-file section.

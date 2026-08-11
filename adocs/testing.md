@@ -568,3 +568,7 @@ never after. Append only.
 | S109 | creation and exclusion are idempotent across sessions | TestMachineLocalFile.test_idempotent (red observed on the missing file) | pass 2026-08-11 |
 | S109 | unmarked and declined repositories get no file — INV-11 | TestMachineLocalFile.test_an_unmarked_repository_gets_no_file, test_a_declined_repository_gets_no_file | pass 2026-08-11 |
 | S109 | without git the file is still created and injected, the exclusion skipped silently | TestMachineLocalFile.test_without_git_the_file_still_works (red observed) | pass 2026-08-11 |
+| S110 | AGENTS.md and its template end with a Project rules override section, byte-identical, generic | shasum parity + test_s006_scaffold drift test + TestTemplatesAreGeneric, all green | pass 2026-08-11 |
+| S110 | the §1 precedence chain is fully real: .moltke.local.md (S109) and the Project rules section (this step) both exist | AGENTS.md §1 and the two surfaces; MANUAL states the chain | pass 2026-08-11 |
+| S110 | plugin.json reads 0.9.0 and the golden plugin test passes, so one install ships S105 through S110 | tests/test_s010_plugin.py, green in the 444-test suite | pass 2026-08-11 |
+| S110 | the always-read set ends the batch at ~51 KB against 180,518 bytes at e22a911, with per-step growth ~0 | measured at completion; recorded in the recap and in the stamp | pass 2026-08-11 |

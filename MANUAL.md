@@ -124,6 +124,11 @@ Nothing to remember. Hooks fire on their own:
 - the turn will not end with a stale `status.md`, an invariant violation, or
   source changes with no worklog recap
 
+Project-wide rule changes have their own surface too: the `## Project rules`
+section at the end of the scaffolded `AGENTS.md`. Rules there override the base
+ruleset for that repository and travel in git. Precedence, most specific wins:
+`.moltke.local.md` (machine) > `## Project rules` (project) > base ruleset.
+
 Every session also carries `.moltke.local.md`: machine-local instructions —
 tool paths, per-platform directives — that moltke creates at the marked root
 when absent, keeps out of git via `.git/info/exclude`, and injects into the
