@@ -7,7 +7,7 @@ Updated: 2026-08-11 by `moltke --step status`.
 
 - Last done: S111
 - In progress: none
-- Next: no steps left in plan.md
+- Next: S112
 - Blocked: none
 - Parked:
   - the audit loop is stopped by decision, not by DEC-035's severity rule

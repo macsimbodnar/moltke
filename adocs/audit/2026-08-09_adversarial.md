@@ -51,7 +51,9 @@ plan these. The red-first test belongs to each fixing step.
 
 ### 2026-08-09_adversarial-F01  high  `--step new` allocates a four-digit id past S999, and every scanner in the tool is blind to it
 
-Status: planned  (S097)
+Status: closed
+
+Closed 2026-08-11 by S097, on the 2026-08-11_adversarial re-run at 5625acb: re-measured from this finding's own reproduction and it no longer reproduces.
 
 Evidence.
 
@@ -139,7 +141,9 @@ allocating an id no scanner can read must not be a silent success.
 
 ### 2026-08-09_adversarial-F02  medium  a step paused by itself, or two steps paused by each other, passes every check and no command can clear it
 
-Status: planned  (S098)
+Status: closed
+
+Closed 2026-08-11 by S098, on the 2026-08-11_adversarial re-run at 5625acb: re-measured from this finding's own reproduction and it no longer reproduces.
 
 Evidence.
 
@@ -212,7 +216,9 @@ naming reachable, live work is never cleared) while removing the dead end.
 
 ### 2026-08-09_adversarial-F03  medium  a field value containing a newline is written unescaped: it corrupts `plan.md`, and a two-line `done:` stamp wedges the Stop gate
 
-Status: planned  (S099)
+Status: closed
+
+Closed 2026-08-11 by S099, on the 2026-08-11_adversarial re-run at 5625acb: re-measured from this finding's own reproduction and it no longer reproduces.
 
 Evidence.
 
@@ -318,7 +324,9 @@ it cannot file safely.
 
 ### 2026-08-09_adversarial-F04  low  `--step status` deletes blank lines from the Parked block and absorbs whatever follows it, which the docs call verbatim
 
-Status: planned  (S100)
+Status: closed
+
+Closed 2026-08-11 by S100, on the 2026-08-11_adversarial re-run at 5625acb: re-measured from this finding's own reproduction and it no longer reproduces.
 
 Evidence.
 
@@ -375,7 +383,9 @@ file. Then the documented word is the implemented one.
 
 ### 2026-08-09_adversarial-F05  low  the reviewer write fence fails open when `agent_type` is present but not a string
 
-Status: planned  (S101)
+Status: closed
+
+Closed 2026-08-11 by S101, on the 2026-08-11_adversarial re-run at 5625acb: re-measured from this finding's own reproduction and it no longer reproduces.
 
 Evidence.
 
@@ -423,7 +433,9 @@ one-line test with a list-valued `agent_type` asserting exit 2 pins it.
 
 ### 2026-08-09_adversarial-F06  low  MANUAL names two refusals the code does not produce
 
-Status: planned  (S102)
+Status: closed
+
+Closed 2026-08-11 by S102, on the 2026-08-11_adversarial re-run at 5625acb: re-measured from this finding's own reproduction and it no longer reproduces.
 
 Evidence.
 
@@ -472,7 +484,9 @@ makes the exit-code table true without weakening anything.
 
 ### 2026-08-09_adversarial-F07  low  a step file's own `id:` field is written once and never read or checked
 
-Status: planned  (S103)
+Status: closed
+
+Closed 2026-08-11 by S103, on the 2026-08-11_adversarial re-run at 5625acb: re-measured from this finding's own reproduction and it no longer reproduces.
 
 Evidence.
 

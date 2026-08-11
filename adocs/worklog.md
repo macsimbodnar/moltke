@@ -71,3 +71,20 @@ line-wise with a red-first test, and four stale INV-8 comment references, now
 naming INV-7 alone. Suite 445 OK.
 Files: bin/moltke.py, tests/test_s005_hooks.py, adocs/testing.md (2 rows),
 README.md (444 to 445), adocs/plan_done/S111_fast_check_findings.md.
+
+## 2026-08-11T13:24+02:00 prompt
+
+> perform audit
+
+## 2026-08-11T13:25+02:00 prompt
+
+> perform audit and if anything comes out start fixing
+
+## 2026-08-11T recap (audit triage)
+
+Sixth adversarial audit at 5625acb: six findings (one medium, five low), report
+adocs/audit/2026-08-11_adversarial.md, --audit check exit 0. All seven 2026-08-09
+findings re-measured by the reviewer from their own reproductions; none
+reproduces; closed on re-run evidence — the loop DEC-041 froze now closes
+properly. Six steps S112-S117, one per finding, medium first. Reviewer mutation
+testing: nine mutants, all killed.

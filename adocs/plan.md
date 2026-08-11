@@ -21,3 +21,9 @@ step instead.
 107. S109  a machine-local instructions file that the tool creates and injects
 108. S110  a project-rules override section, and 0.9.0 ships the batch
 109. S111  fix the five findings of the batch's own fast check
+110. S112  the local-file exclusion lands where git actually reads it
+111. S113  the pre-write rules match paths the way the filesystem does
+112. S114  a pause that already resolved is reported and clearable
+113. S115  --step unpause says what actually happened
+114. S116  --help names every operation the parser accepts
+115. S117  the decisions index matches the entries, newest last
