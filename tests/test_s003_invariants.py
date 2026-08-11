@@ -692,6 +692,56 @@ class TestAPauseMustResolve(unittest.TestCase):
             self.assertIn("S999", result.stdout)
 
 
+class TestPlanIsParsedOncePerProcess(unittest.TestCase):
+    """S127: plan_steps re-listed and re-parsed all three directories on every
+    call — ~8 calls per run_checks, ~1,000 file reads per --stop at 116 steps,
+    per-prompt cost O(project age). One parse per file per process; the five
+    mutators invalidate."""
+
+    def test_run_checks_parses_each_step_file_once(self):
+        from surface import moltke
+        calls = []
+        original = moltke.parse_step_file
+
+        def counting(path):
+            calls.append(str(path))
+            return original(path)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            for n in range(4, 10):
+                step_file(root / "adocs" / "plan_done", f"S{n:03d}", f"old{n}",
+                          done="2026-08-01 done")
+            (root / "adocs" / "plan.md").write_text(
+                "# Plan\n\n" + "".join(f"{i}. S{i:03d} s\n" for i in range(1, 10)),
+                encoding="utf-8")
+            moltke.parse_step_file = counting
+            moltke._PLAN_CACHE.clear()
+            try:
+                config, _v = moltke.load_marker(Path(root))
+                moltke.run_checks(Path(root), config)
+            finally:
+                moltke.parse_step_file = original
+        from collections import Counter
+        worst = Counter(calls).most_common(1)
+        self.assertTrue(calls, "precondition: something was parsed")
+        self.assertEqual(worst[0][1], 1,
+                         f"every step file parsed once per process, worst: {worst}")
+
+    def test_a_mutation_invalidates_the_cache(self):
+        # --step unpause reads, writes the field, and reads again in the same
+        # process; a stale cache would clear a pause and still report it.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            step_file(root / "adocs" / "plan_current", "S003", "active",
+                      paused_by="S999  # phantom")
+            cleared = subprocess.run(
+                [sys.executable, str(MOLTKE), "--step", "unpause", "S003"],
+                cwd=root, capture_output=True, text=True)
+            self.assertEqual(cleared.returncode, 0, cleared.stdout + cleared.stderr)
+            self.assertEqual(run_validate(root).returncode, 0)
+
+
 class TestGitPrefixIsComputedOncePerRoot(unittest.TestCase):
     """S092 (2026-08-08_adversarial.4-F05): `git_prefix` shells out to
     `git rev-parse --show-prefix`, and `from_git_path`/`to_git_path` call it once

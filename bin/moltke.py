@@ -240,8 +240,25 @@ def field_value(fields, key):
     return strip_guidance(fields.get(key, "")).strip()
 
 
+_PLAN_CACHE = {}
+
+
+def _invalidate_plan_cache():
+    """Called by everything that mutates the plan tree. A hook invocation is
+    one process, so the cache lives exactly as long as one command (S127)."""
+    _PLAN_CACHE.clear()
+
+
 def plan_steps(root):
-    """{plan_dir: [(step_id, path, fields)]} for the three plan directories."""
+    """{plan_dir: [(step_id, path, fields)]} for the three plan directories.
+
+    Cached per root and per process (S127): this was called ~8 times per
+    run_checks and re-parsed every step file each time — ~1,000 reads per
+    --stop at 116 steps, a per-prompt cost that grew with project age.
+    """
+    key = str(root)
+    if key in _PLAN_CACHE:
+        return _PLAN_CACHE[key]
     steps = {}
     for dirname in PLAN_DIRS:
         entries = []
@@ -252,6 +269,7 @@ def plan_steps(root):
                 if match:
                     entries.append((match.group(1), path, parse_step_file(path)))
         steps[dirname] = entries
+    _PLAN_CACHE[key] = steps
     return steps
 
 
@@ -1643,6 +1661,7 @@ def write_step(path, step_id, goal, blocks=""):
         lines.append(line)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    _invalidate_plan_cache()
 
 
 def append_to_plan(root, step_id, goal):
@@ -1741,6 +1760,7 @@ def with_field(text, key, value):
 def set_field(path, key, value):
     """Set a step field in place."""
     path.write_text(with_field(read_file(path), key, value), encoding="utf-8")
+    _invalidate_plan_cache()
 
 
 def step_new(root, config, name, goal):
@@ -1795,6 +1815,7 @@ def step_start(root, config, step_id):
     if len(current) + 1 > _limit(config, "plan_stack_max", 3):
         return refuse(f"plan_current/ stack is full ({len(current)}); complete something first")
     path.rename(root / DOCS / "plan_current" / path.name)
+    _invalidate_plan_cache()
     if author:
         set_field(root / DOCS / "plan_current" / path.name, "author", author)
     print(f"moltke: {step_id} is now current"
@@ -1993,8 +2014,10 @@ def step_done(root, config, step_id, stamp):
         path.unlink()
     except OSError as exc:
         destination.unlink(missing_ok=True)
+        _invalidate_plan_cache()
         return refuse(f"could not remove {path.relative_to(root)} after copying it "
                       f"({exc}); the copy was undone and nothing was changed")
+    _invalidate_plan_cache()
     for parent_id, parent_path, parent_fields in steps["plan_current"]:
         if step_id in field_value(parent_fields, "paused_by"):
             try:
@@ -2519,6 +2542,8 @@ def build_parser():
     """The public surface, in one place so the golden test can read it (DEC-010)."""
     parser = argparse.ArgumentParser(prog="moltke.py", description=__doc__)
     modes = parser.add_mutually_exclusive_group(required=True)
+    modes.add_argument("--version", action="store_true",
+                       help="print the moltke version and where it runs from")
     modes.add_argument("--session-start", action="store_true", help="SessionStart hook (S005)")
     modes.add_argument("--pre-write", metavar="PATH", nargs="?", const="",
                        help="PreToolUse hook for Write and Edit; PATH falls back to hook stdin JSON")
@@ -2540,6 +2565,18 @@ def build_parser():
 
 def main(argv=None):
     args = build_parser().parse_args(argv)
+
+    if args.version:
+        # Before every gate: the question "which moltke am I talking to" is most
+        # useful exactly when hooks and checkout disagree (S127; the stale-cache
+        # sessions are why this exists).
+        manifest = Path(__file__).resolve().parent.parent / ".claude-plugin" / "plugin.json"
+        try:
+            version = json.loads(read_file(manifest)).get("version", "unknown")
+        except (OSError, ValueError):
+            version = "unknown"
+        print(f"moltke {version} at {Path(__file__).resolve().parent.parent}")
+        return EXIT_OK
 
     # Setup modes run before the marker gate: they exist to create it (DEC-017).
     if args.scaffold:

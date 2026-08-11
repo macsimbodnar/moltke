@@ -88,6 +88,7 @@ One entry point, `bin/moltke.py`, one mode per invocation. The golden test
 
 | Mode | What it does |
 |---|---|
+| `--version` | print the version and the directory it runs from — the answer to "which moltke am I talking to" when hooks and checkout disagree |
 | `--validate` | run every invariant, print all violations to stdout, exit 1 if any |
 | `--roadmap` | one timeline strip of the plan: done count from `plan_done/`, the split, the current or derived-next step; always exit 0 |
 | `--scaffold` | create marker, `AGENTS.md`, `CLAUDE.md`, `.cursor/rules/moltke.mdc`, `adocs/` from templates; never overwrites; reports template drift; rolls back its own partial work on failure |

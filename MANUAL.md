@@ -185,6 +185,7 @@ Cursor) must, since hooks exist only in Claude Code.
 
 | Command | What it does |
 |---|---|
+| `--version` | print the moltke version and where it runs from. Hooks execute the installed plugin cache, not your checkout, so when behaviour looks stale this is the first question |
 | `--validate` | run every invariant, print all violations, exit 1 if any |
 | `--roadmap` | print where the plan is: one timeline strip, the done/left split, and the step in progress or the derived next one. Derived from `plan.md` and the plan directories, never from `status.md` |
 | `--scaffold` | create the marker, `AGENTS.md`, `CLAUDE.md`, the Cursor pointer, and `adocs/` from templates; never overwrites an existing file, and reports for each kept ruleset file whether it still matches the installed template |
