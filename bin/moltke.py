@@ -1463,6 +1463,7 @@ SCAFFOLD_MAP = (
     ("AGENTS.md", "AGENTS.md"),
     ("CLAUDE.md", "CLAUDE.md"),
     ("cursor_rules", ".cursor/rules/moltke.mdc"),
+    ("gitattributes", ".gitattributes"),
     (f"{DOCS}/specs.md", f"{DOCS}/specs.md"),
     (f"{DOCS}/plan.md", f"{DOCS}/plan.md"),
     (f"{DOCS}/status.md", f"{DOCS}/status.md"),

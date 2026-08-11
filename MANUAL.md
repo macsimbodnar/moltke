@@ -137,6 +137,34 @@ every session. What a teammate's machine also needs does not belong there.
 Drive the plan with `/moltke:step`, audit with `/moltke:audit`. Both refuse
 rather than repair, and name the condition that is missing.
 
+## Teams
+
+moltke is built for a team on branch-per-member, with a shared branch possible.
+The plan is common: anyone picks the derived next step, and `--step start`
+claims it (`author:` from `git config user.name`); `plan_active_max` counts per
+author, so a merge of two branches each carrying its owner's active step is
+green.
+
+What merges how: the scaffolded `.gitattributes` union-merges `adocs/testing.md`
+(append-only rows, both sides kept) and `adocs/status.md` — status is derived,
+so after any merge run `bin/moltke.py --step status` and commit the
+regeneration. `adocs/plan.md` is left to merge honestly: its order is a human
+decision, and a conflict there is a real question, not noise. Step-id
+collisions — two branches minting the same `S<nnn>` before merging — are caught
+by INV-6 at `--validate`; the remedy is renaming one file and fixing its
+`plan.md` line, and short-lived branches make it rare.
+
+Outside Claude Code nothing enforces the rules; a cheap backstop every teammate
+can wire once per clone:
+
+```
+printf '%s\n' '#!/bin/sh' 'exec python3 bin/moltke.py --validate' > .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit
+```
+
+`git commit --no-verify` is the documented escape for a deliberate red commit.
+Platforms: macOS and Linux. Windows is unsupported — `hooks.json` invokes
+`python3` directly.
+
 ## Review model
 
 Three tiers. After each completed step the agent runs a fast check — one small

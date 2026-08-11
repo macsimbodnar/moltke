@@ -21,6 +21,7 @@ SCAFFOLDED = (
     "AGENTS.md",
     "CLAUDE.md",
     ".cursor/rules/moltke.mdc",
+    ".gitattributes",
     "adocs/status.md",
     "adocs/specs.md",
     "adocs/plan.md",

@@ -1,0 +1,7 @@
+# moltke merge semantics. testing.md rows are append-only in
+# spirit: union-merge keeps both sides' rows. status.md is derived: union
+# avoids conflict markers, then `bin/moltke.py --step status` regenerates it.
+# plan.md is deliberately absent — its order is a human decision and a
+# conflict there is honest.
+adocs/testing.md merge=union
+adocs/status.md merge=union
