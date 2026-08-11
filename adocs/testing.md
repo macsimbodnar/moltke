@@ -585,3 +585,4 @@ never after. Append only.
 | S115 | clearing a self-pause says it paused itself, never that the file it just edited does not exist | test_s003_invariants.py TestAPauseMustResolve.test_clearing_a_self_pause_says_it_paused_itself (red observed: the generic ring sentence) | pass 2026-08-11 |
 | S115 | phantom, stale, and ring clears each state their own reason | the kind-routed messages, held by this test plus the S114 stale test's `resolved` assertion | pass 2026-08-11 |
 | S116 | --help names every STEP_OPS and AUDIT_OPS member, held by a test over build_parser().format_help() | test_s009_surface.py TestHelpNamesEveryOperation (red observed: missing unpause and check) | pass 2026-08-11 |
+| S117 | the decisions index has one line per entry (44) and the body is ordered oldest to newest, DEC-043 before DEC-044 | index rebuilt from the body itself; --validate exit 0 and --audit list exit 0 before and after | pass 2026-08-11 |

@@ -46,6 +46,8 @@ Compacted (S106, DEC-042): ids stable, never reused, newest last. Full context a
 - DEC-040 2026-08-09 — A stranded pause is cleared by its own command, not by hand
 - DEC-041 2026-08-09 — The audit loop stops here, by decision rather than by severity
 - DEC-042 2026-08-11 — Memory is current state; git is the archive
+- DEC-043 2026-08-11 — Two override surfaces: machine-local file, project rules section
+- DEC-044 2026-08-11 — Review has three tiers: fast check by habit, audit by consent
 
 
 ## DEC-001  2026-08-01  Package as a plugin, not a loose skill
@@ -219,12 +221,12 @@ Tags: context, documents, invariants, philosophy
 Decision: The always-read documents hold current state only and are bounded by construction. History lives in git and in plan_done/, which are never read into context. Concretely: INV-8 is retired (number never reused); decisions.md is compacted freely with stable ids; specs.md carries current wording only, the narrative living in step stamps and commit messages; worklog.md is trimmable; --step done prunes plan.md to the last 5 completed entries.
 Why: The token analysis measured the always-read set at ~180 KB and growing 1.4 KB per completed step without bound, with 84% of specs.md being dated history notes and decisions.md unshrinkable because INV-8 enforced append-only.
 
-## DEC-044  2026-08-11  Review has three tiers: fast check by habit, audit by consent
-Tags: review, audit, process
-Decision: After every completed step, one small subagent reviews that step's diff — no report file, no finding ids; trivial findings fixed on the spot, real ones become steps. A full adversarial audit runs when the user asks, or when the user accepts an agent proposal made on real risk; postponed proposals park as one status.md line. Findings close on a re-run or by recorded decision, so the loop always has a user-controlled end; the reviewer fence and clean-context rule keep binding actual audit runs.
-Why: mandatory full audits produced an endless loop (DEC-041 stopped it by hand); a per-chunk fast check catches most defects at a fraction of the ceremony.
-
 ## DEC-043  2026-08-11  Two override surfaces: machine-local file, project rules section
 Tags: context, overrides, local
 Decision: .moltke.local.md at the marked root holds machine-local instructions — created by --session-start when absent, excluded through .git/info/exclude rather than .gitignore so the exclusion itself stays uncommitted, injected verbatim into the SessionStart context, never overwritten once it exists. A "## Project rules" section at the end of the scaffolded AGENTS.md holds committed project-specific rule overrides. Precedence: machine over project over base ruleset.
 Why: the same repository is developed on machines with different tools and paths, and a project must be able to loosen or harden the shipped rules without forking the template.
+
+## DEC-044  2026-08-11  Review has three tiers: fast check by habit, audit by consent
+Tags: review, audit, process
+Decision: After every completed step, one small subagent reviews that step's diff — no report file, no finding ids; trivial findings fixed on the spot, real ones become steps. A full adversarial audit runs when the user asks, or when the user accepts an agent proposal made on real risk; postponed proposals park as one status.md line. Findings close on a re-run or by recorded decision, so the loop always has a user-controlled end; the reviewer fence and clean-context rule keep binding actual audit runs.
+Why: mandatory full audits produced an endless loop (DEC-041 stopped it by hand); a per-chunk fast check catches most defects at a fraction of the ceremony.

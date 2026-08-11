@@ -5,19 +5,20 @@ this file: on disagreement, `plan_current/` wins.
 
 Updated: 2026-08-11 by `moltke --step status`.
 
-- Last done: S116
+- Last done: S117
 - In progress: none
-- Next: S117
+- Next: no steps left in plan.md
 - Blocked: none
 - Parked:
-  - the audit loop is stopped by decision, not by DEC-035's severity rule
-    (DEC-041). The seven `2026-08-09_adversarial` findings stay `planned`: each
-    has a completed step and red-first tests; what is missing is only the
-    independent re-measurement a re-run would give. Restart is one command:
-    `bin/moltke.py --audit new adversarial` plus a fresh reviewer spawn.
+  - review runs on the S108 three-tier model: fast check per step, audit by
+    proposal or on demand. The sixth audit (2026-08-11) closed all seven
+    2026-08-09 findings on re-run evidence and its own six findings are fixed
+    (S112-S117); none remain open. DEC-041's stop stands: no audit is scheduled,
+    and the next one is a proposal or an ask away.
   - the installed plugin runs from the plugin cache, not from this checkout;
     fixes land live only after a version bump plus
-    `claude plugin install moltke@moltke`. Cache is 0.8.0; 0.9.0 ships S105-S110.
+    `claude plugin install moltke@moltke`. 0.9.0 is committed; S112-S117 wait
+    for the next bump.
   - DEC-020: the repository root is also the plugin root, so `adocs/`, `tests/`,
     `AGENTS.md`, and `CLAUDE.md` ship inside every install. Escape hatch is a
     `plugin/` subdirectory move.

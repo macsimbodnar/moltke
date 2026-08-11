@@ -130,3 +130,12 @@ S116 complete. --help lists unpause and check; a test over format_help() pins
 every operation. Red observed. Suite 453 OK.
 Files: bin/moltke.py (two help strings), tests/test_s009_surface.py (1 test),
 testing.md (1 row), README.md (452 to 453), plan_done/S116.
+
+## 2026-08-11T recap (S117 + audit close-out)
+
+S117 complete: decisions index rebuilt from the body (44 lines for 44 entries),
+body reordered oldest-to-newest. Doc edit only. Suite 453 OK.
+
+Audit close-out: all six 2026-08-11 findings fixed same-day, S112-S117. The seven
+2026-08-09 findings closed on re-run evidence. Parked block updated: nothing open,
+DEC-041's stop stands, S112-S117 await the next version bump.

@@ -16,7 +16,6 @@ list below and nowhere else in this file: the derived next step is the first id
 in document order, so an id mentioned in prose above the list becomes the next
 step instead.
 
-110. S112  the local-file exclusion lands where git actually reads it
 111. S113  the pre-write rules match paths the way the filesystem does
 112. S114  a pause that already resolved is reported and clearable
 113. S115  --step unpause says what actually happened
