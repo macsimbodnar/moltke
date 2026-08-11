@@ -160,13 +160,17 @@ class TestInvariants(unittest.TestCase):
             step_file(root / "adocs" / "plan_done", "S001", "base", done="")
             self.assert_violation(root, "INV-5")
 
-    def test_inv5_done_step_without_testing_row(self):
+    def test_inv5_needs_no_testing_row_since_dec_048(self):
+        # Rows are voluntary documentation now; only the stamp is required.
         with tempfile.TemporaryDirectory() as tmp:
             root = workflow_repo(tmp)
-            (root / "adocs" / "testing.md").write_text(
-                "# Testing ledger\n\n| Step | Criterion | Test | Result |\n|---|---|---|---|\n",
-                encoding="utf-8")
-            self.assert_violation(root, "INV-5")
+            step_file(root / "adocs" / "plan_done", "S001", "base",
+                      done="2026-08-01 done")
+            testing = root / "adocs" / "testing.md"
+            testing.write_text("# Testing ledger\n\n| Step | C | T | R |\n|---|---|---|---|\n",
+                               encoding="utf-8")
+            result = run_validate(root)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
     def test_inv6_duplicate_step_id(self):
         with tempfile.TemporaryDirectory() as tmp:

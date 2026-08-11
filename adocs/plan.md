@@ -16,7 +16,6 @@ list below and nowhere else in this file: the derived next step is the first id
 in document order, so an id mentioned in prose above the list becomes the next
 step instead.
 
-118. S120  the worklog subsystem is removed (DEC-046)
 119. S121  steps are claimed at start and limits count per author (DEC-045)
 120. S122  merge semantics and the team story ship with the scaffold (DEC-045)
 121. S123  AGENTS.md reissued once - team rules in, trimmed to the operative core

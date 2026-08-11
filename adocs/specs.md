@@ -27,8 +27,8 @@ reused; a retired number stays listed so old audit reports keep meaning.
   A missing `plan.md` in an enabled repository is a violation. Completed entries
   pruned by `--step done` are not missing: `plan_done/` is their record.
 - INV-4  no step moves to `plan_done/` while another step names it in `blocks:`.
-- INV-5  no step reaches `plan_done/` without a `done:` stamp recording the
-  README and MANUAL check and at least one `testing.md` row referencing its id.
+- INV-5  no step reaches `plan_done/` without a `done:` stamp. Narrowed by
+  DEC-048 (S125): the stamp is free text, and `testing.md` rows are voluntary.
 - INV-6  step ids are unique across the three plan directories, and a step
   file's `id:` field, when present, agrees with its filename — the filename is
   what every check acts on.
@@ -96,7 +96,7 @@ One entry point, `bin/moltke.py`, one mode per invocation. The golden test
 | `--step start <id>` | `plan_todo/` → `plan_current/`; refuses an occupied destination |
 | `--step block <parent> <name>` | create a blocking child, pause the parent; same name rule as `new` |
 | `--step unpause <id>` | clear a pause that never resolves (phantom, self, or ring) — exactly what `--validate` reports; refuses a pause on reachable live work |
-| `--step done <id> --stamp TEXT` | complete: preconditions, `test_command` gate, stamped move to `plan_done/`, parent unpause, prune `plan.md` to the last 5 done entries; `--stamp` must be one line recording the README and MANUAL check |
+| `--step done <id> --stamp TEXT` | complete: preconditions, `test_command` gate, stamped move to `plan_done/`, parent unpause, prune `plan.md` to the last 5 done entries; `--stamp` is required free text — multi-line accepted, written as indented continuations |
 | `--step status` | regenerate `status.md` from the filesystem; everything below `- Parked:` is carried through verbatim |
 | `--audit new <type>` | open `adocs/audit/YYYY-MM-DD_<type>.md` (`.2` suffix on a same-day re-run, never overwrites), record the reconciliation baseline; type must match `[A-Za-z0-9_-]+` |
 | `--audit list` | every finding, status, and reference; exit 1 while an open finding has no home or a fence hides one from the scanners |

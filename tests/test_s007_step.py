@@ -141,13 +141,12 @@ class TestBlock(unittest.TestCase):
 class TestDone(unittest.TestCase):
     """Completion is refused with the specific missing condition named."""
 
-    def test_refuses_without_a_testing_row(self):
+    def test_completes_without_a_testing_row_since_dec_048(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = workflow_repo(tmp)
-            result = run_moltke(root, "--step", "done", "S003", "--stamp", STAMP)
-            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
-            self.assertIn("testing.md", result.stderr)
-            self.assertTrue((root / "adocs" / "plan_current" / "S003_active.md").is_file())
+            result = run_moltke(root, "--step", "done", "S003", "--stamp",
+                                "2026-08-11: verified by the suite gate")
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
     def test_refuses_a_paused_step(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -180,14 +179,13 @@ class TestDone(unittest.TestCase):
             self.assertEqual(result.returncode, 1, result.stdout)
             self.assertIn("plan_current", result.stderr)
 
-    def test_refuses_a_stamp_missing_the_docs_check(self):
+    def test_any_nonempty_stamp_completes_since_dec_048(self):
+        # The substring gate verified mention, not truth; a stamp is free text.
         with tempfile.TemporaryDirectory() as tmp:
             root = workflow_repo(tmp)
-            add_testing_row(root, "S003")
-            result = run_moltke(root, "--step", "done", "S003", "--stamp", "2026-08-01 green")
-            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
-            self.assertIn("README", result.stderr)
-            self.assertIn("MANUAL", result.stderr)
+            result = run_moltke(root, "--step", "done", "S003", "--stamp",
+                                "shipped, docs untouched on purpose")
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
     def test_completes_and_stamps(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -832,51 +830,6 @@ class TestNewAndBlockWriteLast(unittest.TestCase):
             self.assertTrue((root / "adocs" / "plan_current" / "S005_dep.md").is_file())
 
 
-class TestTestingRowsAreReadThroughStrip(unittest.TestCase):
-    """S085 (2026-08-08_adversarial.3-F06): the testing ledger was the last
-    scanner input read raw, so a row inside a code fence — guidance by the rule
-    specs states as universal — completed a step and satisfied INV-5."""
-
-    FENCED = ("\n\nHow to write a row, for reference:\n\n"
-              "```\n| {step} | example criterion | tests/test_example.py | pass |\n```\n")
-
-    def fenced_row(self, root, step_id):
-        testing = root / "adocs" / "testing.md"
-        testing.write_text(testing.read_text(encoding="utf-8")
-                           + self.FENCED.format(step=step_id), encoding="utf-8")
-
-    def test_a_fenced_row_does_not_complete_a_step(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root = workflow_repo(tmp)
-            self.fenced_row(root, "S003")
-            result = run_moltke(root, "--step", "done", "S003", "--stamp", STAMP)
-            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
-            self.assertIn("testing.md", result.stderr)
-            self.assertTrue((root / "adocs" / "plan_current" / "S003_active.md").is_file())
-
-    def test_a_fenced_row_does_not_satisfy_inv5(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root = workflow_repo(tmp)
-            add_testing_row(root, "S003")
-            run_moltke(root, "--step", "done", "S003", "--stamp", STAMP)
-            testing = root / "adocs" / "testing.md"
-            kept = [l for l in testing.read_text(encoding="utf-8").splitlines()
-                    if "S003" not in l]
-            testing.write_text("\n".join(kept) + self.FENCED.format(step="S003"),
-                               encoding="utf-8")
-            result = validate(root)
-            self.assertEqual(result.returncode, 1, result.stdout)
-            self.assertIn("INV-5", result.stdout)
-
-    def test_a_real_row_still_works(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root = workflow_repo(tmp)
-            add_testing_row(root, "S003")
-            self.assertEqual(run_moltke(root, "--step", "done", "S003",
-                                        "--stamp", STAMP).returncode, 0)
-            self.assertEqual(validate(root).returncode, 0)
-
-
 class TestStepNameValidation(unittest.TestCase):
     """S088 (2026-08-08_adversarial.4-F01): the short name went straight into a
     filename. STEP_FILE_RE accepts `[A-Za-z0-9_]+`, so a hyphen produced a file
@@ -1243,16 +1196,17 @@ class TestWrittenFieldValuesRoundTrip(unittest.TestCase):
             self.assertEqual(list((root / "adocs" / "plan_todo").glob("*fold_lines*")), [])
             self.assertEqual(validate(root).returncode, 0, validate(root).stdout)
 
-    def test_a_stamp_with_a_newline_never_completes_a_step(self):
+    def test_a_stamp_with_a_newline_completes_and_folds_back(self):
+        # DEC-048 flips S099's stamp half: continuations are the file format's
+        # own syntax, so a multi-line stamp is written indented and reads back
+        # whitespace-normalized. --goal keeps the one-line refusal.
         with tempfile.TemporaryDirectory() as tmp:
             root = workflow_repo(tmp)
-            add_testing_row(root, "S003")
-            result = run_moltke(root, "--step", "done", "S003", "--stamp",
-                                "2026-08-09: suite green, 422 tests.\n"
-                                "README and MANUAL checked, no change needed.")
-            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
-            self.assertTrue((root / "adocs" / "plan_current" / "S003_active.md").is_file())
-            self.assertFalse((root / "adocs" / "plan_done" / "S003_active.md").exists())
+            stamp = "2026-08-11: suite green.\nDocs checked, no change needed."
+            result = run_moltke(root, "--step", "done", "S003", "--stamp", stamp)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            written = self.parsed(root / "adocs" / "plan_done" / "S003_active.md")
+            self.assertEqual(written["done"], stamp.replace("\n", " "))
             self.assertEqual(validate(root).returncode, 0, validate(root).stdout)
 
     def test_a_goal_written_by_the_cli_reads_back_whole(self):
@@ -1419,14 +1373,12 @@ class TestMultilineStepFields(unittest.TestCase):
             problems = self.stop_over_a_stamp(tmp, "README and MANUAL checked, no change.")
             self.assertNotIn("without the README and MANUAL check recorded", problems)
 
-    def test_the_same_fixture_without_the_check_still_fails(self):
-        # Non-vacuity for the row above: it asserts the absence of a message, so
-        # it would pass just as well if the gate never looked at this file. The
-        # only difference here is the words on the second line.
+    def test_a_two_line_stamp_reads_back_folded(self):
+        # DEC-048: multi-line stamps fold back through parse_step_file; the
+        # wording gates are gone, so only presence is judged.
         with tempfile.TemporaryDirectory() as tmp:
-            problems = self.stop_over_a_stamp(tmp, "and the docs were not looked at.")
-            self.assertIn("S004_late.md", problems)
-            self.assertIn("without the README and MANUAL check recorded", problems)
+            problems = self.stop_over_a_stamp(tmp, "second line of the stamp.")
+            self.assertNotIn("without a done: stamp", problems)
 
     def test_a_flush_left_line_that_looks_like_a_field_starts_a_new_one(self):
         fields = self.parse("id:         S004\n"

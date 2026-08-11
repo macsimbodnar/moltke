@@ -421,23 +421,13 @@ def inv_4_done_not_blocked(root, config):
 
 
 def inv_5_done_evidence(root, config):
-    testing_path = root / DOCS / "testing.md"
-    rows = ""
-    if testing_path.is_file():
-        # Through read_stripped, like every other scanner input (S085, .3-F06):
-        # this ledger was the last file read raw, so a row inside a code fence —
-        # guidance by the rule specs states as universal — counted as evidence
-        # and completed a step.
-        rows = "\n".join(l for l in read_stripped(testing_path).splitlines()
-                         if l.startswith("|"))
+    # Stamp-present only since S125 (DEC-048): testing.md rows are voluntary
+    # documentation, and the substring gates verified mention, not truth.
     violations = []
     for step_id, path, fields in plan_steps(root)["plan_done"]:
         if not field_value(fields, "done"):
             violations.append(f"INV-5: {path.relative_to(root)} has no done: stamp; "
                               f"a completed step must carry one")
-        if not re.search(rf"\b{step_id}\b", rows):
-            violations.append(f"INV-5: no testing.md row references {step_id}; "
-                              f"add the acceptance rows before completing the step")
     return violations
 
 
@@ -1291,10 +1281,10 @@ def porcelain_problems(root, porcelain):
                 continue
             fields = parse_step_file(root / entry)
             stamp = fields.get("done", "")
-            if "README" not in stamp or "MANUAL" not in stamp:
-                problems.append(f"{entry} was completed without the README and MANUAL "
-                                f"check recorded; check both files and note it in the "
-                                f"done: stamp (checking with no change needed is valid).")
+            if not stamp.strip():
+                problems.append(f"{entry} arrived in plan_done/ without a done: stamp; "
+                                f"complete steps with bin/moltke.py --step done, which "
+                                f"writes it")
     return problems
 
 
@@ -1708,6 +1698,9 @@ def with_field(text, key, value):
     — `step_done` writes it to the destination rather than editing in place, so
     a failed move leaves nothing half-written.
     """
+    # A multi-line value is written as indented continuations — the file
+    # format's own syntax, which parse_step_file folds back (S125, DEC-048).
+    value = ("\n" + " " * 12).join(str(value).splitlines()) if value else value
     rendered = f"{key}:{' ' * max(1, 11 - len(key) - 1)}{value}".rstrip()
     lines, found, replacing = [], False, False
     for line in text.splitlines():
@@ -1945,18 +1938,8 @@ def step_done(root, config, step_id, stamp):
             if other_id != step_id and step_id in field_value(other_fields, "blocks"):
                 return refuse(f"{other_id} still declares blocks: {step_id}; complete or "
                               f"drop {other_id} first")
-    testing = root / DOCS / "testing.md"
-    rows = read_stripped(testing) if testing.is_file() else ""
-    if not re.search(rf"\b{step_id}\b", "\n".join(l for l in rows.splitlines()
-                                                  if l.startswith("|"))):
-        return refuse(f"no testing.md row references {step_id}; acceptance rows are added "
-                      f"with the feature, before completion")
-    if not stamp:
+    if not stamp or not stamp.strip():
         return refuse(f"--step done needs --stamp \"<what proves this step is finished>\"")
-    if "README" not in stamp or "MANUAL" not in stamp:
-        return refuse(f"the completion stamp must record the README and MANUAL check "
-                      f"(concluding that neither needs a change is a valid outcome, "
-                      f"not checking is not)")
     gate = run_test_command(root, config)
     if gate is not None:
         return gate
@@ -2395,8 +2378,7 @@ def mode_step(root, config, argv, goal, stamp, marker_violations=()):
             problem = step_name_problem(rest[1]) or step_id_ceiling_problem(root)
             return refuse(problem) if problem else step_block(root, config, rest[0], rest[1])
         if op == "done":
-            problem = field_value_problem("--stamp", stamp)
-            return refuse(problem) if problem else step_done(root, config, rest[0], stamp)
+            return step_done(root, config, rest[0], stamp)
         return step_status(root, config)
     except IndexError:
         usage = {"new": "new <short_name> [--goal TEXT]", "start": "start <id>",

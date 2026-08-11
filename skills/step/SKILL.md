@@ -48,12 +48,13 @@ own blockers means the plan is wrong at design level: stop, write a
 ```
 
 Refused, with the specific reason, when the step is not in `plan_current/`, is
-paused, is still named in another open step's `blocks:`, has no `testing.md`
-row, or when the stamp does not record the README and MANUAL check.
+paused, is still named in another open step's `blocks:`, or has no stamp at
+all. The stamp is free text — say what proves the step finished; multi-line is
+written as indented continuations.
 
-Before running it: code complete, full suite green, `testing.md` rows added
-alongside the feature, README and MANUAL checked. Concluding that neither doc
-needs a change is a valid outcome; not checking is not. Completing a child
+Before running it: code complete, full suite green (the `test_command` gate is
+what enforces this), README and MANUAL checked — still the habit, no longer
+policed. `testing.md` rows are voluntary documentation. Completing a child
 unpauses its parent automatically.
 
 The move to `plan_done/` is the last action of the step. Commit after it.

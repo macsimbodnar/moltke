@@ -39,7 +39,7 @@ def git_baseline(root):
         git(root, *args)
 
 
-STAMP_COMPLAINT = "README and MANUAL check recorded"
+STAMP_COMPLAINT = "without a done: stamp"
 
 
 def stamp_complaints(result):
@@ -226,13 +226,15 @@ class TestStop(unittest.TestCase):
             self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
             self.assertIn("status.md", result.stderr)
 
-    def _completed_by_hand(self, tmp, move, stamp="2026-08-07 suite green"):
-        """A repo where S003 has just reached plan_done/ by `move`, with a stamp
-        that records no README or MANUAL check. Everything else is clean."""
+    def _completed_by_hand(self, tmp, move, stamp=""):
+        """A repo where S003 has just reached plan_done/ by `move`, with no
+        done: stamp at all — the shape the gate blocks since S125 (DEC-048).
+        Everything else is clean."""
         root = workflow_repo(tmp)
         current = root / "adocs" / "plan_current" / "S003_active.md"
-        current.write_text(current.read_text(encoding="utf-8") + f"done:       {stamp}\n",
-                           encoding="utf-8")
+        if stamp:
+            current.write_text(current.read_text(encoding="utf-8")
+                               + f"done:       {stamp}\n", encoding="utf-8")
         testing = root / "adocs" / "testing.md"
         testing.write_text(testing.read_text(encoding="utf-8")
                            + "| S003 | active works | manual | pass |\n", encoding="utf-8")
@@ -349,7 +351,8 @@ class TestStop(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = workflow_repo(tmp)
             done = root / "adocs" / "plan_done"
-            kept = (done / "S001_base.md").read_text(encoding="utf-8")
+            kept = (done / "S001_base.md").read_text(encoding="utf-8").replace(
+                "done: 2026-08-01 done", "done:")
             for entry in done.iterdir():
                 entry.unlink()
             done.rmdir()
@@ -621,7 +624,8 @@ class TestTheStampGateSeesInsideAnUntrackedPlanDone(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = workflow_repo(tmp)
             done = root / "adocs" / "plan_done"
-            kept = (done / "S001_base.md").read_text(encoding="utf-8")
+            kept = (done / "S001_base.md").read_text(encoding="utf-8").replace(
+                "done: 2026-08-01 done", "done:")
             for entry in done.iterdir():
                 entry.unlink()
             done.rmdir()

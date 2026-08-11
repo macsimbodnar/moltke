@@ -44,7 +44,7 @@ Full suite:
 python3 -m unittest discover -s tests
 ```
 
-398 tests, no skips. A test whose precondition is genuinely absent skips with a
+395 tests, no skips. A test whose precondition is genuinely absent skips with a
 message saying what would activate it, rather than passing silently.
 
 Check this repository against its own rules, which is also what other tools
@@ -107,8 +107,8 @@ whole contract. The short version:
   by `python3 bin/moltke.py --step ...`, never by moving files by hand.
 - Red first. Write the test, watch it fail, record what it printed, then
   implement. A test never observed failing is not evidence.
-- `testing.md` rows are added with the feature. `--step done` refuses without
-  one.
+- `testing.md` rows are voluntary documentation; the `test_command` gate is
+  what enforces the green suite.
 - Decisions go in `adocs/decisions.md` before or alongside the change, with
   their rejected options.
 - The agent commits; the user pushes.
