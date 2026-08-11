@@ -5,9 +5,9 @@ this file: on disagreement, `plan_current/` wins.
 
 Updated: 2026-08-11 by `moltke --step status`.
 
-- Last done: S112
+- Last done: S113
 - In progress: none
-- Next: S113
+- Next: S114
 - Blocked: none
 - Parked:
   - the audit loop is stopped by decision, not by DEC-035's severity rule

@@ -576,3 +576,6 @@ never after. Append only.
 | S111 | the four stale INV-8 comment references in bin/moltke.py now name INV-7 alone | comment-only; covered by the fast check that found them, recorded here for the trail | pass 2026-08-11 |
 | S112 | in a linked worktree the exclusion lands where git status reads it: porcelain empty after --session-start | test_s005_hooks.py TestMachineLocalFile.test_a_linked_worktree_gets_a_working_exclusion (red observed: `?? .moltke.local.md`) | pass 2026-08-11 |
 | S112 | primary-worktree behaviour unchanged | TestMachineLocalFile, the seven existing tests, green | pass 2026-08-11 |
+| S113 | ADOCS/PLAN_DONE/notes.md is refused on a case-insensitive filesystem — the write resolves into the real plan_done/ | test_s005_hooks.py TestCaseVariantPaths.test_a_case_variant_of_plan_done_is_refused (red observed: exit 0, file landed in plan_done/) | pass 2026-08-11 |
+| S113 | Adocs/plan_todo/S099_x.md is permitted as the step file it is | TestCaseVariantPaths.test_a_case_variant_step_file_in_a_plan_directory_is_permitted (red observed: false refusal) | pass 2026-08-11 |
+| S113 | the exact spelling still refuses, and on a case-sensitive filesystem the tests skip with a message rather than passing vacuously | TestCaseVariantPaths.test_the_exact_spelling_still_behaves_as_before plus the setUp probe | pass 2026-08-11 |

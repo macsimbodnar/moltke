@@ -97,3 +97,13 @@ linked worktree the old --absolute-git-dir join pointed at
 on a real linked-worktree fixture. Suite 446 OK.
 Files: bin/moltke.py (local_file_lines), tests/test_s005_hooks.py, testing.md
 (2 rows), README.md (445 to 446), plan_done/S112.
+
+## 2026-08-11T recap (S113)
+
+S113 complete. _canonical_case folds each existing path component to its on-disk
+spelling via samefile before the pre-write rules read it. Red observed both ways:
+ADOCS/PLAN_DONE bypassed the fence into the real plan_done/, Adocs/plan_todo got
+a false refusal. Case-sensitive filesystems unchanged; tests skip with a message
+there. Suite 449 OK.
+Files: bin/moltke.py (_canonical_case, mode_pre_write), tests/test_s005_hooks.py
+(TestCaseVariantPaths), testing.md (3 rows), README.md (446 to 449), plan_done/S113.

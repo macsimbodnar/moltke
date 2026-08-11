@@ -1205,6 +1205,36 @@ def reviewer_may_write(root, rel):
     return parts[:1] == ("tests",) and not (root / rel).exists()
 
 
+def _canonical_case(root, rel):
+    """rel with each existing component in its on-disk spelling.
+
+    S113 (2026-08-11_adversarial-F02): the rules compare against lowercase
+    literals and resolve() does not fold case, so on the case-insensitive
+    filesystem this project ships on, ADOCS/PLAN_DONE/x wrote into the real
+    plan_done/ while a step file spelled Adocs/... was refused. Identity comes
+    from the filesystem: an existing component is renamed to the entry it
+    actually is (samefile), a missing one keeps the writer's spelling. On a
+    case-sensitive filesystem a variant path simply does not exist, nothing
+    folds, and behaviour is unchanged.
+    """
+    current, out = root, []
+    for part in rel.parts:
+        candidate = current / part
+        try:
+            if current.is_dir() and candidate.exists():
+                for entry in current.iterdir():
+                    if entry.name == part:
+                        break
+                    if candidate.samefile(entry):
+                        part = entry.name
+                        break
+        except OSError:
+            pass  # unreadable directory: keep the spelling, the rules see it as typed
+        out.append(part)
+        current = current / part
+    return Path(*out) if out else rel
+
+
 def mode_pre_write(root, config, path_arg):
     payload = hook_input()
     path = path_arg or payload_str(payload, "tool_input", "file_path")
@@ -1220,6 +1250,7 @@ def mode_pre_write(root, config, path_arg):
         rel = rel.relative_to(root)
     except (ValueError, OSError):
         return EXIT_OK  # outside this repo, not ours to police
+    rel = _canonical_case(root, rel)
     parts = rel.parts
     # The reviewer produces evidence, not patches: a reviewer that can fix what
     # it finds stops recording findings and starts writing code.

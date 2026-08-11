@@ -1052,6 +1052,49 @@ class TestMalformedHookPayloads(unittest.TestCase):
             self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
 
 
+class TestCaseVariantPaths(unittest.TestCase):
+    """S113 (2026-08-11_adversarial-F02): the deny rules compared rel.parts
+    against lowercase literals, and Path.resolve() does not fold case. On the
+    case-insensitive filesystem this project ships on, ADOCS/PLAN_DONE/x wrote
+    into the real plan_done/ at exit 0, and a legitimate step file spelled
+    Adocs/... was refused with a message that is untrue here. The rule follows
+    the path's resolved identity, not its spelling; on a case-sensitive
+    filesystem a case-variant path is genuinely different and stays permitted."""
+
+    def setUp(self):
+        probe = tempfile.NamedTemporaryFile(prefix="Case", suffix=".probe", delete=False)
+        probe.close()
+        self.insensitive = Path(probe.name.lower()).exists()
+        Path(probe.name).unlink()
+        if not self.insensitive:
+            self.skipTest("filesystem is case-sensitive; the identity rule has nothing "
+                          "to fold here and the permit direction is covered by "
+                          "TestPreWrite.test_allows_ordinary_writes")
+
+    def test_a_case_variant_of_plan_done_is_refused(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            payload = json.dumps({"tool_input": {"file_path": "ADOCS/PLAN_DONE/notes.md"}})
+            result = run_moltke(root, "--pre-write", stdin=payload)
+            self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+            self.assertIn("plan_done", result.stderr)
+
+    def test_a_case_variant_step_file_in_a_plan_directory_is_permitted(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            payload = json.dumps({"tool_input": {"file_path": "Adocs/plan_todo/S099_probe.md"}})
+            result = run_moltke(root, "--pre-write", stdin=payload)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_the_exact_spelling_still_behaves_as_before(self):
+        # Non-vacuity anchor: folding must not loosen the straight case.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            payload = json.dumps({"tool_input": {"file_path": "adocs/plan_done/notes.md"}})
+            result = run_moltke(root, "--pre-write", stdin=payload)
+            self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+
+
 class TestMachineLocalFile(unittest.TestCase):
     """S109 (DEC-043): .moltke.local.md is machine memory — tools, paths,
     directives that differ per machine and must not travel in git. The tool
