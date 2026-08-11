@@ -584,3 +584,4 @@ never after. Append only.
 | S114 | DEC-040 holds: a pause on live reachable work is still refused | TestAPauseMustResolve.test_a_pause_naming_reachable_live_work_is_still_refused, unchanged and green | pass 2026-08-11 |
 | S115 | clearing a self-pause says it paused itself, never that the file it just edited does not exist | test_s003_invariants.py TestAPauseMustResolve.test_clearing_a_self_pause_says_it_paused_itself (red observed: the generic ring sentence) | pass 2026-08-11 |
 | S115 | phantom, stale, and ring clears each state their own reason | the kind-routed messages, held by this test plus the S114 stale test's `resolved` assertion | pass 2026-08-11 |
+| S116 | --help names every STEP_OPS and AUDIT_OPS member, held by a test over build_parser().format_help() | test_s009_surface.py TestHelpNamesEveryOperation (red observed: missing unpause and check) | pass 2026-08-11 |

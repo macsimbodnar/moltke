@@ -78,6 +78,19 @@ class TestSurfaceIsDocumented(unittest.TestCase):
         self.assert_documented(manual, "MANUAL.md")
 
 
+class TestHelpNamesEveryOperation(unittest.TestCase):
+    """S116 (2026-08-11_adversarial-F05): the golden reads argparse actions, so
+    help strings drift silently — --help omitted unpause and check while the
+    parser accepted both. The help is the one surface a user at a terminal sees;
+    every STEP_OPS and AUDIT_OPS member must appear in it."""
+
+    def test_every_operation_appears_in_help(self):
+        text = moltke.build_parser().format_help()
+        missing = [op for op in list(moltke.STEP_OPS) + list(moltke.AUDIT_OPS)
+                   if op not in text]
+        self.assertEqual(missing, [], f"--help does not name: {missing}")
+
+
 class TestMarkerKeysAreLoadBearing(unittest.TestCase):
     """MARKER_KEYS is what the golden guards, so it must match what the code
     actually validates rather than being a decorative list."""

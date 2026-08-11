@@ -123,3 +123,10 @@ S115 complete. Unpause messages route by kind; self-pause says "paused itself".
 Red observed. Suite 452 OK.
 Files: bin/moltke.py (one branch), tests/test_s003_invariants.py (1 test),
 testing.md (2 rows), README.md (451 to 452), plan_done/S115.
+
+## 2026-08-11T recap (S116)
+
+S116 complete. --help lists unpause and check; a test over format_help() pins
+every operation. Red observed. Suite 453 OK.
+Files: bin/moltke.py (two help strings), tests/test_s009_surface.py (1 test),
+testing.md (1 row), README.md (452 to 453), plan_done/S116.

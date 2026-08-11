@@ -2884,9 +2884,10 @@ def build_parser():
     modes.add_argument("--scaffold", action="store_true", help=f"create the marker, AGENTS.md, and {DOCS}/ from templates")
     modes.add_argument("--decline", action="store_true", help="record that this repository declines the workflow, durably")
     modes.add_argument("--step", nargs="+", metavar="OP",
-                       help="lifecycle: new <name> | start <id> | block <parent> <name> | done <id> | status")
+                       help="lifecycle: new <name> | start <id> | block <parent> <name> | "
+                            "unpause <id> | done <id> | status")
     modes.add_argument("--audit", nargs="+", metavar="OP",
-                       help="audit reports: new <type> | list")
+                       help="audit reports: new <type> | list | check")
     parser.add_argument("--goal", default="", help="goal line for --step new")
     parser.add_argument("--stamp", default="", help="completion stamp for --step done")
     return parser
