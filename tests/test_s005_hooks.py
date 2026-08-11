@@ -5,6 +5,7 @@ Stop has no documented block cap, so moltke imposes its own.
 """
 
 import json
+import os
 import re
 import subprocess
 import sys
@@ -1050,6 +1051,31 @@ class TestMalformedHookPayloads(unittest.TestCase):
                                   "tool_input": {"file_path": "bin/moltke.py"}})
             result = run_moltke(root, "--pre-write", stdin=payload)
             self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+
+
+class TestPreWritePathArgumentSkipsStdin(unittest.TestCase):
+    """S119: --pre-write PATH read stdin before consulting PATH, so a pipe that
+    never closes hung it forever. Hooks are unaffected (Claude Code closes
+    stdin); MANUAL endorses manual use, where a shell with an inherited open
+    pipe hangs. With a PATH argument there is nothing stdin can add."""
+
+    def test_a_path_argument_never_touches_stdin(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            # A pipe with no writer closing it: read() blocks forever. The
+            # timeout is the observation — before the fix this raised
+            # TimeoutExpired, after it the refusal returns immediately.
+            r, w = os.pipe()
+            try:
+                result = subprocess.run(
+                    [sys.executable, str(MOLTKE), "--pre-write",
+                     "adocs/plan_done/S001_base.md"],
+                    cwd=root, capture_output=True, text=True,
+                    stdin=os.fdopen(r), timeout=10)
+            finally:
+                os.close(w)
+            self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+            self.assertIn("plan_done", result.stderr)
 
 
 class TestCaseVariantPaths(unittest.TestCase):

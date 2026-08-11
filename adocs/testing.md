@@ -587,3 +587,4 @@ never after. Append only.
 | S116 | --help names every STEP_OPS and AUDIT_OPS member, held by a test over build_parser().format_help() | test_s009_surface.py TestHelpNamesEveryOperation (red observed: missing unpause and check) | pass 2026-08-11 |
 | S117 | the decisions index has one line per entry (44) and the body is ordered oldest to newest, DEC-043 before DEC-044 | index rebuilt from the body itself; --validate exit 0 and --audit list exit 0 before and after | pass 2026-08-11 |
 | S118 | plugin.json reads 0.10.0 and the golden plugin test passes; the install carries S112-S117 | tests/test_s010_plugin.py, green in the 453-test suite | pass 2026-08-11 |
+| S119 | `--pre-write PATH` returns immediately with stdin an unclosed pipe | test_s005_hooks.py TestPreWritePathArgumentSkipsStdin (red observed: TimeoutExpired at 10s) | pass 2026-08-11 |

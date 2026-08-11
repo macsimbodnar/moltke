@@ -1250,7 +1250,12 @@ def _canonical_case(root, rel):
 
 
 def mode_pre_write(root, config, path_arg):
-    payload = hook_input()
+    # PATH first, stdin only without one (S119): reading stdin unconditionally
+    # hung forever on an inherited pipe no writer closes — observed at 120s+ in
+    # a shell. Hooks pass no PATH and are unchanged; with a PATH argument there
+    # is nothing stdin could add, including the agent_type the fence reads,
+    # which no manual caller sends.
+    payload = {} if path_arg else hook_input()
     path = path_arg or payload_str(payload, "tool_input", "file_path")
     if not path:
         return EXIT_OK

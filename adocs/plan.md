@@ -16,7 +16,6 @@ list below and nowhere else in this file: the derived next step is the first id
 in document order, so an id mentioned in prose above the list becomes the next
 step instead.
 
-112. S114  a pause that already resolved is reported and clearable
 113. S115  --step unpause says what actually happened
 114. S116  --help names every operation the parser accepts
 115. S117  the decisions index matches the entries, newest last
