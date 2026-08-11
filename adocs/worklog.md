@@ -2242,3 +2242,41 @@ Files: .claude-plugin/plugin.json, adocs/decisions.md (DEC-041), adocs/status.md
 adocs/testing.md (5 rows), adocs/plan_done/S104_bump_0_8_0.md.
 README and MANUAL checked, no change.
 Suite 444 OK, --validate green.
+
+## 2026-08-09T17:10+02:00 prompt
+
+> perform an analysis and create a report on how much moltke structure will impact token usage
+
+## 2026-08-09T17:11+02:00 prompt
+
+> x
+
+## 2026-08-10T09:26+02:00 prompt
+
+> i want to brainstorm with you a strategy about the files that grows and how can we handle them. List which file all always read in each session and that can grow without stop
+
+## 2026-08-10T13:56+02:00 prompt
+
+> analyze the situation and propose a plan that would be inline with my project goals but that would not overload the context. keep in mind that all this things about immutability and enforcement is not a requirement and i don't care too much about it
+
+## 2026-08-11T11:47+02:00 prompt
+
+> * decision.md i think it's worht keeping but compressed. 
+> * I want to add some other features to this plan that comes out of me using moltke. 
+>    * Remove the constrain on agents. No rules about spowning new agents, if it's needed it should be possible to do so. Not enforced to do so, just remove any constrain if in place. 
+>    * I need a way, like a local file that lives in the repository but it's not commited that is local to the machine that molke expect to be there and if it's not there it creates it. this files contains all hte instructions and references that does make sense to share in other md files like specific to that machine tools to use and paths to them (example i developa chess engine on macos and linux. When i switch from one to the other the tools that i use might be different and the location to them aswell. Or simply different  directives like maybe on mac you need to keep it alive on long sessions or similar).
+>    * A file that is specific per project that can override or add instructions for that specific project. Like loosening some rules or making them harder or change them. This can be an existing file aswell with specific section.
+> 
+> Analyse my message and prepare a plan
+
+## 2026-08-11T11:53+02:00 prompt
+
+> before proceeding, also what would be useful is to check if the agent, read ALL the docs or only the necessary in that moment and then pick the one that is needed. This is essential for keeping the token usage low
+
+## 2026-08-11T11:58+02:00 prompt
+
+> the reviewer fence should not be mandatory, at least not the full adversarial check. It would be nice if the agent, whenever he think it's necessary propose one and the user accept or postpone. The user hsould be alway able to invoke an adversarial review. A simple fast check should be done after each chunk of work done in a reasonable way
+
+## 2026-08-11T12:00+02:00 prompt
+
+> Go and continue to work until the job is done or you need my input, my input should not be blocking if possible, if you can continue to work on something else while i am not at the computer please continue

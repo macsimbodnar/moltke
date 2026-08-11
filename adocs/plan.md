@@ -118,3 +118,9 @@ step instead.
 100. S102  the two documented refusals match what the code does
 101. S103  a step file's id: field agrees with its filename, or does not exist
 102. S104  bump 0.8.0 and stop the audit loop by decision
+103. S105  the tool stops enforcing document history, so the documents can shrink
+104. S106  the always-read documents hold current state, not history
+105. S107  the ruleset tells agents to look up, not to read everything
+106. S108  review has three tiers: fast check by habit, full audit by consent
+107. S109  a machine-local instructions file that the tool creates and injects
+108. S110  a project-rules override section, and 0.9.0 ships the batch
