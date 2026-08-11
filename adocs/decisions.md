@@ -230,3 +230,23 @@ Why: the same repository is developed on machines with different tools and paths
 Tags: review, audit, process
 Decision: After every completed step, one small subagent reviews that step's diff — no report file, no finding ids; trivial findings fixed on the spot, real ones become steps. A full adversarial audit runs when the user asks, or when the user accepts an agent proposal made on real risk; postponed proposals park as one status.md line. Findings close on a re-run or by recorded decision, so the loop always has a user-controlled end; the reviewer fence and clean-context rule keep binding actual audit runs.
 Why: mandatory full audits produced an endless loop (DEC-041 stopped it by hand); a per-chunk fast check catches most defects at a fraction of the ceremony.
+
+## DEC-045  2026-08-11  moltke is team-first
+Tags: team, plan, invariants
+Decision: Branch-per-member is the assumed topology, a shared branch possible. The plan is common: steps are created unowned and claimed at --step start, which stamps author: from git config user.name; INV-1's active limit counts per author. Merge semantics ship with the scaffold (.gitattributes: union for testing.md, ours for status.md which is regenerated); step-id collisions at merge stay INV-6-caught with a merge-aware remedy. Windows is out of scope, documented.
+Why: Max: the tool should be built with a team in mind, not a solo dev.
+
+## DEC-046  2026-08-11  The worklog is removed
+Tags: worklog, hooks, privacy
+Decision: Verbatim prompt logging, the UserPromptSubmit hook, the recap gate, INV-15, and the log-failure breadcrumbs are removed. The Stop cap re-keys to a per-fingerprint retry count in .git/ state. Forensic history is git; recaps live in the console and in commit messages.
+Why: highest bug density in the design, a privacy leak and merge-conflict machine for teams, all for a file the rules forbade reading.
+
+## DEC-047  2026-08-11  Fence police retired; stripping stays
+Tags: fences, invariants
+Decision: INV-13, INV-14, and INV-16 are retired like INV-8. strip_guidance keeps stripping fenced content from id-scanners so quoting stays safe; nothing blocks on fence counts anymore. An unclosed fence can hide content from scanners silently — accepted under DEC-030's drift-not-malice threat model.
+Why: the police generated ~15 findings across six audits and trained workarounds; blockers users fight get routed around.
+
+## DEC-048  2026-08-11  Completion ceremony slimmed
+Tags: step, testing, ceremony
+Decision: The completion stamp stays required but is free text: multi-line accepted and written as indented continuations, no README/MANUAL substring check. INV-5 reduces to stamp-present. testing.md rows are voluntary documentation, pruned with the same last-5 window as plan.md.
+Why: substring gates verified mention, not truth, and trained formula; the one-line rule produced unreadable 1.4 KB stamps.

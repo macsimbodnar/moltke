@@ -160,3 +160,50 @@ briefing. Verdict: right tool for its actual design point (solo author, long-liv
 repo, Claude Code primary); not yet the general product README implies. It found
 one live defect while measuring: --pre-write reads stdin before the PATH argument
 and hangs on a never-EOF pipe. No fixes started; findings await Max's direction.
+
+## 2026-08-11T15:51+02:00 prompt
+
+> let's discuss in an iteractive way each one of your comments one by one
+
+## 2026-08-11T15:58+02:00 prompt
+
+> This tool should be definitly build with a team in mind and not a solo dev!
+
+## 2026-08-11T16:01+02:00 prompt
+
+> 1. It is most like each memeber will have his own branch to the possibility of multiple person on the same branch is low but not impossible in certain circumstances. 
+> 2. I would say that the plan should be in common and everyon can pick an item from it
+
+## 2026-08-11T16:01+02:00 prompt
+
+> 1. It is most like each memeber will have his own branch to the possibility of multiple person on the same branch is low but not impossible in certain circumstances. 
+> 2. I would say that the plan should be in common and everyon can pick an item from it
+> 3. My decision would be to remove the worklog since it's a source of problems
+
+## 2026-08-11T17:38+02:00 prompt
+
+> which one will you reccomend? I am afraid that fences might be uneccesary blocker and we the user will just fight it to find a work around. What's your take on this?
+
+## 2026-08-11T17:40+02:00 prompt
+
+> agree
+
+## 2026-08-11T17:43+02:00 prompt
+
+> B
+
+## 2026-08-11T17:44+02:00 prompt
+
+> A
+
+## 2026-08-11T17:45+02:00 prompt
+
+> we can ignore windows for now. Just document that
+
+## 2026-08-11T17:47+02:00 prompt
+
+> B
+
+## 2026-08-11T17:49+02:00 prompt
+
+> Go, implement and verify all by yourself untill it's done or my input is required
