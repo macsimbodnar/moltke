@@ -288,12 +288,21 @@ def unresolvable_pauses(root, steps=None):
     """
     steps = plan_steps(root) if steps is None else steps
     known = {found for dirname in PLAN_DIRS for found, _p, _f in steps[dirname]}
+    done = {found for found, _p, _f in steps["plan_done"]}
     pauses = {step_id: pauser_id(fields)
               for step_id, _path, fields in steps["plan_current"] if pauser_id(fields)}
     problems = {}
     for step_id, pauser in pauses.items():
         if pauser not in known:
             problems[step_id] = ("phantom", pauser)
+            continue
+        # A pauser already completed is a pause that resolved (S114, .F03): the
+        # parent showed Blocked: forever while unpause and block both prescribed
+        # a --step done that refuses on a plan_done/ step. --step done on the
+        # parent itself still steps over it (S070); this makes the state
+        # reported and clearable without finishing the parent.
+        if pauser in done:
+            problems[step_id] = ("stale", pauser)
             continue
         seen, current = [step_id], pauses.get(step_id)
         while current is not None and current not in seen:
@@ -322,6 +331,11 @@ def inv_1_active_max(root, config):
                 f"INV-1: {step_id} is paused by {detail}, which has no step file in any plan "
                 f"directory, so it waits on work that does not exist and no completion can "
                 f"reach it. Clear it with bin/moltke.py --step unpause {step_id}")
+        elif kind == "stale":
+            violations.append(
+                f"INV-1: {step_id} is paused by {detail}, which is already in plan_done/ — "
+                f"the pause resolved. Clear it with bin/moltke.py --step unpause {step_id}, "
+                f"which frees {step_id} to be resumed or re-blocked")
         else:
             ring = " -> ".join(detail + [detail[0]])
             violations.append(
@@ -2084,8 +2098,12 @@ def step_unpause(root, config, step_id):
                       f"Complete {pauser} with --step done {pauser}, which unpauses {step_id} "
                       f"on its way out; this command only clears a pause that never resolves, "
                       f"which is the case --validate reports")
+    kind, _detail = unresolvable_pauses(root)[step_id]
     set_field(path, "paused_by", "")
-    print(f"moltke: {step_id} unpaused; {pauser} had no step file in any plan directory.")
+    reason = {"phantom": f"{pauser} had no step file in any plan directory",
+              "stale": f"{pauser} is already complete, so the pause had resolved",
+              "cycle": f"the pause never resolved: {pauser} sits in a ring of pauses"}[kind]
+    print(f"moltke: {step_id} unpaused; {reason}.")
     return EXIT_OK
 
 

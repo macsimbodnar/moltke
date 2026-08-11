@@ -16,7 +16,6 @@ list below and nowhere else in this file: the derived next step is the first id
 in document order, so an id mentioned in prose above the list becomes the next
 step instead.
 
-107. S109  a machine-local instructions file that the tool creates and injects
 108. S110  a project-rules override section, and 0.9.0 ships the batch
 109. S111  fix the five findings of the batch's own fast check
 110. S112  the local-file exclusion lands where git actually reads it

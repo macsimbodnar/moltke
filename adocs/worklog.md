@@ -107,3 +107,12 @@ a false refusal. Case-sensitive filesystems unchanged; tests skip with a message
 there. Suite 449 OK.
 Files: bin/moltke.py (_canonical_case, mode_pre_write), tests/test_s005_hooks.py
 (TestCaseVariantPaths), testing.md (3 rows), README.md (446 to 449), plan_done/S113.
+
+## 2026-08-11T recap (S114)
+
+S114 complete. Stale pauses (pauser in plan_done/) now report via INV-1 and clear
+via --step unpause; parent re-blockable. S070 step-over and DEC-040 unchanged,
+both pinned. Red observed. Suite 451 OK.
+Files: bin/moltke.py (unresolvable_pauses stale kind, INV-1 message, unpause
+message routing), tests/test_s003_invariants.py (2 tests), testing.md (3 rows),
+README.md (449 to 451), plan_done/S114.

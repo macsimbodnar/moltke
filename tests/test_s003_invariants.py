@@ -628,6 +628,41 @@ class TestAPauseMustResolve(unittest.TestCase):
             result = run_validate(root)
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
+    def test_a_pause_naming_a_completed_step_is_reported_and_clearable(self):
+        # S114 (2026-08-11_adversarial-F03): the pauser resolved days ago, the
+        # parent shows Blocked: forever, and unpause + block prescribe a
+        # --step done that refuses. The state is one --step done's own failure
+        # path documents leaving behind.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            step_file(root / "adocs" / "plan_current", "S003", "active",
+                      paused_by="S001  # 2026-08-01")
+            result = run_validate(root)
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn("S001", result.stdout)
+            self.assertIn("--step unpause", result.stdout)
+            cleared = run_moltke(root, "--step", "unpause", "S003")
+            self.assertEqual(cleared.returncode, 0, cleared.stdout + cleared.stderr)
+            self.assertIn("resolved", cleared.stdout)
+            self.assertEqual(run_validate(root).returncode, 0, run_validate(root).stdout)
+            blocked = run_moltke(root, "--step", "block", "S003", "new_blocker")
+            self.assertEqual(blocked.returncode, 0,
+                             "the parent must be re-blockable after the clear: "
+                             + blocked.stdout + blocked.stderr)
+
+    def test_step_done_still_steps_over_a_stale_pause(self):
+        # S070's path, unchanged: completing the parent needs no unpause first.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            step_file(root / "adocs" / "plan_current", "S003", "active",
+                      paused_by="S001  # 2026-08-01")
+            testing = root / "adocs" / "testing.md"
+            testing.write_text(testing.read_text(encoding="utf-8")
+                               + "| S003 | works | test_S003 | pass |\n", encoding="utf-8")
+            done = run_moltke(root, "--step", "done", "S003", "--stamp", STAMP)
+            self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+            self.assertIn("stale", done.stdout)
+
     def test_the_phantom_pauser_rule_is_unchanged(self):
         # S090's case still reports, with its own message.
         with tempfile.TemporaryDirectory() as tmp:
