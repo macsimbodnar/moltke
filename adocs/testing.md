@@ -604,3 +604,4 @@ never after. Append only.
 | S127 | --version prints the version and the plugin root, before every gate | run live: `moltke 0.10.0 at /Users/max/ws/moltke`; golden refreshed after specs and MANUAL | pass 2026-08-11 |
 | S128 | plugin.json reads 0.11.0, --version confirms, golden plugin test green; one install ships S119-S128 | tests/test_s010_plugin.py in the 398-test suite; `moltke 0.11.0 at /Users/max/ws/moltke` | pass 2026-08-11 |
 | S128 | the always-read set ends the batch at 47,764 bytes (~11.9k tokens) against 180,518 at e22a911 | measured at completion | pass 2026-08-11 |
+| S123 | AGENTS.md reissued at half size; template byte-identical (row re-added for the pre-0.11.0 hook cache, which still enforces the retired row rule) | drift + template-generic tests | pass 2026-08-11 |
