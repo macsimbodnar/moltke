@@ -1225,6 +1225,78 @@ class TestWrittenFieldValuesRoundTrip(unittest.TestCase):
             self.assertNotIn("without the README and MANUAL check recorded", problems)
 
 
+class TestPlanPruning(unittest.TestCase):
+    """S105 (DEC-042): plan.md grew one line per step forever — 68 bytes/step in
+    an always-read file. --step done now prunes completed entries, keeping the
+    last 5 done in plan order plus everything open, so plan.md is bounded by
+    open work rather than by project age. plan_done/ keeps every id, so
+    next_step_id and the S097 ceiling still see all of history."""
+
+    def crowded(self, tmp):
+        """Eight done steps listed and filed, one active, one pending."""
+        root = workflow_repo(tmp)
+        plan = ["# Plan", ""]
+        for n in range(4, 12):
+            step_file(root / "adocs" / "plan_done", f"S{n:03d}", f"old{n}",
+                      done="2026-08-01 done, README and MANUAL checked")
+            plan.append(f"{n - 3}. S{n:03d}  old{n}")
+            add_testing_row(root, f"S{n:03d}")
+        plan += ["9. S001  base", "10. S002  pending", "11. S003  active"]
+        (root / "adocs" / "plan.md").write_text("\n".join(plan) + "\n", encoding="utf-8")
+        add_testing_row(root, "S003")
+        self.assertEqual(validate(root).returncode, 0, "precondition: fixture green")
+        return root
+
+    def test_done_prunes_to_the_last_five_done_entries(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.crowded(tmp)
+            result = run_moltke(root, "--step", "done", "S003", "--stamp", STAMP)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            plan = (root / "adocs" / "plan.md").read_text(encoding="utf-8")
+            listed = re.findall(r"^\s*(?:\d+\.|[-*])\s+(S\d{3})\b", plan, re.M)
+            done_listed = [s for s in listed if s not in ("S002",)]
+            self.assertEqual(len(done_listed), 5,
+                             f"five done entries kept, got {done_listed}")
+            self.assertIn("S003", listed, "the just-completed step is the newest done")
+            self.assertIn("S002", listed, "open work is never pruned")
+            self.assertNotIn("S004", listed, "the oldest done entries are pruned")
+            self.assertEqual(validate(root).returncode, 0, validate(root).stdout)
+
+    def test_derivations_survive_a_pruned_plan(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.crowded(tmp)
+            run_moltke(root, "--step", "done", "S003", "--stamp", STAMP)
+            run_moltke(root, "--step", "status")
+            status = (root / "adocs" / "status.md").read_text(encoding="utf-8")
+            self.assertIn("Last done: S003", status)
+            self.assertIn("Next: S002", status)
+            roadmap = run_moltke(root, "--roadmap")
+            self.assertEqual(roadmap.returncode, 0, roadmap.stdout + roadmap.stderr)
+            self.assertIn("10 done", roadmap.stdout,
+                          "done count comes from plan_done/, not from the pruned list")
+
+    def test_the_next_id_still_clears_every_pruned_id(self):
+        # DEC-008: ids are never reused. The pruned entries live on as
+        # plan_done/ filenames, which next_step_id also reads.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.crowded(tmp)
+            run_moltke(root, "--step", "done", "S003", "--stamp", STAMP)
+            result = run_moltke(root, "--step", "new", "after_pruning")
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertTrue((root / "adocs" / "plan_todo" / "S012_after_pruning.md").is_file())
+
+    def test_a_small_plan_is_not_pruned(self):
+        # Non-vacuity: with five or fewer done entries nothing changes, so the
+        # base fixture's shape survives an ordinary completion untouched.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            add_testing_row(root, "S003")
+            run_moltke(root, "--step", "done", "S003", "--stamp", STAMP)
+            plan = (root / "adocs" / "plan.md").read_text(encoding="utf-8")
+            for kept in ("S001", "S002", "S003"):
+                self.assertIn(kept, plan)
+
+
 class TestMultilineStepFields(unittest.TestCase):
     """S095: `parse_step_file` matched `^([a-z_]+):\\s*(.*)$` per line, and an
     indented continuation line matches nothing, so every field was silently

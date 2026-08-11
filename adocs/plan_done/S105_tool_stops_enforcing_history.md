@@ -21,4 +21,4 @@ decisions:  DEC-042
 closes:
 blocks:
 paused_by:
-done:
+done:      2026-08-09: INV-8 is retired and its number is never reused (DEC-042); rewriting or trimming decisions.md and the worklog is an ordinary edit, and --step done prunes plan.md to the last 5 completed entries so the plan is bounded by open work rather than project age. Roadmap counts done from plan_done/ now, since the pruned list forgets. plan_done/ keeps every id, so DEC-008 and the S097 ceiling still see all of history, pinned by a test. 8 new tests, red observed on the property flips; 14 tests deleted deliberately with the invariant and named in testing.md, one re-targeted to its INV-7 half — the non-vacuity anchor holds INV-7 still firing so retirement is distinguishable from breakage. Golden CLI surface unchanged. Suite 438 OK, --validate green. README test count updated 444 to 438 in S106 batch? No — updated now; MANUAL's two INV-8 passages rewritten to the retirement, the historical monorepo passage kept as history; specs.md is S106's job.

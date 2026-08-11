@@ -118,7 +118,8 @@ Nothing to remember. Hooks fire on their own:
   through a regeneration verbatim, whatever its indentation, so that block is
   where anything worth remembering that no other file holds belongs
 - every prompt is appended verbatim to `adocs/worklog.md`, which is history you
-  may correct or trim: only `adocs/decisions.md` is enforced append-only
+  may correct or trim; `adocs/decisions.md` may be compacted too, ids stable
+  (INV-8's append-only enforcement was retired in 0.9.0, DEC-042)
 - writes into completed history are refused
 - the turn will not end with a stale `status.md`, an invariant violation, or
   source changes with no worklog recap
@@ -329,16 +330,17 @@ report's finding is evidence, not a finding of yours, so quoting stays quiet. Fo
 the same reason a fresh report's example finding now reads `### <report>-F01`
 rather than carrying the report's real name.
 
-**Immutability checks need git, and read history as well as HEAD.** INV-7
-(`plan_done/` unchanged) and INV-8 (`adocs/decisions.md` append-only) compare the
-working tree against `git HEAD`, which covers changes you have not committed, and
-also walk `git log`, which covers changes you have. Committing tampering
-therefore does not hide it. The commit the violation names is the one it compares
-against — for a `plan_done/` file the commit that added it, for `decisions.md`
-the most recent version that had not already lost something — not the commit that
-did the damage, which moltke never identifies. Restoring those bytes in a new
-commit is what clears it. In a repository with no history, or for a file not yet
-committed, there is no baseline and the check abstains rather than guessing.
+**The immutability check needs git, and reads history as well as HEAD.** INV-7
+(`plan_done/` unchanged) compares the working tree against `git HEAD`, which
+covers changes you have not committed, and also walks `git log`, which covers
+changes you have. Committing tampering therefore does not hide it. The commit the
+violation names is the one it compares against — the commit that added the file —
+not the commit that did the damage, which moltke never identifies. Restoring
+those bytes in a new commit is what clears it. In a repository with no history,
+or for a file not yet committed, there is no baseline and the check abstains
+rather than guessing. INV-8, which held `adocs/decisions.md` append-only the same
+way, was retired in 0.9.0 (DEC-042): the documents hold current state, and git is
+the archive.
 
 What this cannot do is unwrite history, and it does not try. Both checks compare
 what the file says **now** against a version from history — for a `plan_done/`

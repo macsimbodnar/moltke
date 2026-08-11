@@ -561,89 +561,13 @@ def inv_7_done_immutable(root, config):
     return violations
 
 
-# decisions.md only, since DEC-025: DEC ids are cited from code comments, commit
-# messages, specs.md, and step files, so a rewritten entry silently changes what
-# those citations mean. worklog.md is history nothing cites by id, so it is
-# append-only by convention and unchecked.
-APPEND_ONLY_FILES = (f"{DOCS}/decisions.md",)
+# INV-8 (append-only decisions.md; the S046/DEC-028 high-water mark) was
+# retired 2026-08-09 (S105, DEC-042) and its number is never reused. The
+# documents hold current state and are compacted freely; history lives in git.
+# What it guarded — nothing rewrites the reasons — mattered less than what it
+# cost: an always-read file that could never shrink.
 FINDING_STATUSES = ("open", "planned", "closed", "accepted")
 FINDING_RE = re.compile(r"^###\s+(\S*-F\d{2})\b", re.M)
-
-
-def lines_survive(past, current):
-    """True when every line of `past` still appears in `current`, in order."""
-    it = iter(current)
-    return all(any(line == candidate for candidate in it) for line in past)
-
-
-def inv_8_append_only(root, config):
-    # Two baselines, same reasoning as INV-7: HEAD for the uncommitted window,
-    # history for everything already committed. Untracked files have neither.
-    violations = []
-    # DEC-026: append-only means the current content still starts with every
-    # version the file has ever had. Restoring removed text makes that true
-    # again, so a repair commit clears this; "a commit removed lines" never could.
-    for rel in APPEND_ONLY_FILES:
-        shas = [sha for sha, _details in history_blocks(root, "--", rel) or []]
-        if not shas:
-            continue
-        spec = to_git_path(root, rel)   # git names it from the top level (S081)
-        blobs = git_blobs(root, [f"{sha}:{spec}" for sha in shas])
-        path = root / rel
-        if not path.is_file():
-            violations.append(f"INV-8: {rel} has {len(shas)} commit(s) of history and is gone; "
-                              f"it is append-only and never removed: restore it in a new commit, "
-                              f"git show {shas[-1][:8]}:{spec} > {rel}")
-            continue
-        # The high-water mark of content that was ever legitimately in the file
-        # (S046). Walk the versions oldest first: one that still contains
-        # everything required becomes the new mark, one that dropped something
-        # is a tampering and is skipped rather than becoming the mark. The file
-        # as it stands must then contain the mark's lines, in order.
-        #
-        # Neither half works alone, and DEC-027 records why. Comparing against
-        # every past version can never pass after a repair, because the tampered
-        # version is itself history and holds text the repair rightly discarded.
-        # Comparing against one fixed baseline misses any rewrite of text
-        # appended after it. Skipping tampered versions is what reconciles them:
-        # a repair restores the mark and clears everything at once, while a
-        # removal, an in-place rewrite, and a line moved to the end are all
-        # caught, because in each case a required line is no longer in order.
-        required, required_sha = None, shas[0]
-        for sha in shas:
-            past = blobs.get(f"{sha}:{spec}")
-            if past is None:
-                continue
-            lines = past.splitlines()
-            if required is None or lines_survive(required, lines):
-                required, required_sha = lines, sha
-        if required is not None and not lines_survive(required, path.read_bytes().splitlines()):
-            violations.append(
-                f"INV-8: {rel} no longer contains, in order, the lines it had at commit "
-                f"{required_sha[:8]}; nothing it has held is removed or reordered, because DEC "
-                f"ids are cited from code, commits, and specs and a rewritten entry changes what "
-                f"those citations mean. Put the removed content back where it was and this "
-                # `spec`, not `rel` (S093, .4-F06): git show resolves from the top
-                # level, so below it the root-relative path is a path git does not
-                # have. S081 threaded the prefix through every other reader of this
-                # file and missed this one message.
-                f"clears: git show {required_sha[:8]}:{spec}. A reversal is a new entry marking "
-                f"the old one VOID, never an edit")
-    for rel in APPEND_ONLY_FILES:
-        shown = _git_run(["git", "-C", str(root), "show", f"HEAD:{to_git_path(root, rel)}"])
-        if shown is None or shown.returncode != 0:
-            continue
-        path = root / rel
-        if not path.is_file():
-            violations.append(f"INV-8: {rel} was deleted; it is append-only and never removed: "
-                              f"restore it with git checkout -- {rel}")
-        elif not path.read_bytes().startswith(shown.stdout):
-            violations.append(f"INV-8: {rel} no longer starts with what HEAD holds, so something "
-                              f"above the end changed, because DEC ids are cited from code, "
-                              f"commits, and specs and a rewritten entry changes what those "
-                              f"citations mean: restore the committed content and re-append. "
-                              f"A reversal is a new entry marking the old one VOID")
-    return violations
 
 
 def inv_9_unique_dec_ids(root, config):
@@ -922,7 +846,6 @@ INVARIANT_CHECKS = [
     ("INV-5", inv_5_done_evidence),
     ("INV-6", inv_6_unique_ids),
     ("INV-7", inv_7_done_immutable),
-    ("INV-8", inv_8_append_only),
     ("INV-9", inv_9_unique_dec_ids),
     ("INV-10", inv_10_audit_findings),
     ("INV-13", inv_13_balanced_fences),
@@ -1949,6 +1872,38 @@ def append_to_plan(root, step_id, goal):
     return True
 
 
+PLAN_DONE_KEPT = 5
+
+
+def prune_plan(root, done_ids):
+    """Drop completed entries from plan.md, keeping the newest PLAN_DONE_KEPT.
+
+    S105 (DEC-042): the list grew one line per step forever, in an always-read
+    file. Open work is never pruned, and plan_done/ keeps every id, so DEC-008
+    (ids never reused) and the S097 ceiling still see all of history. Pruning
+    failure is not a completion failure: the move already happened, and the
+    next completion prunes what this one could not.
+    """
+    plan_path = root / DOCS / "plan.md"
+    try:
+        lines = read_file(plan_path).splitlines(keepends=True)
+    except OSError:
+        return
+    entry_lines = [i for i, line in enumerate(lines)
+                   if (m := PLAN_ENTRY_RE.match(line)) and m.group(1) in done_ids]
+    drop = set(entry_lines[:-PLAN_DONE_KEPT]) if len(entry_lines) > PLAN_DONE_KEPT else set()
+    if not drop:
+        return
+    try:
+        plan_path.write_text("".join(line for i, line in enumerate(lines) if i not in drop),
+                             encoding="utf-8")
+        print(f"moltke: pruned {len(drop)} completed entr{'y' if len(drop) == 1 else 'ies'} "
+              f"from plan.md; plan_done/ keeps the full history.")
+    except OSError as exc:
+        print(f"moltke: plan.md could not be pruned ({exc}); the completion stands and the "
+              f"next one will retry.", file=sys.stderr)
+
+
 def with_field(text, key, value):
     """A step file's text with one field set, adding the line if it is absent.
 
@@ -2241,6 +2196,7 @@ def step_done(root, config, step_id, stamp):
                       file=sys.stderr)
                 continue
             print(f"moltke: {parent_id} unpaused.")
+    prune_plan(root, {done_id for done_id, _p, _f in steps["plan_done"]} | {step_id})
     print(f"moltke: {step_id} completed and moved to plan_done/. Commit it; the move is the "
           f"last action of the step.")
     return EXIT_OK
@@ -2786,8 +2742,10 @@ def _mode_roadmap(root, config):
     steps = plan_steps(root)
     done = {step_id for step_id, _p, _f in steps["plan_done"]}
     current = {step_id: fields for step_id, _p, fields in steps["plan_current"]}
-    done_count = sum(1 for step_id in order if step_id in done)
-    left = len(order) - done_count
+    # plan_done/ is the count; the pruned list only carries the newest done
+    # entries (S105), so counting the list would forget the pruned ones.
+    done_count = len(done)
+    left = sum(1 for step_id in order if step_id not in done)
 
     strip = roadmap_cells(order, done, current)
     print(f"{order[0]} \u258f{strip}\u2595 {order[-1]}")

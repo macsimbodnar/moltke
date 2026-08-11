@@ -31,174 +31,60 @@ def git_baseline(root):
         git(root, *args)
 
 
-class TestAppendOnly(unittest.TestCase):
-    """INV-8: decisions.md grows only at the end. The worklog left this invariant
-    under DEC-025 — it is history nothing cites by id, so it is convention."""
+class TestHistoryIsUnenforced(unittest.TestCase):
+    """S105 (DEC-042): INV-8 is retired and its number is never reused. The
+    documents hold current state; history lives in git. Rewriting or trimming
+    decisions.md and the worklog is an ordinary edit, because the always-read
+    set must be able to shrink — the enforcement was what made it unshrinkable."""
 
-    def assert_violation(self, root, needle):
-        result = run_validate(root)
-        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
-        self.assertIn(needle, result.stdout)
+    def test_rewriting_decisions_is_not_a_violation(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            git_baseline(root)
+            path = root / "adocs" / "decisions.md"
+            path.write_text(path.read_text(encoding="utf-8").replace(
+                "base decision", "rewritten decision"), encoding="utf-8")
+            result = run_validate(root)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
-    def test_appending_is_legal(self):
+    def test_trimming_decisions_is_not_a_violation(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            git_baseline(root)
+            path = root / "adocs" / "decisions.md"
+            kept = [l for l in path.read_text(encoding="utf-8").splitlines()
+                    if "Rejected" not in l]
+            path.write_text("\n".join(kept) + "\n", encoding="utf-8")
+            git(root, "add", "-A")
+            git(root, "commit", "-qm", "consolidate decisions")
+            result = run_validate(root)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_validate_never_mentions_inv_8(self):
+        # The number is retired, not reassigned: no current check may report
+        # under it, or a reader of an old audit report is pointed at the wrong
+        # rule.
         with tempfile.TemporaryDirectory() as tmp:
             root = workflow_repo(tmp)
             git_baseline(root)
             for rel in ("adocs/decisions.md", "adocs/worklog.md"):
-                path = root / rel
-                path.write_text(path.read_text(encoding="utf-8") + "\nappended\n",
-                                encoding="utf-8")
+                (root / rel).write_text("rewritten wholesale\n", encoding="utf-8")
             result = run_validate(root)
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertNotIn("INV-8", result.stdout + result.stderr)
 
-    def test_rewriting_decisions_fails(self):
+    def test_plan_done_immutability_is_untouched(self):
+        # The non-vacuity anchor for the retirement: INV-7 still fires, so the
+        # suite can tell "INV-8 retired" from "history checks broke".
         with tempfile.TemporaryDirectory() as tmp:
             root = workflow_repo(tmp)
             git_baseline(root)
-            path = root / "adocs" / "decisions.md"
-            path.write_text(path.read_text(encoding="utf-8").replace("base decision",
-                            "edited decision"), encoding="utf-8")
-            self.assert_violation(root, "INV-8")
-
-    def test_rewriting_or_deleting_the_worklog_is_no_longer_a_violation(self):
-        # DEC-025 re-targets this case rather than deleting it. Precondition
-        # first: the identical tampering against decisions.md still violates, so
-        # a green result here cannot come from the checker having stopped working.
-        with tempfile.TemporaryDirectory() as tmp:
-            root = workflow_repo(tmp)
-            git_baseline(root)
-            decisions = root / "adocs" / "decisions.md"
-            intact = decisions.read_text(encoding="utf-8")
-            decisions.write_text("# Decisions\n(trimmed)\n", encoding="utf-8")
-            self.assert_violation(root, "INV-8")
-            decisions.write_text(intact, encoding="utf-8")
-
-            worklog = root / "adocs" / "worklog.md"
-            worklog.write_text("# Worklog\n(trimmed)\n", encoding="utf-8")
-            trimmed = run_validate(root)
-            self.assertEqual(trimmed.returncode, 0, trimmed.stdout + trimmed.stderr)
-            worklog.unlink()
-            deleted = run_validate(root)
-            self.assertEqual(deleted.returncode, 0, deleted.stdout + deleted.stderr)
-
-    def test_committing_a_rewrite_does_not_hide_it(self):
-        # S018 (F04): HEAD moves at every step completion, so a rewrite that got
-        # committed used to become invisible to every moltke mode.
-        with tempfile.TemporaryDirectory() as tmp:
-            root = workflow_repo(tmp)
-            git_baseline(root)
-            path = root / "adocs" / "decisions.md"
-            path.write_text(path.read_text(encoding="utf-8").replace("base decision",
-                            "edited decision"), encoding="utf-8")
-            self.assert_violation(root, "INV-8")  # precondition: seen uncommitted
-            git(root, "add", "-A")
-            git(root, "commit", "-qm", "hide the rewrite")
-            self.assert_violation(root, "INV-8")
-
-    def test_committed_appends_stay_legal(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root = workflow_repo(tmp)
-            git_baseline(root)
-            path = root / "adocs" / "decisions.md"
-            for entry in ("## DEC-002  2026-08-02  second\n", "## DEC-003  2026-08-03  third\n"):
-                path.write_text(path.read_text(encoding="utf-8") + "\n" + entry,
-                                encoding="utf-8")
-                git(root, "add", "-A")
-                git(root, "commit", "-qm", "append a decision")
-            result = run_validate(root)
-            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-
-    def test_a_repair_commit_clears_a_committed_rewrite(self):
-        # DEC-026: append-only is judged as "current content still starts with
-        # every version it has ever had", which restoring the text makes true again.
-        with tempfile.TemporaryDirectory() as tmp:
-            root = workflow_repo(tmp)
-            git_baseline(root)
-            path = root / "adocs" / "decisions.md"
-            original = path.read_text(encoding="utf-8")
-            path.write_text(original.replace("Rejected: none\n", ""), encoding="utf-8")
-            git(root, "add", "-A")
-            git(root, "commit", "-qm", "drop a line")
-            self.assert_violation(root, "INV-8")  # precondition: still caught
-            path.write_text(original, encoding="utf-8")
-            git(root, "add", "-A")
-            git(root, "commit", "-qm", "restore the removed line")
-            result = run_validate(root)
-            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-
-    def test_a_repair_that_appends_instead_of_restoring_does_not_clear_it(self):
-        # Non-vacuity: putting the text back at the end is not putting it back.
-        with tempfile.TemporaryDirectory() as tmp:
-            root = workflow_repo(tmp)
-            git_baseline(root)
-            path = root / "adocs" / "decisions.md"
-            original = path.read_text(encoding="utf-8")
-            path.write_text(original.replace("Rejected: none\n", ""), encoding="utf-8")
-            git(root, "add", "-A")
-            git(root, "commit", "-qm", "drop a line")
-            path.write_text(path.read_text(encoding="utf-8") + "Rejected: none\n",
+            done = root / "adocs" / "plan_done" / "S001_base.md"
+            done.write_text(done.read_text(encoding="utf-8") + "tampered\n",
                             encoding="utf-8")
-            git(root, "add", "-A")
-            git(root, "commit", "-qm", "append it at the end instead")
-            self.assert_violation(root, "INV-8")
-
-    def test_a_committed_rewrite_of_post_baseline_text_is_caught(self):
-        # S046: the gap DEC-027 measured and left open. The rewritten text was
-        # appended after the first commit, so a first-commit baseline never saw it.
-        with tempfile.TemporaryDirectory() as tmp:
-            root = workflow_repo(tmp)
-            git_baseline(root)
-            path = root / "adocs" / "decisions.md"
-            path.write_text(path.read_text(encoding="utf-8")
-                            + "\n## DEC-002  2026-08-07  appended later\n"
-                              "Tags: x\nContext: x\nDecision: x\nRejected: none\n"
-                              "Consequences: none\n", encoding="utf-8")
-            git(root, "add", "-A")
-            git(root, "commit", "-qm", "append DEC-002")
-            self.assertEqual(run_validate(root).returncode, 0,
-                             "precondition: a legitimate append is clean")
-            path.write_text(path.read_text(encoding="utf-8")
-                            .replace("appended later", "REWRITTEN"), encoding="utf-8")
-            git(root, "add", "-A")
-            git(root, "commit", "-qm", "rewrite the appended entry")
-            self.assert_violation(root, "INV-8")
-
-    def test_a_repair_of_post_baseline_text_clears_it(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root = workflow_repo(tmp)
-            git_baseline(root)
-            path = root / "adocs" / "decisions.md"
-            path.write_text(path.read_text(encoding="utf-8")
-                            + "\n## DEC-002  2026-08-07  appended later\nRejected: none\n",
-                            encoding="utf-8")
-            git(root, "add", "-A")
-            git(root, "commit", "-qm", "append DEC-002")
-            good = path.read_text(encoding="utf-8")
-            path.write_text(good.replace("appended later", "REWRITTEN"), encoding="utf-8")
-            git(root, "add", "-A")
-            git(root, "commit", "-qm", "rewrite it")
-            self.assert_violation(root, "INV-8")
-            path.write_text(good, encoding="utf-8")
-            git(root, "add", "-A")
-            git(root, "commit", "-qm", "put the entry back as it was")
             result = run_validate(root)
-            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-
-    def test_committed_deletion_of_decisions_is_caught(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root = workflow_repo(tmp)
-            git_baseline(root)
-            (root / "adocs" / "decisions.md").unlink()
-            git(root, "add", "-A")
-            git(root, "commit", "-qm", "drop the decision log")
-            self.assert_violation(root, "INV-8")
-
-    def test_deleting_append_only_file_fails(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root = workflow_repo(tmp)
-            git_baseline(root)
-            (root / "adocs" / "decisions.md").unlink()
-            self.assert_violation(root, "INV-8")
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn("INV-7", result.stdout)
 
 
 class TestDecisionIds(unittest.TestCase):
@@ -272,9 +158,6 @@ class TestWhichCommitTheViolationNames(unittest.TestCase):
             git(root, "commit", "-qm", "unrelated work in between")
             done = root / "adocs" / "plan_done" / "S001_base.md"
             done.write_text(done.read_text(encoding="utf-8") + "tampered\n", encoding="utf-8")
-            decisions = root / "adocs" / "decisions.md"
-            decisions.write_text(decisions.read_text(encoding="utf-8")
-                                 .replace("base decision", "rewritten"), encoding="utf-8")
             git(root, "add", "-A")
             git(root, "commit", "-qm", "tamper")
             tampering = git(root, "rev-parse", "--short=8", "HEAD").stdout.strip()
@@ -282,7 +165,6 @@ class TestWhichCommitTheViolationNames(unittest.TestCase):
             result = run_validate(root)
             self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
             self.assertIn("INV-7", result.stdout)
-            self.assertIn("INV-8", result.stdout)
             self.assertIn(baseline, result.stdout)
             self.assertNotIn(tampering, result.stdout,
                              "the tampering commit is not something moltke identifies")

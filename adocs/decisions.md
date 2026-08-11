@@ -358,3 +358,29 @@ Consequences: The seven 2026-08-09_adversarial findings remain `planned`
               No further audit is scheduled. If work resumes, the loop resumes
               with it — this decision covers the project as it stands at 0.8.0,
               not everything that might be built on it later.
+
+## DEC-042  2026-08-09  Memory is current state; git is the archive
+Tags:         context, documents, invariants, philosophy
+Context:      The token analysis measured the always-read set at ~180 KB and
+              growing 1.4 KB per completed step without bound, with 84% of
+              specs.md being dated history notes and decisions.md unshrinkable
+              because INV-8 enforced append-only. Max: immutability and
+              enforcement are not requirements; context budget is.
+Decision:     The always-read documents hold current state only and are bounded
+              by construction. History lives in git and in plan_done/, which are
+              never read into context. Concretely: INV-8 is retired (number never
+              reused); decisions.md is compacted freely with stable ids; specs.md
+              carries current wording only, the narrative living in step stamps
+              and commit messages; worklog.md is trimmable; --step done prunes
+              plan.md to the last 5 completed entries. Max's decision; the agent
+              supplied the measurements.
+Rejected:     Keeping INV-8 and splitting history into side files: relocates the
+              bytes but keeps the growth and the ceremony.
+              Rewording the reading order alone: fixes the instruction, leaves
+              every accidental full read as expensive as before.
+              Rotating files per version: bounded but sprawls, and someone has to
+              remember to rotate.
+Consequences: The repository can no longer prove its documents were not
+              rewritten; git history still shows every version. Tests pinning
+              append-only were deleted deliberately (S105 recap names them).
+              Audit reports that cite INV-8 describe the rule as it stood then.

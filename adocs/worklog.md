@@ -2280,3 +2280,28 @@ Suite 444 OK, --validate green.
 ## 2026-08-11T12:00+02:00 prompt
 
 > Go and continue to work until the job is done or you need my input, my input should not be blocking if possible, if you can continue to work on something else while i am not at the computer please continue
+
+## 2026-08-09T10:20+02:00 recap
+
+S105 complete. The tool stopped enforcing document history (DEC-042).
+
+INV-8 retired: rewriting or trimming decisions.md and worklog.md is an ordinary
+edit; --validate never mentions INV-8 again; the number is never reused. Red
+observed: two INV-8 violations on a rewritten decisions.md before the retirement.
+INV-7 keeps firing on plan_done/ tampering — the anchor that distinguishes
+retirement from breakage.
+
+--step done prunes plan.md to the last 5 done entries, open work never pruned,
+roadmap counting from plan_done/. It fired live on its own completion: 98 entries
+pruned from this repository's plan.md, 120 lines down to 22.
+
+Deleted deliberately with the invariant, named in testing.md: TestAppendOnly (11),
+TestInv8HighWaterMarkRemedyResolves (2), the monorepo INV-8 tampering test (1);
+the baseline-naming test re-targeted to its INV-7 half.
+
+Files: bin/moltke.py (INV-8 block removed, prune_plan, step_done, roadmap count),
+tests/test_s004_invariants.py, tests/test_s003_invariants.py,
+tests/test_s007_step.py (TestPlanPruning), adocs/decisions.md (DEC-042),
+adocs/testing.md (6 rows), README.md (444 to 438), MANUAL.md (two passages),
+adocs/plan_done/S105_tool_stops_enforcing_history.md, adocs/status.md.
+Suite 438 OK, --validate green.
