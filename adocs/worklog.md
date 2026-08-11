@@ -116,3 +116,10 @@ both pinned. Red observed. Suite 451 OK.
 Files: bin/moltke.py (unresolvable_pauses stale kind, INV-1 message, unpause
 message routing), tests/test_s003_invariants.py (2 tests), testing.md (3 rows),
 README.md (449 to 451), plan_done/S114.
+
+## 2026-08-11T recap (S115)
+
+S115 complete. Unpause messages route by kind; self-pause says "paused itself".
+Red observed. Suite 452 OK.
+Files: bin/moltke.py (one branch), tests/test_s003_invariants.py (1 test),
+testing.md (2 rows), README.md (451 to 452), plan_done/S115.

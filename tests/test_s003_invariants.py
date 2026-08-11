@@ -628,6 +628,20 @@ class TestAPauseMustResolve(unittest.TestCase):
             result = run_validate(root)
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
+    def test_clearing_a_self_pause_says_it_paused_itself(self):
+        # S115 (2026-08-11_adversarial-F04): the success message described the
+        # pauser as having "no step file in any plan directory" — about a file
+        # the command had just edited. Each kind now gets its own sentence, and
+        # a self-pause is named as what it is rather than as a generic ring.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            step_file(root / "adocs" / "plan_current", "S003", "active",
+                      paused_by="S003  # 2026-08-11")
+            cleared = run_moltke(root, "--step", "unpause", "S003")
+            self.assertEqual(cleared.returncode, 0, cleared.stdout + cleared.stderr)
+            self.assertIn("paused itself", cleared.stdout)
+            self.assertNotIn("no step file", cleared.stdout)
+
     def test_a_pause_naming_a_completed_step_is_reported_and_clearable(self):
         # S114 (2026-08-11_adversarial-F03): the pauser resolved days ago, the
         # parent shows Blocked: forever, and unpause + block prescribe a

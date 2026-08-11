@@ -2102,7 +2102,8 @@ def step_unpause(root, config, step_id):
     set_field(path, "paused_by", "")
     reason = {"phantom": f"{pauser} had no step file in any plan directory",
               "stale": f"{pauser} is already complete, so the pause had resolved",
-              "cycle": f"the pause never resolved: {pauser} sits in a ring of pauses"}[kind]
+              "cycle": (f"it had paused itself" if pauser == step_id else
+                        f"the pause never resolved: {pauser} sits in a ring of pauses")}[kind]
     print(f"moltke: {step_id} unpaused; {reason}.")
     return EXIT_OK
 
