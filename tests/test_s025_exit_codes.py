@@ -126,12 +126,6 @@ class TestCleanPathsAreQuietAndZero(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             self.assertFalse(result.stderr.strip())
 
-    def test_log_prompt_never_fails(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root = workflow_repo(tmp)
-            result = run_moltke(root, "--log-prompt", stdin=json.dumps({"prompt": "hi"}))
-            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-
     def test_stderr_can_carry_a_warning_on_a_zero_exit(self):
         # Documented, because it breaks the "stderr means failure" assumption a
         # script would otherwise make: no git worktree, so --audit new warns that

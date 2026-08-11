@@ -49,14 +49,13 @@ reused; a retired number stays listed so old audit reports keep meaning.
   unblock. The `Stop` cap on consecutive blocks lives wherever moltke can write
   its state beside the git directory; where it cannot, the gap is accepted
   (DEC-031, DEC-039) and the message names the missing cap.
-- INV-13 `plan.md`, `decisions.md`, `worklog.md`, and every audit report have an
-  even number of code-fence markers, because an unclosed fence hides content
-  from every scanner.
+- INV-13 `plan.md`, `decisions.md`, and every audit report have an even number
+  of code-fence markers, because an unclosed fence hides content from every
+  scanner.
 - INV-14 no audit report states a finding under its own name that
   `strip_guidance` then removes. Comments come out before the comparison.
-- INV-15 `worklog.md` holds nothing shaped like a credential: prefixed key
-  shapes and PEM private-key headers. Detected, never redacted, never printed
-  beyond the first 8 characters.
+- INV-15 retired 2026-08-11 (S120, DEC-046) with the worklog: nothing writes
+  prompts verbatim into a tracked file any more.
 - INV-16 `specs.md` never states a prime directive that `strip_guidance` then
   removes; the section is compared against its stripped form.
 
@@ -76,7 +75,7 @@ entry, installed per machine. Updates ship only on a `version` bump in
 .claude-plugin/plugin.json       manifest: name, explicit version
 .claude-plugin/marketplace.json  single-plugin marketplace entry
 bin/moltke.py                    every check and command, one entry point, stdlib only
-hooks/hooks.json                 five hook events, all shelling out to bin/moltke.py
+hooks/hooks.json                 four hook events, all shelling out to bin/moltke.py
 skills/init|step|audit/SKILL.md  the three skills, /moltke:<name>
 agents/adversarial_reviewer.md   auditor subagent
 templates/                       what --scaffold copies into a target repository
@@ -104,10 +103,9 @@ One entry point, `bin/moltke.py`, one mode per invocation. The golden test
 | `--audit list` | every finding, status, and reference; exit 1 while an open finding has no home or a fence hides one |
 | `--audit check` | reconcile the tree against the baseline: report and new `tests/` files expected, anything else listed, exit 1 |
 | `--session-start` | SessionStart hook: emit stack, derived next step, staleness, planning nudge as JSON additionalContext |
-| `--log-prompt` | UserPromptSubmit hook: append the prompt verbatim to the worklog; never blocks |
 | `--pre-write` | PreToolUse hook (Write|Edit): refuse writes into `plan_done/`, step files outside the plan directories, reviewer writes outside `adocs/audit/` + new `tests/` files |
 | `--post-write` | PostToolUse hook: cheap invariant scan, non-blocking by contract |
-| `--stop` | Stop hook: refuse to end a turn on violations, stale `status.md`, unstamped arrivals, or unrecapped source changes; capped against deadlock |
+| `--stop` | Stop hook: refuse to end a turn on violations, stale `status.md`, or unstamped arrivals; capped against deadlock, counted per problem set |
 
 Exit codes: 0 clean; 1 findings (stdout) or refusals (stderr); 2 blocked
 actions (stderr). `--post-write` returns 2 but is non-blocking. Capture both
@@ -119,8 +117,8 @@ Marker keys (`.moltke.json`): `schema`, `enabled`, `plan_active_max`,
 `test_command` runs from the root with a shell, 600 s timeout, refusing
 completion on non-zero exit.
 
-Hook events: `SessionStart`, `UserPromptSubmit`, `PreToolUse`, `PostToolUse`,
-`Stop`. Skills: `init`, `step`, `audit`.
+Hook events: `SessionStart`, `PreToolUse`, `PostToolUse`, `Stop`. The
+UserPromptSubmit hook left with the worklog (S120, DEC-046). Skills: `init`, `step`, `audit`.
 
 ## Non-goals
 

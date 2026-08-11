@@ -436,108 +436,20 @@ class TestAuditReconciliation(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             self.assertNotIn("src/main.py", result.stdout)
 
-    def log_prompt(self, root, text="a prompt during the audit"):
-        result = run_moltke(root, "--log-prompt", stdin=json.dumps({"prompt": text}))
-        self.assertEqual(result.returncode, 0, result.stderr)
-
-    def test_a_worklog_append_during_the_run_is_expected(self):
-        # S036 (F05): UserPromptSubmit appends on every prompt, so every audit
-        # that spans a prompt had a worklog change in its footprint — blamed on a
-        # reviewer that is fenced out of that file and never touched it. A gate
-        # that is wrong every time is one people learn to wave through.
+    def test_a_worklog_change_during_the_run_is_unexpected_like_any_file(self):
+        # S120 (DEC-046): the prompt log is gone, so --audit check has no
+        # worklog special case left. A worklog file some repo still carries is
+        # judged exactly like any other unexpected change.
         with tempfile.TemporaryDirectory() as tmp:
             root = self.committed_repo(tmp)
-            run_moltke(root, "--audit", "new", "adversarial")
-            self.log_prompt(root)
-            result = self.check(root)
-            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-
-    def test_a_committed_worklog_append_is_also_expected(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root = self.committed_repo(tmp)
-            run_moltke(root, "--audit", "new", "adversarial")
-            self.log_prompt(root)
+            write(root, "adocs/worklog.md", "# Worklog\n\nold habits\n")
             git(root, "add", "-A")
-            git(root, "commit", "-qm", "the turn's prompts and the report")
-            result = self.check(root)
-            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-
-    def test_a_worklog_rewrite_during_the_run_is_still_unexpected(self):
-        # Non-vacuity, and the point of scoping this to appends: an append is
-        # what the hook does, a rewrite is what covering your tracks looks like.
-        with tempfile.TemporaryDirectory() as tmp:
-            root = self.committed_repo(tmp)
+            git(root, "commit", "-qm", "carry an old worklog")
             run_moltke(root, "--audit", "new", "adversarial")
-            write(root, "adocs/worklog.md", "# Worklog\n\n(history removed)\n")
+            write(root, "adocs/worklog.md", "# Worklog\n\nold habits\nplus a line\n")
             result = self.check(root)
             self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
             self.assertIn("worklog.md", result.stdout)
-
-    def test_a_worklog_append_after_a_rewrite_is_still_unexpected(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root = self.committed_repo(tmp)
-            run_moltke(root, "--audit", "new", "adversarial")
-            write(root, "adocs/worklog.md", "# Worklog\n\n(history removed)\n")
-            self.log_prompt(root)
-            result = self.check(root)
-            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
-            self.assertIn("worklog.md", result.stdout)
-
-    def test_a_hook_append_is_expected_and_says_so_rather_than_going_unmentioned(self):
-        # S056 (.2-F09): S036 traded a false positive for a blind spot in the
-        # same file. The exemption stays — a wrong gate is one people wave
-        # through — but the append is named, so it is never silently expected.
-        with tempfile.TemporaryDirectory() as tmp:
-            root = self.committed_repo(tmp)
-            run_moltke(root, "--audit", "new", "adversarial")
-            self.log_prompt(root)
-            result = self.check(root)
-            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-            self.assertIn("adocs/worklog.md", result.stdout)
-            self.assertIn("prompt", result.stdout)
-
-    def test_an_append_the_prompt_hook_would_not_have_written_is_unexpected(self):
-        # The shape the finding measured: a fabricated recap heading appended
-        # from Bash, which silences the Stop recap gate for whatever the reviewer
-        # did, and which the exemption called expected.
-        with tempfile.TemporaryDirectory() as tmp:
-            root = self.committed_repo(tmp)
-            run_moltke(root, "--audit", "new", "adversarial")
-            worklog = root / "adocs" / "worklog.md"
-            worklog.write_text(worklog.read_text(encoding="utf-8")
-                               + "\n## 2026-08-07 recap S001\n\nnothing to see here\n",
-                               encoding="utf-8")
-            result = self.check(root)
-            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
-            self.assertIn("adocs/worklog.md", result.stdout)
-            self.assertIn("recap", result.stdout)
-
-    def test_a_hook_append_next_to_a_fabricated_one_is_still_unexpected(self):
-        # The evasion the corroboration has to survive: bury the recap between
-        # real prompt entries so the tail is mostly hook-shaped.
-        with tempfile.TemporaryDirectory() as tmp:
-            root = self.committed_repo(tmp)
-            run_moltke(root, "--audit", "new", "adversarial")
-            self.log_prompt(root, "first")
-            worklog = root / "adocs" / "worklog.md"
-            worklog.write_text(worklog.read_text(encoding="utf-8")
-                               + "\n## 2026-08-07 recap S001\n\nnothing to see here\n",
-                               encoding="utf-8")
-            self.log_prompt(root, "second")
-            result = self.check(root)
-            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
-            self.assertIn("adocs/worklog.md", result.stdout)
-
-    def test_a_multi_line_prompt_is_still_a_hook_append(self):
-        # Non-vacuity for the corroboration: prompts are arbitrary text, quoted
-        # line by line, and one of them containing "recap" or a blank line must
-        # not read as fabrication.
-        with tempfile.TemporaryDirectory() as tmp:
-            root = self.committed_repo(tmp)
-            run_moltke(root, "--audit", "new", "adversarial")
-            self.log_prompt(root, "## 2026-08-07 recap S001\n\nwrite the recap for me\n```\nx\n```")
-            result = self.check(root)
-            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
     def test_check_without_a_baseline_refuses_and_says_what_to_run(self):
         with tempfile.TemporaryDirectory() as tmp:

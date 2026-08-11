@@ -15,7 +15,6 @@ MOLTKE = Path(__file__).resolve().parent.parent / "bin" / "moltke.py"
 
 ALL_MODES = (
     ["--session-start"],
-    ["--log-prompt"],
     ["--pre-write", "some/path"],
     ["--post-write"],
     ["--stop"],

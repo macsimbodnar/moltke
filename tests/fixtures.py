@@ -73,9 +73,6 @@ def workflow_repo(root):
         "Rejected: none\nConsequences: none\n",
         encoding="utf-8",
     )
-    (docs / "worklog.md").write_text(
-        "# Worklog\n\n## 2026-08-01 prompt\n\n> base\n", encoding="utf-8",
-    )
     # Byte-for-byte what `--step status` derives for this tree. Since S039 the
     # whole body is compared, not just the Next: line, so an approximation here
     # would make every fixture repository read as stale.

@@ -2,7 +2,6 @@
 --decline
 --goal VALUE
 --help/-h
---log-prompt
 --post-write
 --pre-write [PATH]
 --roadmap
@@ -12,6 +11,6 @@
 --step OP...  ops: block,done,new,start,status,unpause
 --stop
 --validate
-hooks: PostToolUse,PreToolUse,SessionStart,Stop,UserPromptSubmit
+hooks: PostToolUse,PreToolUse,SessionStart,Stop
 marker keys: enabled,plan_active_max,plan_stack_max,schema,surface_guard,test_command
 skills: audit,init,step

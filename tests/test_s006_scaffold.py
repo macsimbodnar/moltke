@@ -26,7 +26,6 @@ SCAFFOLDED = (
     "adocs/plan.md",
     "adocs/decisions.md",
     "adocs/testing.md",
-    "adocs/worklog.md",
     "adocs/plan_todo",
     "adocs/plan_current",
     "adocs/plan_done",

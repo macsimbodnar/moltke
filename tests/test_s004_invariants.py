@@ -67,8 +67,8 @@ class TestHistoryIsUnenforced(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = workflow_repo(tmp)
             git_baseline(root)
-            for rel in ("adocs/decisions.md", "adocs/worklog.md"):
-                (root / rel).write_text("rewritten wholesale\n", encoding="utf-8")
+            (root / "adocs" / "decisions.md").write_text("rewritten wholesale\n",
+                                                          encoding="utf-8")
             result = run_validate(root)
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             self.assertNotIn("INV-8", result.stdout + result.stderr)

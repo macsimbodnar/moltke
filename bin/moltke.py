@@ -198,7 +198,7 @@ def strip_guidance(text):
     return "".join(kept)
 
 
-STRIPPED_FILES = ("plan.md", "decisions.md", "worklog.md", "specs.md", "testing.md")
+STRIPPED_FILES = ("plan.md", "decisions.md", "specs.md", "testing.md")
 
 
 def stripped_files(root):
@@ -713,64 +713,6 @@ def inv_13_balanced_fences(root, config):
     return violations
 
 
-# (label, pattern, a known-bad example the pattern must catch). The examples
-# travel with the shapes on purpose (DEC-032): the suite asserts each pattern
-# against its own example before scanning anything, so a pattern that stopped
-# matching cannot leave the check passing by failing to look. They are synthetic.
-SECRET_SHAPES = [
-    ("AWS access key id",
-     re.compile(r"\b(?:AKIA|ASIA)[0-9A-Z]{16}\b"),
-     "AKIA" + "IOSFODNN7EXAMPLE"),
-    ("GitHub token",
-     re.compile(r"\bgh[pousr]_[A-Za-z0-9]{36,}\b"),
-     "ghp_" + "0123456789abcdefghijklmnopqrstuvwxyzAB"),
-    ("GitHub fine-grained PAT",
-     re.compile(r"\bgithub_pat_[A-Za-z0-9_]{22,}\b"),
-     "github_pat_" + "11ABCDEFG0abcdefghijklmn"),
-    ("Anthropic API key",
-     re.compile(r"\bsk-ant-[A-Za-z0-9_-]{20,}"),
-     "sk-ant-" + "api03-Aa0Bb1Cc2Dd3Ee4Ff5Gg6"),
-    ("OpenAI API key",
-     re.compile(r"\bsk-(?:proj-)?[A-Za-z0-9]{32,}\b"),
-     "sk-" + "Aa0Bb1Cc2Dd3Ee4Ff5Gg6Hh7Ii8Jj9Kk0Ll1"),
-    ("Slack token",
-     re.compile(r"\bxox[abprs]-[A-Za-z0-9-]{10,}"),
-     "xoxb-" + "1234567890-ABCdefGHIjkl"),
-    ("Google API key",
-     re.compile(r"\bAIza[0-9A-Za-z_-]{35}\b"),
-     "AIza" + "SyA0123456789abcdefghijklmnopqrstuv"),
-    ("Stripe live key",
-     re.compile(r"\b[srp]k_live_[A-Za-z0-9]{16,}\b"),
-     "sk_live_" + "0123456789abcdefghij"),
-    ("npm token",
-     re.compile(r"\bnpm_[A-Za-z0-9]{36}\b"),
-     "npm_" + "0123456789abcdefghijklmnopqrstuvwxyz"),
-    ("PEM private key header",
-     re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----"),
-     "-----BEGIN RSA PRIVATE KEY-----"),
-    ("JSON web token",
-     re.compile(r"\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}"),
-     "eyJhbGciOiJIUzI1NiJ9." + "eyJzdWIiOiIxMjM0NTY3ODkwIn0." + "dBjftJeZ4CVPmB92K27u"),
-]
-
-
-def scan_secrets(text):
-    """[(label, line number, first 8 characters of the match)] for every hit.
-
-    Prefixed key shapes and PEM headers only. No entropy or bare-hex rule: a
-    worklog carries a commit sha in every recap and md5 digests wherever a file
-    was verified, and those rules would fire on every work turn (DEC-024). The
-    trade is deliberate — catch the shapes worth catching, stay quiet otherwise.
-    """
-    hits = []
-    for number, line in enumerate(text.splitlines(), start=1):
-        for label, pattern, _example in SECRET_SHAPES:
-            match = pattern.search(line)
-            if match:
-                hits.append((label, number, match.group(0)[:8]))
-    return hits
-
-
 PRIME_DIRECTIVE_SECTION = re.compile(r"^##\s+Prime directive\s*$(.*?)(?=^##\s|\Z)", re.M | re.S)
 
 
@@ -809,29 +751,9 @@ def inv_16_prime_directive_readable(root, config):
             f"the section"]
 
 
-def inv_15_worklog_secrets(root, config):
-    """DEC-032: the check travels with the plugin instead of protecting moltke
-    alone. Every marked repository logs prompts verbatim into a tracked file, so
-    the exposure is a property of every repository moltke is installed into, and
-    the tool writing the secret to disk is the one that should say so.
-
-    Detect, never redact (DEC-024): redaction at write time would contradict the
-    verbatim guarantee, and a false positive would silently destroy the record of
-    what was said. Never prints more than the first 8 characters of a match.
-    """
-    worklog = root / DOCS / "worklog.md"
-    if not worklog.is_file():
-        return []
-    violations = []
-    for label, number, snippet in scan_secrets(
-            read_file(worklog)):
-        violations.append(
-            f"INV-15: {DOCS}/worklog.md line {number} holds something shaped like a "
-            f"{label} (starts {snippet!r}). Prompts are recorded verbatim, so treat it as a "
-            f"real leak until proven otherwise: rotate the credential first, because it is "
-            f"already committed, then edit the worklog — it is append-only by convention and "
-            f"not enforced, so cleaning it is an ordinary commit")
-    return violations
+# INV-15 (worklog secret shapes) was retired 2026-08-11 (S120, DEC-046) with
+# the worklog itself: nothing writes prompts verbatim into a tracked file any
+# more, so the exposure it detected no longer exists. Number never reused.
 
 
 def inv_14_findings_not_hidden(root, config):
@@ -864,7 +786,6 @@ INVARIANT_CHECKS = [
     ("INV-10", inv_10_audit_findings),
     ("INV-13", inv_13_balanced_fences),
     ("INV-14", inv_14_findings_not_hidden),
-    ("INV-15", inv_15_worklog_secrets),
     ("INV-16", inv_16_prime_directive_readable),
 ]
 
@@ -1096,10 +1017,10 @@ def session_context_lines(root, config):
         lines.append(f"Planning phase pending: {'; '.join(pending)}. The init skill drives it: "
                      f"the prime directive and the invariants first, then one --step new per "
                      f"planned step. Nothing blocks on this.")
-    lost = take_log_failure(root)
-    if lost:
-        lines.append(lost)
     return lines
+
+
+def git_dir(root):    return lines
 
 
 def git_dir(root):
@@ -1115,97 +1036,12 @@ def git_dir(root):
     return Path(lines[0]) if lines else None
 
 
-def _log_failure_path(root):
-    resolved = git_dir(root)
-    return resolved / "moltke_log_failure.json" if resolved else None
+# The prompt log, its failure breadcrumbs, and mode_log_prompt were removed
+# 2026-08-11 (S120, DEC-046). Forensic history is git; the UserPromptSubmit
+# hook is gone from hooks.json in the same commit.
 
 
-def record_log_failure(root, stamp, exc):
-    """S014 (F14): a swallowed append needs a channel a zero exit still reaches.
-    Nothing is written outside .git/, because an untracked file at the repo root
-    reads as a source change to the Stop hook."""
-    path = _log_failure_path(root)
-    if path is None:
-        return
-    since, count = stamp, 0
-    try:
-        previous = json.loads(read_file(path))
-        if isinstance(previous, dict):
-            since = previous.get("since") or since
-            count = previous.get("count") if isinstance(previous.get("count"), int) else 0
-    except (OSError, ValueError):
-        pass
-    try:
-        path.write_text(
-            json.dumps({"since": since, "count": count + 1, "error": str(exc)}) + "\n",
-            encoding="utf-8")
-    except OSError:
-        pass
-
-
-def _peek_log_failure(root):
-    """The breadcrumb without consuming it, or None. `take_log_failure` reports
-    once and deletes; the Stop turn key has to be able to look every turn."""
-    path = _log_failure_path(root)
-    if path is None or not path.is_file():
-        return None
-    try:
-        state = json.loads(read_file(path))
-    except (OSError, ValueError):
-        return None
-    return state if isinstance(state, dict) else None
-
-
-def take_log_failure(root):
-    """Report a swallowed prompt append once, then drop the breadcrumb: a
-    failure that persists rewrites it on the next prompt, one that is fixed
-    goes quiet without anyone clearing it by hand."""
-    path = _log_failure_path(root)
-    if path is None or not path.is_file():
-        return None
-    try:
-        state = json.loads(read_file(path))
-    except (OSError, ValueError):
-        state = {}
-    if not isinstance(state, dict):
-        state = {}
-    try:
-        path.unlink()
-    except OSError:
-        pass
-    count = state.get("count")
-    what = f"{count} prompt(s)" if isinstance(count, int) and count > 0 else "at least one prompt"
-    return (f"moltke: {what} not appended to {DOCS}/worklog.md since "
-            f"{state.get('since') or 'an earlier turn'} "
-            f"({state.get('error') or 'error unrecorded'}). UserPromptSubmit cannot report this "
-            f"itself, because exit 2 there erases the prompt. The forensic log stays incomplete "
-            f"until that path is writable; the lost prompts are not recoverable.")
-
-
-def mode_log_prompt(root, config):
-    # UserPromptSubmit exit 2 erases the user's prompt (live docs 2026-08-01):
-    # logging must fail open, always exit 0.
-    # str() rather than payload_str: a prompt of the wrong type is still
-    # something the user typed, and logging must never lose it (S087).
-    raw = hook_input().get("prompt", "")
-    prompt = raw if isinstance(raw, str) else str(raw)
-    if not prompt:
-        return EXIT_OK
-    stamp = datetime.datetime.now().astimezone().isoformat(timespec="minutes")
-    quoted = "\n".join(f"> {line}" for line in prompt.splitlines())
-    try:
-        # Append mode does not create parents, so a marked repo whose adocs/ is
-        # missing used to discard every prompt (F14).
-        (root / DOCS).mkdir(parents=True, exist_ok=True)
-        with open(root / DOCS / "worklog.md", "a", encoding="utf-8") as worklog:
-            worklog.write(f"\n## {stamp} prompt\n\n{quoted}\n")
-    except OSError as exc:
-        print(f"moltke --log-prompt: {exc}", file=sys.stderr)
-        record_log_failure(root, stamp, exc)
-    return EXIT_OK
-
-
-REVIEWER_AGENT = "adversarial_reviewer"
+REVIEWER_AGENT = REVIEWER_AGENT = "adversarial_reviewer"
 
 
 def reviewer_may_write(root, rel):
@@ -1312,7 +1148,6 @@ def mode_pre_write(root, config, path_arg):
     return EXIT_OK
 
 
-# INV-13 is absent on purpose: it reads the worklog, which grows without bound.
 # INV-14 reads the audit reports INV-10 already reads, so a reviewer learns a
 # fence swallowed a finding when the report is saved rather than at the next
 # --validate — the gap 2026-08-07_adversarial.2-F04 named (S049).
@@ -1358,49 +1193,6 @@ def mode_post_write(root, config, marker_violations):
 STOP_CAP = 3
 
 
-def stop_turn_key(root, payload):
-    """What counts as "the same turn" for the deadlock waiver.
-
-    S047 (.2-F01): this keyed on `prompt_id` alone, a field no observation in
-    this repository establishes the Stop payload carries. When it was absent the
-    key was the empty string for every turn, so the counter was global, it lived
-    on disk, and from the fourth blocked turn onward every Stop check was off and
-    stayed off across sessions — a deadlock-breaker turned into an off switch.
-
-    The payload fields are used when present, and the worklog supplies the
-    fallback: UserPromptSubmit appends exactly one prompt heading per turn, so
-    counting them advances once per turn without depending on the payload at all.
-    """
-    parts = [str(payload.get("prompt_id") or ""), str(payload.get("session_id") or "")]
-    worklog = root / DOCS / "worklog.md"
-    prompts = 0
-    try:
-        text = read_stripped(worklog) if worklog.is_file() else ""
-    except OSError:
-        # An unreadable worklog leaves the count where it was, which is exactly
-        # the frozen clock S061 was about — so the breadcrumb below is what has
-        # to keep moving. Raising instead would escape past the counter and
-        # wedge the turn (S067, .2-F01).
-        text = ""
-    if text:
-        for heading in WORKLOG_HEADING.finditer(text):
-            line = heading.group(0)
-            if not RECAP_HEADING.search(line) and PROMPT_HEADING.search(line):
-                prompts += 1
-    parts.append(str(prompts))
-    # S061 (2026-08-08_adversarial-F02): the heading count advances once per turn
-    # only while the worklog is being written. --log-prompt swallows an OSError
-    # by contract, because blocking there erases the prompt, so a worklog that
-    # cannot be appended to freezes the clock — and a frozen clock makes every
-    # turn look like a retry, which is the .2-F01 off switch coming back. The
-    # breadcrumb S014 already writes for exactly that failure advances instead,
-    # so the key keeps moving on the one path where the worklog cannot.
-    failure = _peek_log_failure(root)
-    if failure:
-        parts.append(f"{failure.get('since')}#{failure.get('count')}")
-    return "|".join(parts)
-
-
 def _stop_state_path(root):
     resolved = git_dir(root)
     return resolved / "moltke_stop_state.json" if resolved else None
@@ -1426,38 +1218,9 @@ def _git_lines(root, *args):
     return result.stdout.splitlines() if result and result.returncode == 0 else None
 
 
-WORKLOG_HEADING = re.compile(r"^##\s.*$", re.M)
-RECAP_HEADING = re.compile(r"\brecap\b", re.I)
-PROMPT_HEADING = re.compile(r"\bprompt\s*$", re.I)
-
-
-def recap_pending(root):
-    """S015 (F01): a recap is a heading after the last logged prompt, not growth.
-    Growth cannot work as the signal — UserPromptSubmit appends the prompt before
-    the turn begins, so the worklog has always grown by the time Stop runs.
-
-    Recap wins over prompt when a heading reads as both: a recap whose title is
-    about prompts ("recap - prompt logging never fails silently") is a recap.
-    """
-    worklog = root / DOCS / "worklog.md"
-    if not worklog.is_file():
-        return True
-    text = read_stripped(worklog)
-    recapped = False
-    for heading in WORKLOG_HEADING.finditer(text):
-        line = heading.group(0)
-        if RECAP_HEADING.search(line):
-            recapped = True
-        elif PROMPT_HEADING.search(line):
-            recapped = False
-    return not recapped
-
-
-# Directories, with their separators, not a shared stem (S037). ".claude" as a
-# bare prefix also matched .claude-plugin/plugin.json — the manifest whose
-# version decides what every installed copy executes — and any future .claude*
-# file at the repository root.
-RECAP_EXEMPT = (f"{DOCS}/", ".claude/")
+# The recap gate, its worklog heading grammar, and RECAP_EXEMPT were removed
+# with the worklog (S120, DEC-046): work is recapped in the console and in
+# commit messages, and nothing scans a log for headings any more.
 
 
 _GIT_PREFIX_CACHE = {}
@@ -1547,21 +1310,7 @@ def porcelain_problems(root, porcelain):
     problems = []
     if porcelain is None:
         return problems
-    # Both sides of a rename (S050): a file promoted out of adocs/ adds a
-    # source file and a file moved into adocs/ removes one, and judging the
-    # line by its old path alone made the first read as exempt.
-    changed_source = [line for line in porcelain
-                      if any(path is not None and not path.startswith(RECAP_EXEMPT)
-                             for path in (from_git_path(root, entry)
-                                          for entry in porcelain_paths(line)))]
-    # No commit yet means no history a recap would sit alongside, and the
-    # scaffold's own files are not work: abstain, as INV-7 does.
     committed = _git_lines(root, "rev-parse", "HEAD") is not None
-    if changed_source and committed and recap_pending(root):
-        problems.append(f"source changed but {DOCS}/worklog.md has no recap heading after "
-                        f"the last logged prompt; append a recap (step id, what changed, "
-                        f"files, tests, commit) before ending the turn, or commit the "
-                        f"change if the turn that made it was already recapped.")
     for line in porcelain if committed else []:
         # Before the first commit every file is an arrival, including the
         # scaffold's own, which is why the recap gate abstains there too.
@@ -1595,7 +1344,6 @@ def porcelain_problems(root, porcelain):
 
 
 def mode_stop(root, config, marker_violations):
-    payload = hook_input()  # stdin is read once; every use below shares it
     problems = list(marker_violations) + run_checks(root, config)
 
     # Everything below reads paths run_checks does not, and an OSError from any
@@ -1638,22 +1386,23 @@ def mode_stop(root, config, marker_violations):
         # cap rather than a silent turn.
         for problem in problems:
             print(f"moltke: {problem}", file=sys.stderr)
-        turn = stop_turn_key(root, payload)
+        # Keyed on the problems alone since S120 (DEC-046): the worklog that
+        # supplied the per-turn clock is gone, and consecutive stops over the
+        # identical problem set are retries whichever turn they land in —
+        # progress changes the set and resets the count, which is the property
+        # the old key actually delivered.
         fingerprint = hashlib.sha256("\n".join(sorted(problems)).encode()).hexdigest()[:16]
         count = 1
         if state_path:
             try:
                 state = json.loads(read_file(state_path))
-                # Same turn and the same problems: this is a retry. A new turn,
-                # or a different set of problems, starts over — progress must not
-                # count against you, and a stale count must not carry forward.
-                if state.get("turn") == turn and state.get("fingerprint") == fingerprint:
+                if state.get("fingerprint") == fingerprint:
                     count = state.get("count", 0) + 1
             except (OSError, json.JSONDecodeError):
                 pass
             try:
                 state_path.write_text(
-                    json.dumps({"turn": turn, "fingerprint": fingerprint, "count": count}),
+                    json.dumps({"fingerprint": fingerprint, "count": count}),
                     encoding="utf-8")
             except OSError as exc:
                 # DEC-039 scopes the cap to wherever the state can be written,
@@ -1695,7 +1444,6 @@ SCAFFOLD_MAP = (
     (f"{DOCS}/status.md", f"{DOCS}/status.md"),
     (f"{DOCS}/decisions.md", f"{DOCS}/decisions.md"),
     (f"{DOCS}/testing.md", f"{DOCS}/testing.md"),
-    (f"{DOCS}/worklog.md", f"{DOCS}/worklog.md"),
 )
 SCAFFOLD_DIRS = (f"{DOCS}/plan_todo", f"{DOCS}/plan_current", f"{DOCS}/plan_done", f"{DOCS}/audit")
 
@@ -2443,7 +2191,7 @@ def audit_new(root, config, audit_type):
         baseline_path.write_text(json.dumps(
             {"report": str(report.relative_to(root)), "tree": baseline,
              "head": head[0] if head else None,
-             "worklog": worklog_prefix(root)}), encoding="utf-8")
+             }), encoding="utf-8")
     except OSError as exc:
         print(f"moltke: could not record the audit baseline ({exc}); --audit check will "
               f"refuse until --audit new runs again.", file=sys.stderr)
@@ -2459,62 +2207,9 @@ def _is_new_file(status):
     return _arrives_here(status)
 
 
-def worklog_prefix(root):
-    """[length, sha256] of the worklog as it stands, or None if there is none.
-
-    Enough to prove later that the file only grew, without keeping a copy of it:
-    hash the first `length` bytes again and compare (S036).
-    """
-    try:
-        content = (root / DOCS / "worklog.md").read_bytes()
-    except OSError:
-        return None
-    return [len(content), hashlib.sha256(content).hexdigest()]
-
-
-def worklog_append(root, recorded):
-    """What was appended to the worklog since `--audit new`, or None if the file
-    did not simply grow.
-
-    UserPromptSubmit appends to it on every prompt, so any audit spanning a
-    prompt has a worklog change in its footprint — one the reviewer is fenced out
-    of making. An append is what the hook does; a rewrite is what covering your
-    tracks looks like, and stays reported (F05). Returning the appended text
-    rather than a boolean is S056: the shape test alone said "expected" and
-    printed nothing further, so an append made from Bash — the one edit that both
-    passes the exemption and changes a gate's answer — was invisible.
-    """
-    if not (isinstance(recorded, list) and len(recorded) == 2):
-        return None
-    length, digest = recorded
-    try:
-        content = (root / DOCS / "worklog.md").read_bytes()
-    except OSError:
-        return None
-    if len(content) < length or hashlib.sha256(content[:length]).hexdigest() != digest:
-        return None
-    return content[length:].decode("utf-8", errors="replace")
-
-
-def foreign_worklog_lines(appended):
-    """Lines in an append that `--log-prompt` would not have written.
-
-    It writes `## <stamp> prompt`, a blank line, then the prompt with every line
-    prefixed `> ` — so a prompt containing a heading, a fence, or the word recap
-    arrives quoted and stays recognisable. Anything else in the appended region
-    came from somewhere that is not the hook, and a recap heading there is the
-    case that matters: it discharges the `Stop` recap gate for the surrounding
-    turn (S056, .2-F09).
-    """
-    foreign = []
-    for line in appended.splitlines():
-        if not line.strip() or line.startswith(">"):
-            continue
-        if (WORKLOG_HEADING.match(line) and PROMPT_HEADING.search(line)
-                and not RECAP_HEADING.search(line)):
-            continue
-        foreign.append(line)
-    return foreign
+# worklog_prefix, worklog_append, and foreign_worklog_lines were removed with
+# the worklog (S120, DEC-046): --audit check no longer has a prompt log to
+# classify, and a worklog file, if one exists, is judged like any other path.
 
 
 def audit_check(root, config):
@@ -2539,27 +2234,8 @@ def audit_check(root, config):
     before, report = saved["tree"], saved.get("report", "")
     expected, unexpected = [], []
 
-    worklog = f"{DOCS}/worklog.md"
-    appended = worklog_append(root, saved.get("worklog"))
-    foreign = foreign_worklog_lines(appended) if appended is not None else []
-    worklog_note = None
-    if appended is not None:
-        added = len([line for line in appended.splitlines() if line.strip()])
-        if foreign:
-            worklog_note = (f"{worklog}: appended {added} line(s), {len(foreign)} of which "
-                            f"--log-prompt would not have written, first {foreign[0].strip()!r}. "
-                            f"A recap heading here discharges the Stop recap gate for this turn")
-        else:
-            worklog_note = f"{worklog}: appended {added} line(s), all prompt log entries"
-
     def classify(entry, note, is_new):
-        if entry == worklog:
-            # Named either way (S056): the exemption stays, because a gate that
-            # is wrong on every audit spanning a prompt is one people learn to
-            # wave through (F05), but it never passes silently again.
-            note = worklog_note or note
-        if (entry == report or (entry.startswith("tests/") and is_new)
-                or (entry == worklog and appended is not None and not foreign)):
+        if entry == report or (entry.startswith("tests/") and is_new):
             expected.append(note)
         else:
             unexpected.append(note)
@@ -2879,7 +2555,6 @@ def build_parser():
     parser = argparse.ArgumentParser(prog="moltke.py", description=__doc__)
     modes = parser.add_mutually_exclusive_group(required=True)
     modes.add_argument("--session-start", action="store_true", help="SessionStart hook (S005)")
-    modes.add_argument("--log-prompt", action="store_true", help="UserPromptSubmit hook (S005)")
     modes.add_argument("--pre-write", metavar="PATH", nargs="?", const="",
                        help="PreToolUse hook for Write and Edit; PATH falls back to hook stdin JSON")
     modes.add_argument("--post-write", action="store_true", help="PostToolUse hook (S005)")
@@ -2921,8 +2596,6 @@ def main(argv=None):
             return mode_roadmap(root, config)
         if args.session_start:
             return mode_session_start(root, config)
-        if args.log_prompt:
-            return mode_log_prompt(root, config)
         if args.pre_write is not None:
             return mode_pre_write(root, config, args.pre_write)
         if args.post_write:
@@ -2941,7 +2614,7 @@ def main(argv=None):
         # means, and from a Stop hook it means every gate was off and silent.
         print(f"moltke: could not read the repository ({exc}). Fix the path named above, "
               f"then run bin/moltke.py --validate.", file=sys.stderr)
-        return EXIT_OK if args.log_prompt or args.session_start else EXIT_BLOCK
+        return EXIT_OK if args.session_start else EXIT_BLOCK
     return EXIT_OK
 
 

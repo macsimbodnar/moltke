@@ -94,13 +94,6 @@ class TestUnbalancedFencesKeepData(unittest.TestCase):
 
 
 class TestOnlyLineStartMarkersAreFences(unittest.TestCase):
-    def test_a_quoted_marker_in_a_worklog_prompt_is_not_a_fence(self):
-        # --log-prompt quotes every line with "> ", so a user pasting a fenced
-        # snippet writes "> ```" — text, not a fence.
-        text = "## prompt\n\n> here is code:\n> ```\n> x\n> ```\n\n## 2026-08-07 recap S001\n"
-        self.assertIn("## 2026-08-07 recap S001", strip(text))
-        self.assertIn("> x", strip(text))
-
     def test_an_inline_code_span_is_not_a_fence(self):
         self.assertEqual(strip("use ``` to open a block\nand more text\n"),
                          "use ``` to open a block\nand more text\n")
@@ -118,34 +111,33 @@ class TestAmbiguityIsReportedNotGuessed(unittest.TestCase):
     def test_an_odd_marker_count_is_reported(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = workflow_repo(tmp)
-            worklog = root / "adocs" / "worklog.md"
-            worklog.write_text(worklog.read_text(encoding="utf-8") + "\n```\nunclosed\n",
-                               encoding="utf-8")
+            decisions = root / "adocs" / "decisions.md"
+            decisions.write_text(decisions.read_text(encoding="utf-8") + "\n```\nunclosed\n",
+                                 encoding="utf-8")
             result = run_validate(root)
             self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
             self.assertIn("INV-13", result.stdout)
-            self.assertIn("worklog.md", result.stdout)
+            self.assertIn("decisions.md", result.stdout)
 
     def test_balanced_fences_are_not_reported(self):
         # Non-vacuity: the fixture repo and a closed fence must both stay clean.
         with tempfile.TemporaryDirectory() as tmp:
             root = workflow_repo(tmp)
             self.assertEqual(run_validate(root).returncode, 0)
-            worklog = root / "adocs" / "worklog.md"
-            worklog.write_text(worklog.read_text(encoding="utf-8") + "\n```\nclosed\n```\n",
-                               encoding="utf-8")
+            decisions = root / "adocs" / "decisions.md"
+            decisions.write_text(decisions.read_text(encoding="utf-8") + "\n```\nclosed\n```\n",
+                                 encoding="utf-8")
             result = run_validate(root)
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
-    def test_a_quoted_marker_in_a_prompt_does_not_trip_it(self):
-        # The worklog quotes prompts, so pasted fences arrive as "> ```" and are
-        # not markers at all. Counting them would make the check unusable.
+    def test_a_quoted_marker_does_not_trip_it(self):
+        # Markers must open a line: a "> ```" quote is not a fence marker.
         with tempfile.TemporaryDirectory() as tmp:
             root = workflow_repo(tmp)
-            worklog = root / "adocs" / "worklog.md"
-            worklog.write_text(worklog.read_text(encoding="utf-8")
-                               + "\n## prompt\n\n> ```\n> x\n> ```\n> and one more:\n> ```\n",
-                               encoding="utf-8")
+            decisions = root / "adocs" / "decisions.md"
+            decisions.write_text(decisions.read_text(encoding="utf-8")
+                                 + "\n> ```\n> x\n> ```\n> and one more:\n> ```\n",
+                                 encoding="utf-8")
             result = run_validate(root)
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
@@ -432,8 +424,7 @@ class TestEveryStrippedFileIsGuarded(unittest.TestCase):
 
     def test_this_repository_has_every_stripped_file_in_the_scanned_list(self):
         scanned = set(moltke.stripped_files(REPO))
-        for rel in ("adocs/plan.md", "adocs/decisions.md", "adocs/worklog.md",
-                    "adocs/specs.md"):
+        for rel in ("adocs/plan.md", "adocs/decisions.md", "adocs/specs.md"):
             self.assertIn(rel, scanned)
         self.assertIn("adocs/audit/2026-08-08_adversarial.md", scanned)
 

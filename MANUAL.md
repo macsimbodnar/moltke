@@ -117,12 +117,11 @@ Nothing to remember. Hooks fire on their own:
   compares them. Everything below `- Parked:` to the end of the file is carried
   through a regeneration verbatim, whatever its indentation, so that block is
   where anything worth remembering that no other file holds belongs
-- every prompt is appended verbatim to `adocs/worklog.md`, which is history you
-  may correct or trim; `adocs/decisions.md` may be compacted too, ids stable
-  (INV-8's append-only enforcement was retired in 0.9.0, DEC-042)
+- `adocs/decisions.md` may be compacted freely, ids stable (INV-8 retired in
+  0.9.0, DEC-042). Prompt logging and the worklog were removed in 0.11.0
+  (DEC-046): forensic history is git
 - writes into completed history are refused
-- the turn will not end with a stale `status.md`, an invariant violation, or
-  source changes with no worklog recap
+- the turn will not end with a stale `status.md` or an invariant violation
 
 Project-wide rule changes have their own surface too: the `## Project rules`
 section at the end of the scaffolded `AGENTS.md`. Rules there override the base
@@ -172,10 +171,9 @@ Cursor) must, since hooks exist only in Claude Code.
 | `--audit list` | every finding, its status, and what references it; exits 1 while an open finding has neither a step nor a decision, or while a report names a finding a code fence hides, which lists as `hidden` (INV-14) |
 | `--audit check` | reconcile what the run changed against that baseline: the report and new files under `tests/` are expected, anything else exits 1. Run it after the reviewer returns, before acting on a finding |
 | `--session-start` | SessionStart hook: emit the stack and derived next step as context |
-| `--log-prompt` | UserPromptSubmit hook: append the prompt to the worklog. Never blocks, because blocking here would erase your prompt |
 | `--pre-write` | PreToolUse hook for Write and Edit: refuse writes into `plan_done/`, step files outside the plan directories, and reviewer writes other than `adocs/audit/` or a new file under `tests/` |
 | `--post-write` | PostToolUse hook: cheap invariant scan, surfaced but non-blocking |
-| `--stop` | Stop hook: refuse to end a turn on violations, a stale `status.md`, or unrecapped source changes |
+| `--stop` | Stop hook: refuse to end a turn on violations, a stale `status.md`, or a completion that arrived without its stamp |
 
 `--step new` takes `--goal TEXT`; `--step done` takes `--stamp TEXT` and
 requires it. Both are written as one line of a step file, so a value containing
@@ -210,8 +208,8 @@ most outside Claude Code, where `--validate` is the only lever you have.
 Since 0.6.0 no mode ends in a Python traceback. A file moltke cannot read — a directory
 where a step file belongs, a path the index has and the worktree does not — is
 reported as a violation naming the check that hit it, and anything else a broken
-tree reaches is caught at the top and exits `2` with the path. `--log-prompt` and
-`--session-start` still exit `0` there, because neither may ever block.
+tree reaches is caught at the top and exits `2` with the path. `--session-start`
+still exits `0` there, because it may never block.
 `--scaffold` and `--decline` are the exception to where that catch lives: they run
 before it, since they exist to create the marker it comes after, so each guards its
 own writes and refuses with exit `1`. A `--scaffold` that fails partway removes what
@@ -253,9 +251,8 @@ require the completion stamp to mention README and MANUAL. They cannot tell
 whether you actually looked. The check enforces that the question was asked,
 not that it was answered honestly. It sees the step arrive in `plan_done/`
 however you moved it — `git mv`, a plain `mv`, or `mv` then `git add -A`. Up to
-and including 0.4.0 a staged rename walked past it, and past the recap gate for
-a file moved out of `adocs/`, because both read the old path; 0.5.0 carries the
-fix. It abstains before the first commit, where every file is new, and it skips
+and including 0.4.0 a staged rename walked past it, because it read the old
+path; 0.5.0 carries the fix. It abstains before the first commit, where every file is new, and it skips
 a path the index has and the worktree does not — which is what moving a step
 back out of `plan_done/` produces, and the only compliant way to undo a
 completion, since the file itself may not be edited there. The same used to be true of the green-suite
@@ -301,32 +298,18 @@ the run, are in the baseline and are never blamed on the audit. A commit that
 touches only the report and new files under `tests/` is expected; anything else in
 it is not.
 
-`adocs/worklog.md` is expected too, but only while it has merely grown — the
-baseline records its length and hash, and the check confirms the file still starts
-with those bytes. Every prompt appends to it through the hook, so before 0.4.0 any
-audit that spanned a prompt reported a change the tool itself had made. A worklog
-that was truncated or rewritten during a run is still reported, because an append
-is what the hook does and a rewrite is not.
-
-The append itself is read, not just its shape: `--log-prompt` writes a
-`## <stamp> prompt` heading and the prompt quoted line by line, so anything else
-in the appended region — a recap heading, unquoted prose — is listed as
-unexpected and exits 1. That matters because an appended recap heading turns off
-the `Stop` recap gate for the surrounding turn, and it is reachable from `Bash`,
-which the reviewer holds and no write fence sees. A genuine hook append is still
-expected, and is now named in the listing rather than passing unmentioned. If the baseline `HEAD` is no longer reachable, that is reported rather
+If the baseline `HEAD` is no longer reachable, that is reported rather
 than skipped, because history was rewritten under the run. Without git, or before
 `--audit new` has run, the check refuses instead of passing quietly.
 
 **An unclosed code fence is a violation, not a formatting nit.** Every check that
-reads `plan.md`, `decisions.md`, `worklog.md`, or an audit report strips fenced
+reads `plan.md`, `decisions.md`, or an audit report strips fenced
 blocks first, so that a template's worked example is not mistaken for a real
 decision or a real finding. That means an unclosed fence hides whatever follows
 it from those checks.
 
-Markers have to open a line, so a fence pasted into a prompt — which the worklog
-stores as `> ``` ` — is text, and a trailing unpaired marker is text rather than
-swallowing the rest of the file. A marker inside an HTML comment is not a marker
+Markers have to open a line, so a quoted `> ``` ` is text, and a trailing
+unpaired marker is text rather than swallowing the rest of the file. A marker inside an HTML comment is not a marker
 either, since comments come out before anything looks for fences — so prose about
 fences, which this file and the specs are full of, can show one. An odd number of
 markers is an INV-13 violation naming the file. Close the fence and it clears.
@@ -348,7 +331,7 @@ planning phase you already finished.
 
 INV-14 sees hidden finding headings, in `adocs/audit/` only. It does not see other
 hidden content — a `Status:` line, an Impact section, anything in `plan.md`,
-`decisions.md`, or `worklog.md` — where an even count of unclosed fences still
+or `decisions.md` — where an even count of unclosed fences still
 hides text and INV-13's parity is the only guard. A heading quoting another
 report's finding is evidence, not a finding of yours, so quoting stays quiet. For
 the same reason a fresh report's example finding now reads `### <report>-F01`
@@ -389,49 +372,6 @@ PreToolUse fence, so the history check is what notices afterwards. And a `plan_d
 file is compared byte for byte, so reformatting one — even a trailing newline —
 counts as tampering until it is put back.
 
-**Prompts are recorded verbatim, so a pasted secret is written to disk.** Every
-`UserPromptSubmit` appends your prompt to `adocs/worklog.md`, which is tracked and
-committed. Paste an API key, a token, or a customer identifier into a prompt and
-it is in the repository — and if that repository is public, it is public. This is
-true of every repository moltke is installed into.
-
-Two things make it survivable. The worklog is append-only by convention only, not
-enforced, so cleaning it is an ordinary edit and commit — no invariant to work
-around and no decision entry needed to authorise it. And INV-15 fails on prefixed
-key shapes and PEM private-key headers appearing in the worklog: AWS, GitHub,
-Anthropic, OpenAI, Slack, Google, Stripe, npm, JWTs. It runs wherever moltke
-does, so `--validate` reports it and the turn will not end while it holds, in
-your repository and not only in moltke's own. A hit names the shape, the line,
-and the first eight characters — never the value. Detection, not redaction:
-redacting at write time would contradict the verbatim guarantee, and a false
-positive would silently destroy the record of what was actually said.
-
-If a real secret lands there, order matters. **Rotate the credential first** —
-it is already committed, and possibly pushed, so treat it as compromised no
-matter what you do to the file next. Then edit the worklog and commit. Do not
-rewrite git history: the agent is barred from it, and the old value stays
-recoverable from any existing clone or fork regardless, which is why rotation is
-the fix and the file edit is only tidying.
-
-The check has limits worth knowing. It scans `adocs/worklog.md` only, not the rest
-of `adocs/`: a key pasted into a decision entry or a step file is not caught. It
-uses fixed prefixes and PEM headers, with no entropy or bare-hex rule, because
-the worklog carries a commit sha in every recap and would otherwise be red every
-turn — an unprefixed password or a bare high-entropy string is not caught. And it
-is not among the cheap checks `--post-write` runs, because it reads a file that
-grows without bound, so it arrives at `--validate` and at the end of the turn
-rather than the moment after the write.
-
-**The recap gate reads headings, not sizes.** `Stop` refuses when source changed
-and no `## …recap…` heading follows the last `## … prompt` heading in the
-worklog. It does not measure growth, because `UserPromptSubmit` appends the
-prompt before the turn starts, so growth is always present by then (finding F01,
-fixed in step S015). Two consequences worth knowing. A recap written for an
-earlier turn does not discharge a later one, so an uncommitted change carried
-across a question-only turn is asked about again — committing it satisfies the
-gate just as a recap does, and the message says so. And the gate abstains in a
-repository with no commit yet, so a fresh `--scaffold` never blocks.
-
 **Without somewhere to write its state, the Stop hook has no cap.** The counter
 lives beside the git directory, so in a marked repository that was never
 `git init`ed — or one whose `.git` cannot be written — there is nowhere to keep
@@ -440,7 +380,7 @@ what it names. The refusals are correct and actionable, there is simply no escap
 hatch behind them. `git init` fixes it permanently, and deleting `.moltke.json`
 turns everything off. This is accepted rather than planned (DEC-031): a
 repository without git already gets no immutability checks, no `--audit check`,
-and no prompt-failure breadcrumb, and the alternative was keeping moltke state
+and no `--audit check`, and the alternative was keeping moltke state
 outside your project. An unwritable `.git` is the same case and says so: the
 `Stop` message names the state file it could not write, so the missing waiver is
 explained rather than mysterious.
@@ -448,43 +388,18 @@ explained rather than mysterious.
 **Otherwise the Stop hook can never wedge a session, and never goes quiet either.** If it
 blocks three times on the same problems inside one turn, the fourth attempt is
 allowed with a warning — otherwise an unfixable refusal would trap you. That
-count is per turn and per problem set: a new turn starts over, and fixing one
-thing and hitting a different one starts over too, so partial progress does not
-spend attempts. The waived turn still prints everything that was wrong. Before
+count is per problem set: fixing one thing and hitting a different one starts
+over, so partial progress does not spend attempts, and identical problems
+carried across turns keep counting — a stuck session frees itself either way. The waived turn still prints everything that was wrong. Before
 0.4.0 the count keyed on a payload field that may not exist, and when it was
 missing the counter was global and stored on disk, so from the fourth blocked
 turn onward every Stop check was skipped — and stayed skipped across sessions.
-
-What tells one turn from the next is the worklog's prompt count, plus the
-prompt-failure breadcrumb below when the worklog cannot be written — up to and
-including 0.5.0 a failing append froze that count and brought the old off switch
-back; 0.6.0 carries the fix. A turn in which no prompt was logged and nothing failed still reads as a
-retry: there is no event to count.
-
-"Source" means everything except two directories: `adocs/`, which is the
-workflow's own state, and `.claude/`, which is your local tooling config. Both
-are matched with their trailing separator. Before 0.4.0 the second was a bare
-`.claude` prefix, which also exempted `.claude-plugin/plugin.json` — the manifest
-whose `version` decides what every installed copy of moltke runs, so a release
-could be cut with no recap of it — along with `.clauderc` or any other `.claude*`
-file at the repository root.
-
-**A prompt can still be lost, but never quietly.** `--log-prompt` creates
-`adocs/` before appending, so a missing docs tree no longer discards prompts
-(finding F14, fixed in step S014). If the append fails for any other reason —
-unwritable path, `adocs/worklog.md` occupied by something that is not a file —
-the prompt itself is gone and is not recovered. What the fix guarantees is that
-you hear about it: the next `SessionStart` reports how many prompts were dropped,
-since when, and the error, then stops repeating it. Outside a git repository
-there is no breadcrumb to leave, so the failure only reaches stderr, which a
-zero-exit `UserPromptSubmit` hook does not surface.
 
 **A marked project can sit below the git top level.** Vendoring a moltke project
 into a monorepo, or having any ancestor directory be a git repository, used to
 break every git-derived check at once: INV-7 called a present file gone with a
 remedy that could not run, INV-8 said nothing about real tampering, `--audit
-check` reported its own report as unexpected, and the recap gate treated
-`adocs/` as source. moltke now translates between the two directories. One place
+check` reported its own report as unexpected. moltke now translates between the two directories. One place
 the difference shows: the `git show <sha>:<path>` half of a printed remedy keeps
 the path from the top level, because that is what `git show` resolves — the file
 it names and the destination it writes are yours.
