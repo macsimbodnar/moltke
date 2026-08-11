@@ -574,3 +574,5 @@ never after. Append only.
 | S110 | the always-read set ends the batch at ~51 KB against 180,518 bytes at e22a911, with per-step growth ~0 | measured at completion; recorded in the recap and in the stamp | pass 2026-08-11 |
 | S111 | a superstring line in .git/info/exclude does not satisfy the exclusion check; the exact line is appended | test_s005_hooks.py TestMachineLocalFile.test_a_substring_in_the_exclude_file_does_not_satisfy_the_check (red observed: `'.moltke.local.md' not found in ['.moltke.local.md.bak']`) | pass 2026-08-11 |
 | S111 | the four stale INV-8 comment references in bin/moltke.py now name INV-7 alone | comment-only; covered by the fast check that found them, recorded here for the trail | pass 2026-08-11 |
+| S112 | in a linked worktree the exclusion lands where git status reads it: porcelain empty after --session-start | test_s005_hooks.py TestMachineLocalFile.test_a_linked_worktree_gets_a_working_exclusion (red observed: `?? .moltke.local.md`) | pass 2026-08-11 |
+| S112 | primary-worktree behaviour unchanged | TestMachineLocalFile, the seven existing tests, green | pass 2026-08-11 |

@@ -88,3 +88,12 @@ findings re-measured by the reviewer from their own reproductions; none
 reproduces; closed on re-run evidence — the loop DEC-041 froze now closes
 properly. Six steps S112-S117, one per finding, medium first. Reviewer mutation
 testing: nine mutants, all killed.
+
+## 2026-08-11T recap (S112)
+
+S112 complete. Exclusion via `git rev-parse --git-path info/exclude` — in a
+linked worktree the old --absolute-git-dir join pointed at
+.git/worktrees/<name>/info/exclude, which git status never reads. Red observed
+on a real linked-worktree fixture. Suite 446 OK.
+Files: bin/moltke.py (local_file_lines), tests/test_s005_hooks.py, testing.md
+(2 rows), README.md (445 to 446), plan_done/S112.

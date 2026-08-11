@@ -1122,6 +1122,27 @@ class TestMachineLocalFile(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertFalse((Path(tmp) / ".moltke.local.md").exists())
 
+    def test_a_linked_worktree_gets_a_working_exclusion(self):
+        # S112 (2026-08-11_adversarial-F01): the exclusion went to
+        # --absolute-git-dir/info/exclude, which in a linked worktree is
+        # .git/worktrees/<name>/info/exclude — a path git status never reads.
+        # The file showed ??, the Stop gate blocked every clean turn, and its
+        # remedy steered toward committing the one file DEC-043 forbids in git.
+        with tempfile.TemporaryDirectory() as tmp:
+            primary = Path(tmp) / "primary"
+            primary.mkdir()
+            root = workflow_repo(primary)
+            git_baseline(root)
+            linked = Path(tmp) / "linked"
+            git(root, "worktree", "add", "-q", str(linked))
+            result = run_moltke(linked, "--session-start")
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertTrue((linked / ".moltke.local.md").is_file(),
+                            "precondition: the file was created in the worktree")
+            porcelain = git(linked, "status", "--porcelain").stdout
+            self.assertNotIn(".moltke.local.md", porcelain,
+                             "the exclusion must land where git status reads it")
+
     def test_a_substring_in_the_exclude_file_does_not_satisfy_the_check(self):
         # S111, from the batch's own fast check: `LOCAL_FILE not in existing`
         # is a substring test, so a line like ".moltke.local.md.bak" reads as

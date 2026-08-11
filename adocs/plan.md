@@ -16,7 +16,6 @@ list below and nowhere else in this file: the derived next step is the first id
 in document order, so an id mentioned in prose above the list becomes the next
 step instead.
 
-105. S107  the ruleset tells agents to look up, not to read everything
 106. S108  review has three tiers: fast check by habit, full audit by consent
 107. S109  a machine-local instructions file that the tool creates and injects
 108. S110  a project-rules override section, and 0.9.0 ships the batch

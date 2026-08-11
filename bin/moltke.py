@@ -1007,9 +1007,14 @@ def local_file_lines(root):
             path.write_text(read_file(TEMPLATE_ROOT / "moltke_local.md"), encoding="utf-8")
         except OSError:
             return []
-    resolved = git_dir(root)
-    if resolved is not None:
-        exclude = resolved / "info" / "exclude"
+    # `--git-path info/exclude`, not `--absolute-git-dir` + join (S112,
+    # 2026-08-11_adversarial-F01): in a linked worktree the git dir is
+    # .git/worktrees/<name>/, whose info/exclude git status never reads, so the
+    # exclusion was written where nothing looked and the Stop gate blocked every
+    # clean turn. --git-path resolves per-worktree the way git itself does.
+    lines = _git_lines(root, "rev-parse", "--git-path", "info/exclude")
+    if lines:
+        exclude = root / lines[0] if not Path(lines[0]).is_absolute() else Path(lines[0])
         try:
             existing = read_file(exclude) if exclude.is_file() else ""
             # Line-wise, not substring (S111): ".moltke.local.md.bak" must not
