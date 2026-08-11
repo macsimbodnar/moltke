@@ -16,7 +16,6 @@ list below and nowhere else in this file: the derived next step is the first id
 in document order, so an id mentioned in prose above the list becomes the next
 step instead.
 
-121. S123  AGENTS.md reissued once - team rules in, trimmed to the operative core
 122. S124  INV-13, INV-14, INV-16 retired; stripping stays (DEC-047)
 123. S125  the completion ceremony is slimmed (DEC-048)
 124. S126  testing.md rows pruned with the plan window
