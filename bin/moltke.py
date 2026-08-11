@@ -1681,6 +1681,7 @@ def prune_plan(root, done_ids):
     drop = set(entry_lines[:-PLAN_DONE_KEPT]) if len(entry_lines) > PLAN_DONE_KEPT else set()
     if not drop:
         return
+    dropped_ids = {PLAN_ENTRY_RE.match(lines[i]).group(1) for i in drop}
     try:
         plan_path.write_text("".join(line for i, line in enumerate(lines) if i not in drop),
                              encoding="utf-8")
@@ -1689,6 +1690,22 @@ def prune_plan(root, done_ids):
     except OSError as exc:
         print(f"moltke: plan.md could not be pruned ({exc}); the completion stands and the "
               f"next one will retry.", file=sys.stderr)
+        return
+    # testing.md rows leave with their plan entries (S126, DEC-048): the ledger
+    # is voluntary documentation of current work, and git keeps every row. A row
+    # stays if anything it references is still in play.
+    testing_path = root / DOCS / "testing.md"
+    try:
+        rows = read_file(testing_path).splitlines(keepends=True) if testing_path.is_file() else []
+        kept_rows = [line for line in rows
+                     if not (line.startswith("|")
+                             and (ids := set(re.findall(r"\bS\d{3}\b", line)))
+                             and ids <= dropped_ids)]
+        if len(kept_rows) != len(rows):
+            testing_path.write_text("".join(kept_rows), encoding="utf-8")
+            print(f"moltke: pruned {len(rows) - len(kept_rows)} testing.md row(s) with them.")
+    except OSError:
+        pass  # the ledger is voluntary; a failed prune is not a failed completion
 
 
 def with_field(text, key, value):

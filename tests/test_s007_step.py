@@ -1326,6 +1326,34 @@ class TestPlanPruning(unittest.TestCase):
                 self.assertIn(kept, plan)
 
 
+class TestTestingWindow(unittest.TestCase):
+    """S126 (DEC-048): testing.md grew forever by rule — the largest file in the
+    repository, scanned by nothing since DEC-048, read by no one. --step done
+    prunes rows whose steps left the plan window; git keeps every row."""
+
+    def test_rows_for_pruned_steps_are_pruned_with_them(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            plan = ["# Plan", ""]
+            testing = root / "adocs" / "testing.md"
+            for n in range(4, 12):
+                step_file(root / "adocs" / "plan_done", f"S{n:03d}", f"old{n}",
+                          done="2026-08-01 done")
+                plan.append(f"{n - 3}. S{n:03d}  old{n}")
+                add_testing_row(root, f"S{n:03d}")
+            plan += ["9. S001  base", "10. S002  pending", "11. S003  active"]
+            (root / "adocs" / "plan.md").write_text("\n".join(plan) + "\n",
+                                                    encoding="utf-8")
+            add_testing_row(root, "S002")
+            result = run_moltke(root, "--step", "done", "S003", "--stamp", "done, verified")
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            rows = testing.read_text(encoding="utf-8")
+            self.assertNotIn("S004", rows, "rows leave with their pruned plan entries")
+            self.assertIn("S011", rows, "the kept window's rows stay")
+            self.assertIn("S002", rows, "open work's rows are never pruned")
+            self.assertEqual(validate(root).returncode, 0, validate(root).stdout)
+
+
 class TestMultilineStepFields(unittest.TestCase):
     """S095: `parse_step_file` matched `^([a-z_]+):\\s*(.*)$` per line, and an
     indented continuation line matches nothing, so every field was silently
