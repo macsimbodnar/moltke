@@ -103,105 +103,9 @@ class TestOnlyLineStartMarkersAreFences(unittest.TestCase):
         self.assertEqual(strip("a\n   ```\nx\n   ```\nb\n"), "a\nb\n")
 
 
-class TestAmbiguityIsReportedNotGuessed(unittest.TestCase):
-    """Two unclosed fences are genuinely ambiguous: they look exactly like one
-    closed fence, and the templates deliberately put headings inside fences, so
-    no heuristic can tell them apart. INV-13 says so out loud instead."""
-
-    def test_an_odd_marker_count_is_reported(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root = workflow_repo(tmp)
-            decisions = root / "adocs" / "decisions.md"
-            decisions.write_text(decisions.read_text(encoding="utf-8") + "\n```\nunclosed\n",
-                                 encoding="utf-8")
-            result = run_validate(root)
-            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
-            self.assertIn("INV-13", result.stdout)
-            self.assertIn("decisions.md", result.stdout)
-
-    def test_balanced_fences_are_not_reported(self):
-        # Non-vacuity: the fixture repo and a closed fence must both stay clean.
-        with tempfile.TemporaryDirectory() as tmp:
-            root = workflow_repo(tmp)
-            self.assertEqual(run_validate(root).returncode, 0)
-            decisions = root / "adocs" / "decisions.md"
-            decisions.write_text(decisions.read_text(encoding="utf-8") + "\n```\nclosed\n```\n",
-                                 encoding="utf-8")
-            result = run_validate(root)
-            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-
-    def test_a_quoted_marker_does_not_trip_it(self):
-        # Markers must open a line: a "> ```" quote is not a fence marker.
-        with tempfile.TemporaryDirectory() as tmp:
-            root = workflow_repo(tmp)
-            decisions = root / "adocs" / "decisions.md"
-            decisions.write_text(decisions.read_text(encoding="utf-8")
-                                 + "\n> ```\n> x\n> ```\n> and one more:\n> ```\n",
-                                 encoding="utf-8")
-            result = run_validate(root)
-            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-
-    def test_a_marker_inside_an_html_comment_is_not_counted(self):
-        # S055 (.2-F08): strip_guidance removes comments before it pairs
-        # markers, so a marker inside one is invisible to the thing INV-13
-        # exists to protect. Counting it blocked --stop under a message that was
-        # false for that file, and following the message — closing the fence —
-        # would have unbalanced the pairing that was already correct.
-        with tempfile.TemporaryDirectory() as tmp:
-            root = workflow_repo(tmp)
-            audit_report(root, [("2026-08-01_adversarial-F01", "accepted")])
-            report = root / "adocs" / "audit" / "2026-08-01_adversarial.md"
-            report.write_text(report.read_text(encoding="utf-8")
-                              + "\n<!-- reviewers: an evidence block opens with\n```\n"
-                                "and the checker pairs markers in order -->\n\n"
-                                "```\nevidence\n```\n", encoding="utf-8")
-            raw = report.read_text(encoding="utf-8")
-            self.assertEqual(len(re.findall(r"^ {0,3}```", raw, re.M)) % 2, 1,
-                             "precondition: the raw count is odd, which is what INV-13 saw")
-            self.assertEqual(moltke.report_findings(report),
-                             [("2026-08-01_adversarial-F01", "accepted")],
-                             "precondition: nothing is actually swallowed")
-            result = run_validate(root)
-            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-
-    def test_a_genuinely_unclosed_fence_outside_a_comment_is_still_reported(self):
-        # Non-vacuity for the case above: ignoring commented markers must not
-        # make INV-13 ignore the imbalance it exists for.
-        with tempfile.TemporaryDirectory() as tmp:
-            root = workflow_repo(tmp)
-            audit_report(root, [("2026-08-01_adversarial-F01", "accepted")])
-            report = root / "adocs" / "audit" / "2026-08-01_adversarial.md"
-            report.write_text(report.read_text(encoding="utf-8")
-                              + "\n<!-- a commented marker:\n```\n-->\n\n```\nunclosed\n",
-                              encoding="utf-8")
-            result = run_validate(root)
-            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
-            self.assertIn("INV-13", result.stdout)
-
-    def test_the_invariant_and_the_stripper_count_the_same_markers(self):
-        # Stated as its own property, since the two diverging is the defect:
-        # whatever strip_guidance pairs is what INV-13 counts.
-        cases = [("a\n```\nx\n```\nb\n", 2),
-                 ("<!--\n```\n-->\n```\nx\n```\n", 2),
-                 ("<!-- ``` -->\n```\nx\n", 1),
-                 ("> ```\nquoted\n", 0)]
-        for text, expected in cases:
-            with self.subTest(text=text):
-                self.assertEqual(len(moltke.fence_markers(text)[1]), expected)
-
-    def test_an_audit_report_with_an_odd_count_is_reported(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root = workflow_repo(tmp)
-            audit_report(root, [("2026-08-01_adversarial-F01", "accepted")])
-            report = root / "adocs" / "audit" / "2026-08-01_adversarial.md"
-            report.write_text(report.read_text(encoding="utf-8") + "\n```\nevidence\n",
-                              encoding="utf-8")
-            result = run_validate(root)
-            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
-            self.assertIn("INV-13", result.stdout)
-
-
 class TestAReportCannotHideItsOwnFindings(unittest.TestCase):
+    """Retargeted by S124 (DEC-047): INV-14 is retired, and a fence-swallowed
+    finding surfaces through --audit list as `hidden` instead of blocking."""
     """S049 (2026-08-07_adversarial-F02, .2-F04): parity catches one unclosed
     fence, not two. Two unclosed fences are two markers, pair as one closed
     fence, and the finding between them vanishes with INV-13 silent. INV-14
@@ -222,19 +126,6 @@ class TestAReportCannotHideItsOwnFindings(unittest.TestCase):
             self.assertIn("2026-08-01_adversarial-F02", result.stdout)
             self.assertNotIn("INV-14", result.stdout)
 
-    def test_a_finding_between_two_unclosed_fences_is_reported(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root, report = report_repo(tmp, UNCLOSED_REPORT)
-            markers = len(re.findall(r"^ {0,3}```", report.read_text(encoding="utf-8"), re.M))
-            self.assertEqual(markers % 2, 0,
-                             "precondition: an even count, so INV-13 cannot be what fires")
-            result = run_validate(root)
-            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
-            self.assertIn("INV-14", result.stdout)
-            self.assertIn("2026-08-01_adversarial-F02", result.stdout)
-            # The message names INV-13 to say why it is quiet; no INV-13 fired.
-            self.assertNotIn("VIOLATION: INV-13", result.stdout)
-
     def test_audit_list_names_the_hidden_finding_instead_of_omitting_it(self):
         # The half of the finding that --validate does not cover: the report the
         # operator reads listed F01 alone and exited 0.
@@ -244,17 +135,6 @@ class TestAReportCannotHideItsOwnFindings(unittest.TestCase):
             self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
             self.assertIn("2026-08-01_adversarial-F02", result.stdout)
             self.assertIn("hidden", result.stdout)
-
-    def test_post_write_reports_it_too_so_a_reviewer_sees_it_on_save(self):
-        # INV-13 is deliberately not a cheap check: it reads the unbounded
-        # worklog. This one reads the audit reports INV-10 already reads, so the
-        # feedback arrives when the report is saved rather than at the next
-        # --validate.
-        with tempfile.TemporaryDirectory() as tmp:
-            root, _report = report_repo(tmp, UNCLOSED_REPORT)
-            result = run_moltke(root, "--post-write", stdin="{}")
-            self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
-            self.assertIn("INV-14", result.stderr)
 
     def test_a_report_whose_findings_are_all_visible_is_clean(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -310,123 +190,18 @@ class TestAReportCannotHideItsOwnFindings(unittest.TestCase):
                              "Status: accepted\n\n```\nevidence\n"
                              "### 2026-08-01_adversarial.2-F02  high  two\n\nStatus: open\n\n"
                              "```\nmore evidence\n", encoding="utf-8")
-            result = run_validate(root)
+            result = run_moltke(root, "--audit", "list")
             self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
-            self.assertIn("INV-14", result.stdout)
+            self.assertIn("hidden", result.stdout)
             self.assertIn("2026-08-01_adversarial.2-F02", result.stdout)
 
     def test_this_repository_is_clean(self):
         # moltke's own reports are the largest real corpus of fenced evidence
         # there is, and they were written before this check existed.
-        self.assertEqual(moltke.inv_14_findings_not_hidden(REPO, json.loads(
-            (REPO / ".moltke.json").read_text(encoding="utf-8"))), [])
+        for report in sorted((REPO / "adocs" / "audit").glob("*.md")):
+            self.assertEqual(moltke.hidden_findings(report), [], report.name)
 
 
-
-
-class TestEveryStrippedFileIsGuarded(unittest.TestCase):
-    """S063 (2026-08-08_adversarial-F04): INV-13 scanned a list written by hand,
-    and S028 added a fifth strip_guidance consumer — adocs/specs.md, through
-    prime_directive — without touching it. So a fence there hid the prime
-    directive from the only check that reads it, with --validate green, --stop
-    green, and --session-start nagging forever about a planning phase that was
-    finished. An odd count was silent too: parity was never consulted for that
-    file, which is what separates this from INV-14's territory."""
-
-    def fenced_specs(self, root, markers):
-        specs = root / "adocs" / "specs.md"
-        specs.write_text("# Specs\n\n## Prime directive\n\n" + "```\n" * markers
-                         + "never lose a write\n", encoding="utf-8")
-
-    def test_an_odd_marker_count_in_specs_is_reported(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root = workflow_repo(tmp)
-            self.fenced_specs(root, 1)
-            result = run_validate(root)
-            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
-            self.assertIn("INV-13", result.stdout)
-            self.assertIn("specs.md", result.stdout)
-
-    def test_a_fence_hiding_the_prime_directive_does_not_pass_silently(self):
-        # The finding's own shape, and the half parity cannot reach: two example
-        # fences with their closers removed are an even count, so INV-13 has
-        # nothing to say even once specs.md is in its list. The directive is on
-        # disk and invisible to the only thing that reads it, so --validate and
-        # --stop stay green while --session-start nags forever about a planning
-        # phase that is finished.
-        with tempfile.TemporaryDirectory() as tmp:
-            root = workflow_repo(tmp)
-            specs = root / "adocs" / "specs.md"
-            specs.write_text("# Specs\n\n## Prime directive\n\n```\n"
-                             "never lose a write\n```\n\n## Invariants\n\n- INV-1\n",
-                             encoding="utf-8")
-            self.assertIn("never lose a write", specs.read_text(encoding="utf-8"))
-            self.assertEqual(moltke.prime_directive(root), "",
-                             "precondition: the fence really does hide the directive")
-            self.assertEqual(len(moltke.fence_markers(
-                specs.read_text(encoding="utf-8"))[1]) % 2, 0,
-                "precondition: an even count, so parity is not what fires")
-            result = run_validate(root)
-            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
-            self.assertIn("specs.md", result.stdout)
-            nudge = run_moltke(root, "--session-start").stdout
-            self.assertNotIn("Planning phase pending", nudge,
-                             "a directive that is written must not read as unwritten")
-
-    def test_a_normal_specs_file_with_balanced_fences_stays_silent(self):
-        # Non-vacuity: specs.md is full of fenced examples in any real project.
-        with tempfile.TemporaryDirectory() as tmp:
-            root = workflow_repo(tmp)
-            specs = root / "adocs" / "specs.md"
-            specs.write_text("# Specs\n\n## Prime directive\n\nnever lose a write\n\n"
-                             "## Invariants\n\n```\nINV-1 example\n```\n", encoding="utf-8")
-            self.assertEqual(run_validate(root).returncode, 0)
-
-    def test_strip_guidance_is_only_called_through_the_one_door(self):
-        # S072 (.2-F06): this used to look for strip_guidance beside read_text,
-        # and S064 then banned read_text everywhere — so the mandated way to
-        # write a new scanner, strip_guidance(read_file(path)), passed it. The
-        # guard was vacuous by construction. Naming the callers instead cannot
-        # be defeated by changing how the file is read.
-        allowed = {'def strip_guidance(text):', 'return strip_guidance(text)',
-                   'return strip_guidance(text).strip() != text.strip()',
-                   'return strip_guidance(fields.get(key, "")).strip()'}
-        source = (REPO / "bin" / "moltke.py").read_text(encoding="utf-8")
-        offenders = [line.strip() for line in source.splitlines()
-                     if "strip_guidance(" in line and line.strip() not in allowed]
-        self.assertEqual(offenders, [],
-                         "read repository files through read_stripped, which INV-13 covers")
-
-    def test_the_modes_only_strip_files_the_invariants_guard(self):
-        # The functional half, which no rewrite of the source can dodge: run the
-        # modes and record what read_stripped was actually pointed at.
-        with tempfile.TemporaryDirectory() as tmp:
-            root = workflow_repo(tmp)
-            audit_report(root, [("2026-08-01_adversarial-F01", "accepted")])
-            seen, original = [], moltke.read_stripped
-
-            def recording(path):
-                seen.append(str(Path(path).resolve().relative_to(Path(root).resolve())))
-                return original(path)
-
-            moltke.read_stripped = recording
-            try:
-                config = json.loads((root / ".moltke.json").read_text(encoding="utf-8"))
-                moltke.run_validate(root, config, [])
-                moltke.session_context_lines(root, config)
-            finally:
-                moltke.read_stripped = original
-            guarded = set(moltke.stripped_files(root))
-            self.assertTrue(seen, "precondition: the modes read something at all")
-            self.assertEqual(sorted(set(seen) - guarded), [],
-                             "a scanner read a file no invariant guards")
-
-
-    def test_this_repository_has_every_stripped_file_in_the_scanned_list(self):
-        scanned = set(moltke.stripped_files(REPO))
-        for rel in ("adocs/plan.md", "adocs/decisions.md", "adocs/specs.md"):
-            self.assertIn(rel, scanned)
-        self.assertIn("adocs/audit/2026-08-08_adversarial.md", scanned)
 
 
 class TestOneDecodePolicy(unittest.TestCase):
@@ -485,88 +260,6 @@ class TestOneDecodePolicy(unittest.TestCase):
         strict = [line.strip() for line in source.splitlines()
                   if ".read_text(" in line and "errors=" not in line]
         self.assertEqual(strict, [], "read repository files through read_file")
-
-
-class TestInv14NamesTheCauseItCanProve(unittest.TestCase):
-    """S075 (2026-08-08_adversarial.2-F09): hidden_findings compared raw text
-    against stripped text, and strip_guidance removes HTML comments as well as
-    fences — so a heading inside a comment was reported as swallowed by a code
-    fence, in a report with no fence markers at all, with a remedy that could
-    not be followed. Commented content is guidance everywhere else, and the
-    shipped template's own append marker is a comment, so commenting out a draft
-    finding is a reasonable thing for a reviewer to do."""
-
-    COMMENTED = ("# Audit\n\n"
-                 "### 2026-08-01_adversarial-F01  high  a real finding\n\nStatus: accepted\n\n"
-                 "<!-- draft, not ready to file yet:\n"
-                 "### 2026-08-01_adversarial-F02  low  a draft finding\n\nStatus: open\n-->\n")
-
-    def test_a_commented_draft_finding_is_guidance_not_a_hidden_one(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root, report = report_repo(tmp, self.COMMENTED)
-            self.assertEqual(len(moltke.fence_markers(self.COMMENTED)[1]), 0,
-                             "precondition: no fence markers at all in this report")
-            result = run_validate(root)
-            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-            listing = run_moltke(root, "--audit", "list")
-            self.assertNotIn("hidden", listing.stdout)
-
-    def test_a_fence_still_hides_a_finding(self):
-        # Non-vacuity: the invariant's own case must survive the comment rule.
-        with tempfile.TemporaryDirectory() as tmp:
-            root, _report = report_repo(tmp, UNCLOSED_REPORT)
-            result = run_validate(root)
-            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
-            self.assertIn("INV-14", result.stdout)
-            self.assertIn("2026-08-01_adversarial-F02", result.stdout)
-
-
-class TestInv16Compares(unittest.TestCase):
-    """S078 (2026-08-08_adversarial.2-F12): INV-16 returned clean as soon as
-    prime_directive was non-empty, so a section holding a lead-in sentence and
-    the rule itself inside a fence passed — the directive proper unreadable, no
-    check reporting it, and prime_directive returning the lead-in. specs.md
-    describes it as comparing what the file states against what survives
-    stripping, exactly as INV-14 does; it tested both sides for emptiness."""
-
-    MIXED = ("# Specs\n\n## Prime directive\n\nThis project has one rule.\n\n"
-             "```\nState is derivable from tracked files alone.\n```\n\n"
-             "## Invariants\n\n- INV-1\n")
-
-    def test_a_directive_fenced_beside_other_prose_is_reported(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root = workflow_repo(tmp)
-            (root / "adocs" / "specs.md").write_text(self.MIXED, encoding="utf-8")
-            self.assertEqual(moltke.prime_directive(root), "This project has one rule.",
-                             "precondition: the lead-in reads as the directive")
-            result = run_validate(root)
-            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
-            self.assertIn("INV-16", result.stdout)
-
-    def test_a_wholly_fenced_directive_is_still_reported(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root = workflow_repo(tmp)
-            (root / "adocs" / "specs.md").write_text(
-                "# Specs\n\n## Prime directive\n\n```\nnever lose a write\n```\n\n"
-                "## Invariants\n\n- INV-1\n", encoding="utf-8")
-            self.assertEqual(run_validate(root).returncode, 1)
-
-    def test_an_ordinary_directive_stays_clean(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root = workflow_repo(tmp)
-            (root / "adocs" / "specs.md").write_text(
-                "# Specs\n\n## Prime directive\n\nnever lose a write\n\n"
-                "## Invariants\n\n```\nINV-1 example\n```\n", encoding="utf-8")
-            self.assertEqual(run_validate(root).returncode, 0)
-
-    def test_an_unwritten_directive_is_the_nudge_not_a_violation(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root = workflow_repo(tmp)
-            (root / "adocs" / "specs.md").write_text(
-                "# Specs\n\n## Prime directive\n\n<!-- one sentence -->\n\n"
-                "## Invariants\n\n- INV-1\n", encoding="utf-8")
-            self.assertEqual(run_validate(root).returncode, 0)
-            self.assertIn("Planning phase pending", run_moltke(root, "--session-start").stdout)
 
 
 if __name__ == "__main__":

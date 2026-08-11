@@ -49,15 +49,14 @@ reused; a retired number stays listed so old audit reports keep meaning.
   unblock. The `Stop` cap on consecutive blocks lives wherever moltke can write
   its state beside the git directory; where it cannot, the gap is accepted
   (DEC-031, DEC-039) and the message names the missing cap.
-- INV-13 `plan.md`, `decisions.md`, and every audit report have an even number
-  of code-fence markers, because an unclosed fence hides content from every
-  scanner.
-- INV-14 no audit report states a finding under its own name that
-  `strip_guidance` then removes. Comments come out before the comparison.
+- INV-13 retired 2026-08-11 (S124, DEC-047) with the fence police: nothing
+  blocks on fence counts. Stripping stays, so quoting stays safe.
+- INV-14 retired 2026-08-11 (S124, DEC-047): a fence-swallowed finding is
+  listed as `hidden` by `--audit list` instead of blocking.
 - INV-15 retired 2026-08-11 (S120, DEC-046) with the worklog: nothing writes
   prompts verbatim into a tracked file any more.
-- INV-16 `specs.md` never states a prime directive that `strip_guidance` then
-  removes; the section is compared against its stripped form.
+- INV-16 retired 2026-08-11 (S124, DEC-047); the planning nudge still stays
+  quiet when a directive exists on disk, readable or not.
 
 ## What is being built
 
@@ -100,7 +99,7 @@ One entry point, `bin/moltke.py`, one mode per invocation. The golden test
 | `--step done <id> --stamp TEXT` | complete: preconditions, `test_command` gate, stamped move to `plan_done/`, parent unpause, prune `plan.md` to the last 5 done entries; `--stamp` must be one line recording the README and MANUAL check |
 | `--step status` | regenerate `status.md` from the filesystem; everything below `- Parked:` is carried through verbatim |
 | `--audit new <type>` | open `adocs/audit/YYYY-MM-DD_<type>.md` (`.2` suffix on a same-day re-run, never overwrites), record the reconciliation baseline; type must match `[A-Za-z0-9_-]+` |
-| `--audit list` | every finding, status, and reference; exit 1 while an open finding has no home or a fence hides one |
+| `--audit list` | every finding, status, and reference; exit 1 while an open finding has no home or a fence hides one from the scanners |
 | `--audit check` | reconcile the tree against the baseline: report and new `tests/` files expected, anything else listed, exit 1 |
 | `--session-start` | SessionStart hook: emit stack, derived next step, staleness, planning nudge as JSON additionalContext |
 | `--pre-write` | PreToolUse hook (Write|Edit): refuse writes into `plan_done/`, step files outside the plan directories, reviewer writes outside `adocs/audit/` + new `tests/` files |

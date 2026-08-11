@@ -711,88 +711,12 @@ def inv_10_audit_findings(root, config):
     return violations
 
 
-def inv_13_balanced_fences(root, config):
-    """S033: two unclosed fences are indistinguishable from one closed fence, and
-    the templates deliberately put headings inside fences, so no rule can tell
-    them apart by content. Report the imbalance instead of guessing, because a
-    guess loses a finding or a recap heading and says all checks pass."""
-    violations = []
-    for rel in stripped_files(root):
-        path = root / rel
-        if not path.is_file():
-            continue
-        # Through fence_markers, so this counts exactly what strip_guidance
-        # pairs: a marker inside an HTML comment is neither stripped as a fence
-        # nor counted as one (S055).
-        count = len(fence_markers(read_file(path))[1])
-        if count % 2:
-            violations.append(
-                f"INV-13: {rel} has {count} code-fence markers, an odd number, so one fence is "
-                f"unclosed. Every scanner reads this file through strip_guidance, which pairs "
-                f"markers in order: close the fence, or the content it swallows is invisible to "
-                f"the checks that read this file")
-    return violations
-
-
-PRIME_DIRECTIVE_SECTION = re.compile(r"^##\s+Prime directive\s*$(.*?)(?=^##\s|\Z)", re.M | re.S)
-
-
-def inv_16_prime_directive_readable(root, config):
-    """S063: a prime directive that is written and unreadable is worse than one
-    that is missing, because the missing one is reported.
-
-    INV-13's parity cannot reach this. Two example fences with their closers
-    removed are an even count, and one closed fence around the directive is the
-    same bytes — the ambiguity DEC-033 recorded. So this compares what the file
-    states against what survives stripping, exactly as INV-14 does for a finding
-    heading: either way, `specs.md` names a directive nothing can read, and
-    `--session-start` asks for one that is already there.
-    """
-    specs = root / DOCS / "specs.md"
-    if not specs.is_file():
-        return []
-    raw = PRIME_DIRECTIVE_SECTION.search(read_file(specs))
-    if not raw:
-        return []
-    stated = strip_comments(raw.group(1)).strip()
-    if not stated:
-        return []   # nothing written yet: that is the planning nudge's business
-    # Compare the two sides rather than testing both for emptiness (S078,
-    # .2-F12). Returning clean as soon as prime_directive was non-empty passed a
-    # section holding a lead-in sentence and the rule itself inside a fence: the
-    # directive unreadable, nothing reporting it, and prime_directive answering
-    # with the lead-in. The section is one sentence by design, so anything a
-    # fence removes from it is content no check can read.
-    if not hides_content(stated):
-        return []
-    return [f"INV-16: {DOCS}/specs.md states a prime directive that a code fence swallows, so "
-            f"what every check reads is not what the file says — and --session-start may be "
-            f"asking for a directive that is already there. The marker count is even, which is "
-            f"why INV-13 is quiet: close the example blocks around it, or move them out of "
-            f"the section"]
-
-
-# INV-15 (worklog secret shapes) was retired 2026-08-11 (S120, DEC-046) with
-# the worklog itself: nothing writes prompts verbatim into a tracked file any
-# more, so the exposure it detected no longer exists. Number never reused.
-
-
-def inv_14_findings_not_hidden(root, config):
-    """S049: INV-13 catches one unclosed fence. Two are an even count and pair as
-    one closed fence, which is the shape a reviewer produces by pasting two
-    transcripts and closing neither, and it deletes the finding between them."""
-    audit_dir = root / DOCS / "audit"
-    if not audit_dir.is_dir():
-        return []
-    violations = []
-    for report in sorted(audit_dir.glob("*.md")):
-        for finding_id in hidden_findings(report):
-            violations.append(
-                f"INV-14: {report.name} states finding {finding_id} but a code fence swallows "
-                f"it, so INV-10 and --audit list never see it. Two unclosed fences pair as one "
-                f"closed fence and the marker count stays even, which is why INV-13 is quiet: "
-                f"close the evidence blocks around that heading")
-    return violations
+# INV-13, INV-14, and INV-16 — the fence police — were retired 2026-08-11
+# (S124, DEC-047), numbers never reused. strip_guidance keeps stripping fenced
+# content from the id-scanners so quoting stays safe; nothing blocks on fence
+# counts any more. An unclosed fence can hide content from scanners silently —
+# accepted under DEC-030's drift-not-malice threat model: the breakage is
+# visible to any reader, and INV-10 still catches an open finding with no home.
 
 
 INVARIANT_CHECKS = [
@@ -805,9 +729,6 @@ INVARIANT_CHECKS = [
     ("INV-7", inv_7_done_immutable),
     ("INV-9", inv_9_unique_dec_ids),
     ("INV-10", inv_10_audit_findings),
-    ("INV-13", inv_13_balanced_fences),
-    ("INV-14", inv_14_findings_not_hidden),
-    ("INV-16", inv_16_prime_directive_readable),
 ]
 
 
@@ -924,6 +845,20 @@ def prime_directive(root):
     return match.group(1).strip() if match else ""
 
 
+PRIME_DIRECTIVE_SECTION = re.compile(r"^##\s+Prime directive\s*$(.*?)(?=^##\s|\Z)",
+                                     re.M | re.S)
+
+
+def _raw_prime_directive(root):
+    """The prime-directive section before stripping — written at all, readable
+    or not."""
+    path = root / DOCS / "specs.md"
+    if not path.is_file():
+        return ""
+    match = PRIME_DIRECTIVE_SECTION.search(read_file(path))
+    return strip_comments(match.group(1)).strip() if match else ""
+
+
 def planning_pending(root):
     """Which of the two files the planning phase has not filled yet (S028).
 
@@ -935,10 +870,10 @@ def planning_pending(root):
     if not (root / DOCS).is_dir():
         return []   # not scaffolded at all; --scaffold is the advice, not this
     pending = []
-    if not prime_directive(root) and not inv_16_prime_directive_readable(root, None):
-        # Written-but-unreadable is INV-16's to report, not this one's: asking
-        # for a directive that is already on disk sends the user to rewrite what
-        # is there instead of closing the fence around it (S063).
+    if not prime_directive(root) and not _raw_prime_directive(root):
+        # Written-but-unreadable stays un-nagged (S063, kept through DEC-047):
+        # asking for a directive that is already on disk sends the user to
+        # rewrite what is there instead of closing the fence around it.
         pending.append(f"{DOCS}/specs.md has no prime directive yet")
     if not plan_order(root):
         pending.append(f"{DOCS}/plan.md lists no steps yet")
@@ -1172,11 +1107,7 @@ def mode_pre_write(root, config, path_arg):
     return EXIT_OK
 
 
-# INV-14 reads the audit reports INV-10 already reads, so a reviewer learns a
-# fence swallowed a finding when the report is saved rather than at the next
-# --validate — the gap 2026-08-07_adversarial.2-F04 named (S049).
-CHEAP_CHECKS = ("INV-1", "INV-2", "INV-3", "INV-4", "INV-5", "INV-6", "INV-9", "INV-10",
-                "INV-14")
+CHEAP_CHECKS = ("INV-1", "INV-2", "INV-3", "INV-4", "INV-5", "INV-6", "INV-9", "INV-10")
 
 
 def run_checks(root, config, only=None):
@@ -2352,7 +2283,7 @@ def audit_list(root, config):
             # and the reference are not guessed at.
             total += 1
             hidden_total += 1
-            print(f"  {finding_id}  hidden  (a code fence swallows it; INV-14)")
+            print(f"  {finding_id}  hidden  (a code fence swallows it from every scanner)")
         for finding_id, status in findings:
             total += 1
             closers = [s for dirname in PLAN_DIRS for s, _p, fields in steps[dirname]

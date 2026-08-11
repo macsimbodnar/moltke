@@ -330,40 +330,14 @@ If the baseline `HEAD` is no longer reachable, that is reported rather
 than skipped, because history was rewritten under the run. Without git, or before
 `--audit new` has run, the check refuses instead of passing quietly.
 
-**An unclosed code fence is a violation, not a formatting nit.** Every check that
-reads `plan.md`, `decisions.md`, or an audit report strips fenced
-blocks first, so that a template's worked example is not mistaken for a real
-decision or a real finding. That means an unclosed fence hides whatever follows
-it from those checks.
-
-Markers have to open a line, so a quoted `> ``` ` is text, and a trailing
-unpaired marker is text rather than swallowing the rest of the file. A marker inside an HTML comment is not a marker
-either, since comments come out before anything looks for fences — so prose about
-fences, which this file and the specs are full of, can show one. An odd number of
-markers is an INV-13 violation naming the file. Close the fence and it clears.
-
-Two unclosed fences are a different problem: they are an even count, they pair as
-one closed fence, and nothing distinguishes them from one — templates do put
-headings inside fences on purpose. That shape is what you produce by pasting two
-transcripts and closing neither, and up to and including 0.4.0 it deleted the
-finding between them silently. Since 0.5.0 an audit report that states a finding
-under its own name which no check can then read is an INV-14 violation naming it, and
-`--audit list` prints it as `hidden` instead of leaving it out. `--post-write`
-reports it too, so it surfaces when you save the report. Close the evidence blocks
-around the heading and it clears.
-
-INV-16 is the same rule for the one other place it matters: a prime directive
-written in `adocs/specs.md` and then swallowed by a fence reads as unwritten to
-every check, so it is reported rather than left to nag you forever about a
-planning phase you already finished.
-
-INV-14 sees hidden finding headings, in `adocs/audit/` only. It does not see other
-hidden content — a `Status:` line, an Impact section, anything in `plan.md`,
-or `decisions.md` — where an even count of unclosed fences still
-hides text and INV-13's parity is the only guard. A heading quoting another
-report's finding is evidence, not a finding of yours, so quoting stays quiet. For
-the same reason a fresh report's example finding now reads `### <report>-F01`
-rather than carrying the report's real name.
+**Code fences hide content from the scanners, and nothing blocks on it.** Every
+check that reads `plan.md`, `decisions.md`, or an audit report strips fenced
+blocks first, so a template's worked example is never mistaken for a real
+decision or finding — and a quoted finding heading inside a fence stays a quote.
+The fence police (INV-13/14/16) were retired in 0.11.0 (DEC-047): an unclosed
+fence no longer blocks anything, and its one real consequence is visible in
+`--audit list`, which names a swallowed finding as `hidden` and exits 1 until
+the fence is closed.
 
 **The immutability check needs git, and reads history as well as HEAD.** INV-7
 (`plan_done/` unchanged) compares the working tree against `git HEAD`, which

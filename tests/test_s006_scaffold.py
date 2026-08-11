@@ -371,10 +371,11 @@ class TestPlanningPhaseNudge(unittest.TestCase):
                 "```\nnever lose a write\n```"), encoding="utf-8")
             self.assertEqual(moltke.prime_directive(root), "",
                              "a fenced directive is still not a written one")
+            # S124 (DEC-047): the fence police are retired, so nothing reports
+            # this. The nudge still stays quiet — text is on disk, and nagging
+            # for a directive that exists sends the user to rewrite it.
             result = run_moltke(root, "--validate")
-            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
-            self.assertIn("INV-16", result.stdout)
-            self.assertIn("adocs/specs.md", result.stdout)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             self.assertNotIn("has no prime directive yet", self.context(root))
 
     def test_an_unscaffolded_repository_says_nothing_about_planning(self):
