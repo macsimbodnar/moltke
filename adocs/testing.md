@@ -563,3 +563,8 @@ never after. Append only.
 | S108 | the step skill carries the tier-1 fast check in its completion flow, including the proposal escalation | skills/step/SKILL.md "Fast check, after the commit" section | pass 2026-08-11 |
 | S108 | the audit skill states it is tier 3, carries the propose/accept/postpone etiquette, and closes by re-run or decision | skills/audit/SKILL.md, header and step 5 rewritten | pass 2026-08-11 |
 | S108 | MANUAL describes the model in one section | MANUAL.md "Review model" | pass 2026-08-11 |
+| S109 | --session-start creates .moltke.local.md from the template, appends it to .git/info/exclude, and injects its content; git status never sees the file | test_s005_hooks.py TestMachineLocalFile.test_created_excluded_and_injected (red observed: no file, KeyError on the context) | pass 2026-08-11 |
+| S109 | an existing file is injected verbatim and never overwritten | TestMachineLocalFile.test_existing_content_is_injected_and_never_overwritten (red observed) | pass 2026-08-11 |
+| S109 | creation and exclusion are idempotent across sessions | TestMachineLocalFile.test_idempotent (red observed on the missing file) | pass 2026-08-11 |
+| S109 | unmarked and declined repositories get no file — INV-11 | TestMachineLocalFile.test_an_unmarked_repository_gets_no_file, test_a_declined_repository_gets_no_file | pass 2026-08-11 |
+| S109 | without git the file is still created and injected, the exclusion skipped silently | TestMachineLocalFile.test_without_git_the_file_still_works (red observed) | pass 2026-08-11 |

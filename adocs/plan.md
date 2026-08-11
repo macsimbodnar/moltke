@@ -16,7 +16,6 @@ list below and nowhere else in this file: the derived next step is the first id
 in document order, so an id mentioned in prose above the list becomes the next
 step instead.
 
-102. S104  bump 0.8.0 and stop the audit loop by decision
 103. S105  the tool stops enforcing document history, so the documents can shrink
 104. S106  the always-read documents hold current state, not history
 105. S107  the ruleset tells agents to look up, not to read everything

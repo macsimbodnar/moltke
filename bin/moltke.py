@@ -989,6 +989,44 @@ def planning_pending(root):
     return pending
 
 
+LOCAL_FILE = ".moltke.local.md"
+
+
+def local_file_lines(root):
+    """Create, exclude, and read the machine-local file (S109, DEC-043).
+
+    Machine memory: tools, paths, per-platform directives — true on this
+    machine only, so it must exist reliably and must never travel in git. The
+    exclusion goes in .git/info/exclude, which is itself uncommitted, so no
+    .gitignore edit lands in anyone's diff. Every failure path degrades to
+    silence: this runs inside SessionStart, which may never block.
+    """
+    path = root / LOCAL_FILE
+    if not path.is_file():
+        try:
+            path.write_text(read_file(TEMPLATE_ROOT / "moltke_local.md"), encoding="utf-8")
+        except OSError:
+            return []
+    resolved = git_dir(root)
+    if resolved is not None:
+        exclude = resolved / "info" / "exclude"
+        try:
+            existing = read_file(exclude) if exclude.is_file() else ""
+            if LOCAL_FILE not in existing:
+                exclude.parent.mkdir(parents=True, exist_ok=True)
+                with open(exclude, "a", encoding="utf-8") as fh:
+                    if existing and not existing.endswith("\n"):
+                        fh.write("\n")
+                    fh.write(f"{LOCAL_FILE}\n")
+        except OSError:
+            pass  # unexcluded is visible in git status, which is loud enough
+    try:
+        content = read_file(path).strip()
+    except OSError:
+        return []
+    return [f"{LOCAL_FILE} (machine-local, uncommitted; edit it there):", content]
+
+
 def mode_session_start(root, config):
     # The envelope is printed whatever happens (S068, .2-F02). Everything below
     # was built before the single print, so one unreadable path lost the whole
@@ -998,7 +1036,7 @@ def mode_session_start(root, config):
     # problem is exactly the session that would not hear about it.
     lines = []
     try:
-        lines = session_context_lines(root, config)
+        lines = local_file_lines(root) + session_context_lines(root, config)
     except OSError as exc:
         lines.append(f"moltke: could not read the repository ({exc}). Nothing below is "
                      f"reliable until that path is fixed; run bin/moltke.py --validate.")

@@ -54,6 +54,7 @@ the end of this file, which overrides the base ruleset above it.
 | `README.md` | developer facing: layout, build, test, exact commands | rewrite in place | checked at every step completion |
 | `MANUAL.md` | end user facing: install, operate, known bugs | rewrite in place | checked at every step completion |
 | `.moltke.json` | marker, schema version, limits | rewrite in place | schema change only |
+| `.moltke.local.md` | machine-local instructions: tools, paths, per-platform directives; created by the tool, excluded from git, injected into every session | edit freely, keep small | when this machine's setup changes |
 | `adocs/status.md` | last done, in progress, next, blocked, parked | rewrite in place | end of every work turn |
 | `adocs/specs.md` | prime directive, invariants, required behavior — current state only | rewrite in place | same commit as any behavior change |
 | `adocs/plan.md` | plan description and the ordered open steps; `--step done` prunes completed entries to the last 5 | rewrite in place | any plan change |

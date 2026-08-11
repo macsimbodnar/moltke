@@ -38,3 +38,15 @@ No code change. Suite 438 OK.
 Files: AGENTS.md, templates/AGENTS.md, skills/step/SKILL.md,
 skills/audit/SKILL.md, MANUAL.md, adocs/decisions.md (DEC-044),
 adocs/testing.md (4 rows), adocs/plan_done/S108_three_tier_review_model.md.
+
+## 2026-08-11T recap (S109)
+
+S109 complete. .moltke.local.md: created by --session-start when absent, excluded
+via .git/info/exclude, injected into session context, never overwritten,
+idempotent, INV-11-silent in unmarked/declined repos, works without git.
+6 tests, red observed. DEC-043 records the design. Suite 444 OK.
+Files: bin/moltke.py (LOCAL_FILE, local_file_lines, mode_session_start),
+templates/moltke_local.md (new), tests/test_s005_hooks.py (TestMachineLocalFile),
+MANUAL.md, AGENTS.md §2 + templates/AGENTS.md, adocs/decisions.md (DEC-043),
+adocs/testing.md (5 rows), README.md (438 to 444),
+adocs/plan_done/S109_machine_local_file.md.

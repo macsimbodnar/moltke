@@ -223,3 +223,8 @@ Why: The token analysis measured the always-read set at ~180 KB and growing 1.4 
 Tags: review, audit, process
 Decision: After every completed step, one small subagent reviews that step's diff — no report file, no finding ids; trivial findings fixed on the spot, real ones become steps. A full adversarial audit runs when the user asks, or when the user accepts an agent proposal made on real risk; postponed proposals park as one status.md line. Findings close on a re-run or by recorded decision, so the loop always has a user-controlled end; the reviewer fence and clean-context rule keep binding actual audit runs.
 Why: mandatory full audits produced an endless loop (DEC-041 stopped it by hand); a per-chunk fast check catches most defects at a fraction of the ceremony.
+
+## DEC-043  2026-08-11  Two override surfaces: machine-local file, project rules section
+Tags: context, overrides, local
+Decision: .moltke.local.md at the marked root holds machine-local instructions — created by --session-start when absent, excluded through .git/info/exclude rather than .gitignore so the exclusion itself stays uncommitted, injected verbatim into the SessionStart context, never overwritten once it exists. A "## Project rules" section at the end of the scaffolded AGENTS.md holds committed project-specific rule overrides. Precedence: machine over project over base ruleset.
+Why: the same repository is developed on machines with different tools and paths, and a project must be able to loosen or harden the shipped rules without forking the template.

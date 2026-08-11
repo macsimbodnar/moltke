@@ -124,6 +124,12 @@ Nothing to remember. Hooks fire on their own:
 - the turn will not end with a stale `status.md`, an invariant violation, or
   source changes with no worklog recap
 
+Every session also carries `.moltke.local.md`: machine-local instructions —
+tool paths, per-platform directives — that moltke creates at the marked root
+when absent, keeps out of git via `.git/info/exclude`, and injects into the
+session context. Edit it freely and keep it small; its content is paid for in
+every session. What a teammate's machine also needs does not belong there.
+
 Drive the plan with `/moltke:step`, audit with `/moltke:audit`. Both refuse
 rather than repair, and name the condition that is missing.
 

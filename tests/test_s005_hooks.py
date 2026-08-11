@@ -1052,6 +1052,85 @@ class TestMalformedHookPayloads(unittest.TestCase):
             self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
 
 
+class TestMachineLocalFile(unittest.TestCase):
+    """S109 (DEC-043): .moltke.local.md is machine memory — tools, paths,
+    directives that differ per machine and must not travel in git. The tool
+    creates it so it reliably exists, excludes it through .git/info/exclude
+    (itself uncommitted), and injects its content into the SessionStart
+    context so an agent needs no extra read."""
+
+    def session_start(self, root):
+        return run_moltke(root, "--session-start")
+
+    def context(self, result):
+        return json.loads(result.stdout)["hookSpecificOutput"]["additionalContext"]
+
+    def test_created_excluded_and_injected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            git_baseline(root)
+            result = self.session_start(root)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            local = root / ".moltke.local.md"
+            self.assertTrue(local.is_file(), "the file is created when absent")
+            exclude = (root / ".git" / "info" / "exclude").read_text(encoding="utf-8")
+            self.assertIn(".moltke.local.md", exclude)
+            porcelain = git(root, "status", "--porcelain").stdout
+            self.assertNotIn(".moltke.local.md", porcelain,
+                             "git must not see the file at all")
+            self.assertIn(".moltke.local.md", self.context(result),
+                          "the injection names its source so an agent can edit it")
+
+    def test_existing_content_is_injected_and_never_overwritten(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            git_baseline(root)
+            (root / ".moltke.local.md").write_text(
+                "# This machine\n\nstockfish lives at /opt/homebrew/bin/stockfish\n",
+                encoding="utf-8")
+            result = self.session_start(root)
+            self.assertIn("stockfish lives at /opt/homebrew/bin/stockfish",
+                          self.context(result))
+            self.assertIn("stockfish", (root / ".moltke.local.md").read_text(encoding="utf-8"),
+                          "an existing file is the user's and is never overwritten")
+
+    def test_idempotent(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            git_baseline(root)
+            self.session_start(root)
+            body = (root / ".moltke.local.md").read_bytes()
+            exclude = (root / ".git" / "info" / "exclude").read_bytes()
+            self.session_start(root)
+            self.assertEqual((root / ".moltke.local.md").read_bytes(), body)
+            self.assertEqual((root / ".git" / "info" / "exclude").read_bytes(), exclude,
+                             "the exclude line is appended once, not once per session")
+
+    def test_an_unmarked_repository_gets_no_file(self):
+        # INV-11: a repository that did not opt in feels nothing, including no
+        # file creation.
+        with tempfile.TemporaryDirectory() as tmp:
+            result = run_moltke(tmp, "--session-start")
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertFalse((Path(tmp) / ".moltke.local.md").exists())
+
+    def test_a_declined_repository_gets_no_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            (Path(tmp) / ".moltke.json").write_text('{"schema": 1, "enabled": false}\n',
+                                                    encoding="utf-8")
+            result = run_moltke(tmp, "--session-start")
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertFalse((Path(tmp) / ".moltke.local.md").exists())
+
+    def test_without_git_the_file_still_works(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)   # marked, no git init
+            result = self.session_start(root)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertTrue((root / ".moltke.local.md").is_file())
+            self.assertNotIn("Traceback", result.stderr)
+
+
 class TestAMalformedAgentTypeIsFenced(unittest.TestCase):
     """S101 (2026-08-09_adversarial-F05): S087 made `payload_str` return "" for
     anything that is not a string, which stopped the crash and left the fence
