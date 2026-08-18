@@ -7,7 +7,7 @@ Updated: 2026-08-18 by `moltke --step status`.
 
 - Last done: S130
 - In progress: none
-- Next: S137
+- Next: S140
 - Blocked: none
 - Parked:
   - 0.11.0 is installed (2026-08-13, sha 7ea76f7) and is what the live hooks run.

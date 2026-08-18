@@ -21,9 +21,10 @@ above the list becomes the next step instead.
 126. S128  bump 0.11.0 and ship the batch
 127. S129  watch primitive: a self-terminating four-exit watcher with registration
 128. S130  arm-time watcher lint and watch-state reporting in hooks
-129. S137  decide whether arm-time watcher enforcement survives the fence retirement
-130. S132  bound each `--watch` scan so the ceiling holds against a runaway regex
-131. S134  the primitive must be the executed command, not a substring anywhere in it
-132. S136  step ids past 999: recognised everywhere, or allocation refused loudly
-133. S138  re-run the adversarial audit against the merged tree
-134. S139  install and verify 0.12.0, the merged plugin
+129. S140  a watcher killed in its arm window still records an outcome
+130. S137  decide whether arm-time watcher enforcement survives the fence retirement
+131. S132  bound each `--watch` scan so the ceiling holds against a runaway regex
+132. S134  the primitive must be the executed command, not a substring anywhere in it
+133. S136  step ids past 999: recognised everywhere, or allocation refused loudly
+134. S138  re-run the adversarial audit against the merged tree
+135. S139  install and verify 0.12.0, the merged plugin
