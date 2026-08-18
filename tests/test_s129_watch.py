@@ -19,6 +19,8 @@ from fixtures import marked_repo
 
 MOLTKE = Path(__file__).resolve().parent.parent / "bin" / "moltke.py"
 
+WATCH_DIR = "moltke_watch"  # mirrors bin/moltke.py
+
 DONE_RE = "RUN-DONE"
 FAIL_RE = "RUN-FAILED"
 
@@ -207,6 +209,87 @@ class TestWatchRegistration(unittest.TestCase):
             self.assertEqual(code, 0, err)
             self.assertIn("RUN-DONE", out)
             self.assertIn("not registered", err)
+
+
+ARM_WINDOW_DRIVER = '''\
+"""Drive --watch with a SIGTERM forced into the arm window (S140).
+
+argv: <path to moltke.py> before|after <moltke argv...>. The kill is sent from
+inside the registration write itself, so the window is hit on every run rather
+than once every few hundred under load.
+"""
+import importlib.util
+import os
+import signal
+import sys
+
+spec = importlib.util.spec_from_file_location("moltke_under_test", sys.argv[1])
+moltke = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(moltke)
+
+when, real, fired = sys.argv[2], moltke._watch_write, []
+
+
+def kill_at_registration(path, record):
+    if fired:  # the outcome write on the way out, left alone
+        return real(path, record)
+    fired.append(True)
+    if when == "before":
+        os.kill(os.getpid(), signal.SIGTERM)
+        return real(path, record)  # reached only if nothing handled the signal
+    real(path, record)
+    os.kill(os.getpid(), signal.SIGTERM)
+
+
+moltke._watch_write = kill_at_registration
+sys.exit(moltke.main(sys.argv[3:]))
+'''
+
+
+class TestWatchArmWindow(unittest.TestCase):
+    """S140: the window between registering an obligation and being able to
+    answer for it. A SIGTERM landing there once killed the watcher through the
+    default disposition, leaving a record with no outcome — an obligation
+    nobody can discharge, since discharging one means deleting a finished
+    record. Deterministic: the signal comes from inside the arm sequence."""
+
+    def _kill_at_registration(self, tmp, when, log, *extra):
+        root = Path(tmp)
+        marked_repo(tmp)
+        subprocess.run(["git", "init", "-q"], cwd=tmp, check=True)
+        driver = root / "arm_window_driver.py"
+        driver.write_text(ARM_WINDOW_DRIVER, encoding="utf-8")
+        proc = subprocess.Popen(
+            [sys.executable, str(driver), str(MOLTKE), when,
+             "--watch", str(log), DONE_RE, *extra],
+            cwd=tmp, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        _out, err = proc.communicate(timeout=15)
+        return proc.returncode, err, root / ".git" / WATCH_DIR
+
+    def test_kill_just_after_registration_is_recorded_as_stopped(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            log = Path(tmp) / "run.log"
+            log.write_text("no marker\n", encoding="utf-8")
+            code, err, watch_dir = self._kill_at_registration(
+                tmp, "after", log, "--ceiling", "60s", "--interval", "0.05s")
+            self.assertEqual(code, 128 + signal.SIGTERM, err)
+            records = list(watch_dir.glob("*.json"))
+            self.assertEqual(len(records), 1, err)
+            record = json.loads(records[0].read_text(encoding="utf-8"))
+            self.assertEqual(record["outcome"], "stopped")
+            self.assertEqual(record["exit_code"], 128 + signal.SIGTERM)
+            self.assertIn("ended_at", record)
+
+    def test_kill_before_registration_leaves_no_record(self):
+        # Nothing reached the disk, so nothing is owed: an empty directory is
+        # the right answer, not a record that would block a stop until deleted.
+        with tempfile.TemporaryDirectory() as tmp:
+            log = Path(tmp) / "run.log"
+            log.write_text("no marker\n", encoding="utf-8")
+            code, err, watch_dir = self._kill_at_registration(
+                tmp, "before", log, "--ceiling", "60s", "--interval", "0.05s")
+            self.assertEqual(code, 128 + signal.SIGTERM, err)
+            self.assertEqual(list(watch_dir.glob("*.json")), [], err)
 
 
 class TestWatchIsGateExempt(unittest.TestCase):

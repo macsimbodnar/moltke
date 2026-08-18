@@ -1715,7 +1715,6 @@ def mode_watch(argv, pid, fail_re_text, ceiling_text, interval_text):
     except re.error as exc:
         return refuse(f"bad regex: {exc}")
 
-    record_path = _watch_record_path()
     record = {
         "schema": 1,
         "log": str(log_path.resolve()),
@@ -1727,13 +1726,11 @@ def mode_watch(argv, pid, fail_re_text, ceiling_text, interval_text):
         "armed_at": _now(),
         "watcher_pid": os.getpid(),
     }
-    if record_path is None:
-        print("moltke --watch: no .git found, watch state is not registered; "
-              "the watch itself still terminates on its own", file=sys.stderr)
-    else:
-        _watch_write(record_path, record)
-        print(f"moltke --watch: registered {record_path}", file=sys.stderr)
 
+    # Handlers before registration, and the registration inside the try (S140):
+    # a SIGTERM between the write and this line used to kill the watcher through
+    # the default disposition, leaving a record with no outcome, which reads as a
+    # crash. The obligation must not outlive the ability to answer for it.
     def _bail(signum, _frame):
         raise SystemExit(128 + signum)
     for signum in (signal.SIGTERM, signal.SIGINT):
@@ -1741,8 +1738,16 @@ def mode_watch(argv, pid, fail_re_text, ceiling_text, interval_text):
 
     outcomes = {EXIT_OK: "success marker", EXIT_WATCH_FAIL: "failure marker"}
     outcome, code = "stopped", None
-    deadline = time.monotonic() + ceiling
+    record_path = None
     try:
+        record_path = _watch_record_path()
+        if record_path is None:
+            print("moltke --watch: no .git found, watch state is not registered; "
+                  "the watch itself still terminates on its own", file=sys.stderr)
+        else:
+            _watch_write(record_path, record)
+            print(f"moltke --watch: registered {record_path}", file=sys.stderr)
+        deadline = time.monotonic() + ceiling
         while True:
             hit = _watch_scan(log_path, done_re, fail_re)
             if hit is None and pid is not None and not _pid_alive(pid):
@@ -1769,8 +1774,12 @@ def mode_watch(argv, pid, fail_re_text, ceiling_text, interval_text):
         code = exc.code
         raise
     finally:
-        record.update({"outcome": outcome, "exit_code": code, "ended_at": _now()})
-        _watch_write(record_path, record)
+        # Only a record that reached the disk gets an outcome: a kill before the
+        # registration write leaves nothing armed, so there is nothing to
+        # acknowledge, and inventing a record would block a stop for no run.
+        if record_path is not None and record_path.exists():
+            record.update({"outcome": outcome, "exit_code": code, "ended_at": _now()})
+            _watch_write(record_path, record)
 
 
 def watch_records(root):

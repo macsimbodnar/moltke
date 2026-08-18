@@ -213,7 +213,7 @@ suffixes. Rules and the no-plugin fallback loop: AGENTS.md §12.
 In Claude Code, arm it through a persistent monitor: the harness caps bounded
 monitors at one hour, so `persistent: true` plus `--ceiling` is the intended
 overnight form — the ceiling is the real timeout, and the process ends itself.
-The PreToolUse lint enforces exactly this (INV-13): a persistent monitor that
+The PreToolUse lint enforces exactly this (INV-17): a persistent monitor that
 is not the primitive is refused at arm time, unless its command carries
 `MOLTKE_UNBOUNDED_OK` — the deliberate escape for genuinely unbounded streams
 such as a dev-server error tail. A single-match follow
