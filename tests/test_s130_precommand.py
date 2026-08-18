@@ -94,6 +94,67 @@ class TestPreCommandLint(unittest.TestCase):
                                 stdin=monitor_arm(PRIMITIVE_FORM, persistent=True))
             self.assertEqual(result.returncode, 0, result.stderr)
 
+    def test_primitive_without_an_interpreter_is_allowed(self):
+        # The primitive is the executable itself as often as it is an argument.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            result = run_moltke(root, "--pre-command", stdin=monitor_arm(
+                "bin/moltke.py --watch run.log 'RUN-(DONE|FAILED)' --ceiling 8h",
+                persistent=True))
+            self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_primitive_inside_bash_c_is_allowed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            result = run_moltke(root, "--pre-command", stdin=monitor_arm(
+                "bash -c 'python3 bin/moltke.py --watch run.log RUN-DONE --ceiling 8h'",
+                persistent=True))
+            self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_a_comment_mentioning_the_primitive_does_not_arm_a_leak(self):
+        # 2026-08-18_adversarial-F04: the substring test made a comment an
+        # undocumented second escape hatch, one an agent trips by accident.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            result = run_moltke(root, "--pre-command", stdin=monitor_arm(
+                "tail -f run.log | grep BOOM  # prefer moltke.py --watch here",
+                persistent=True))
+            self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+            self.assertIn("--watch", result.stderr)
+
+    def test_echoing_the_primitive_before_a_leak_does_not_arm_it(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            result = run_moltke(root, "--pre-command", stdin=monitor_arm(
+                "echo moltke --watch ; tail -f run.log | grep BOOM", persistent=True))
+            self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+            self.assertIn("--watch", result.stderr)
+
+    def test_the_primitive_trailed_by_a_leak_does_not_arm_it(self):
+        # The mirror image: the primitive really is executed, and so is the leak.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            result = run_moltke(root, "--pre-command", stdin=monitor_arm(
+                PRIMITIVE_FORM + " ; tail -f run.log | grep BOOM", persistent=True))
+            self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+
+    def test_a_comment_mentioning_the_primitive_still_honours_the_token(self):
+        # MOLTKE_UNBOUNDED_OK stays the one escape, and it lives in a comment.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            result = run_moltke(root, "--pre-command", stdin=monitor_arm(
+                "tail -f dev.log | grep ERROR  # MOLTKE_UNBOUNDED_OK, and see moltke --watch",
+                persistent=True))
+            self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_an_unparseable_command_is_refused_rather_than_waved_through(self):
+        # A wrong block is loud, a wrong pass is silent (the S016 direction).
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            result = run_moltke(root, "--pre-command", stdin=monitor_arm(
+                "moltke.py --watch run.log 'unbalanced", persistent=True))
+            self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+
     def test_bounded_stream_is_allowed(self):
         # Monitor's own documented per-occurrence use; the 1h cap bounds it.
         with tempfile.TemporaryDirectory() as tmp:

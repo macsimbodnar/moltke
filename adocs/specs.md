@@ -57,9 +57,11 @@ reused; a retired number stays listed so old audit reports keep meaning.
   prompts verbatim into a tracked file any more.
 - INV-16 retired 2026-08-11 (S124, DEC-047); the planning nudge still stays
   quiet when a directive exists on disk, readable or not.
-- INV-17 the leaked-watcher class is unarmable: a persistent Monitor arm that is
-  not `--watch` is refused unless its command carries `MOLTKE_UNBOUNDED_OK`, and
-  a single-match follow (`tail -f | grep -m N`) is refused always. Enforced at
+- INV-17 the leaked-watcher class is unarmable: a persistent Monitor arm whose
+  executed command is not `--watch` is refused unless its command carries
+  `MOLTKE_UNBOUNDED_OK`, and a single-match follow (`tail -f | grep -m N`) is
+  refused always. Executed, not mentioned: naming the primitive in a comment or
+  echoing it ahead of a hand-composed follow arms nothing (S134). Enforced at
   arm time by `--pre-command` in Claude Code (DEC-049 as narrowed by DEC-051);
   elsewhere it is a §12 rule with no mechanical teeth, like everything else
   outside Claude Code. 2026-08-18 (DEC-052): arrived as INV-13 on the merged

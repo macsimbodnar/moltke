@@ -11,6 +11,7 @@ import hashlib
 import json
 import os
 import re
+import shlex
 import signal
 import subprocess
 import sys
@@ -1142,6 +1143,49 @@ WATCH_HINT = ("watch for a terminal marker with the primitive instead: python3 "
               "persistent: the --ceiling is its timeout and it exits by itself")
 
 
+# `();<>|&` is what shlex hands back as punctuation once punctuation_chars is on.
+# A token made of nothing else is an operator; a quoted 'RUN-(DONE|FAILED)' is
+# not, which is the whole reason this is tokenized rather than scanned.
+SHELL_OPERATOR_CHARS = "();<>|&"
+SHELL_NAMES = ("bash", "sh", "zsh", "dash", "ksh")
+INTERPRETER_RE = re.compile(r"^(python\d?(\.\d+)?|py)$")
+
+
+def _is_watch_primitive(command, depth=0):
+    """Whether `--watch` is what this command *runs*, rather than what it
+    mentions (S134, 2026-08-18_adversarial-F04).
+
+    The predecessor searched for the substring `moltke ... --watch` anywhere in
+    the string, which made an ordinary comment — `# use moltke.py --watch for
+    long runs` — an undocumented second escape hatch, and one an agent trips by
+    accident rather than on purpose. MOLTKE_UNBOUNDED_OK is the escape; it is
+    deliberate, documented, and checked before this.
+
+    A tokenizer, not a shell: shlex strips comments and honours quotes, so the
+    primitive's own `'RUN-(DONE|FAILED)'` stays one word while a bare `|` comes
+    back as an operator. Anything past that grammar — env prefixes, `cd x &&`,
+    substitutions — reads as not-the-primitive and is refused loudly, which is
+    the direction to fail when the escape hatch is one token away.
+    """
+    try:
+        lexer = shlex.shlex(command, posix=True, punctuation_chars=True)
+        lexer.whitespace_split = True
+        words = list(lexer)
+    except ValueError:
+        return False  # unbalanced quotes: unparseable is not the primitive
+    if not words or any(word and set(word) <= set(SHELL_OPERATOR_CHARS) for word in words):
+        return False
+    # `bash -c '<primitive>'` is the documented no-plugin wrapper, so it has to
+    # pass; one unwrap only, since nothing legitimate nests deeper.
+    if (depth == 0 and len(words) > 2 and Path(words[0]).name in SHELL_NAMES
+            and words[1] == "-c"):
+        return _is_watch_primitive(words[2], depth + 1)
+    if INTERPRETER_RE.match(Path(words[0]).name):
+        words = words[1:]
+    return bool(words) and Path(words[0]).name in ("moltke.py", "moltke") \
+        and "--watch" in words[1:]
+
+
 def mode_pre_command(root, config):
     # INV-17 (DEC-049, DEC-051): the leaked-monitor class is refused at arm
     # time. Payload shape verified against the live Monitor schema 2026-08-18:
@@ -1161,11 +1205,12 @@ def mode_pre_command(root, config):
               f"Bounded or not, this form under-delivers; {WATCH_HINT}",
               file=sys.stderr)
         return EXIT_BLOCK
-    if tool_input.get("persistent") and not re.search(r"moltke(\.py)?\b[^|;&]*--watch\b",
-                                                      command):
-        print(f"moltke: a persistent watcher arms only through the watch primitive "
-              f"(INV-17, AGENTS.md §12) — {WATCH_HINT}. For a deliberately unbounded "
-              f"stream (per-occurrence events, dev-server errors), include the token "
+    if tool_input.get("persistent") and not _is_watch_primitive(command):
+        print(f"moltke: a persistent watcher arms only through the watch primitive, and "
+              f"the primitive must be the command that runs — naming it in a comment, or "
+              f"echoing it ahead of a hand-composed follow, is not arming it (INV-17, "
+              f"AGENTS.md §12) — {WATCH_HINT}. For a deliberately unbounded stream "
+              f"(per-occurrence events, dev-server errors), include the token "
               f"MOLTKE_UNBOUNDED_OK in the command.", file=sys.stderr)
         return EXIT_BLOCK
     return EXIT_OK

@@ -5,9 +5,9 @@ this file: on disagreement, `plan_current/` wins.
 
 Updated: 2026-08-18 by `moltke --step status`.
 
-- Last done: S132
+- Last done: S134
 - In progress: none
-- Next: S134
+- Next: S136
 - Blocked: none
 - Parked:
   - 0.12.0 is installed (2026-08-18, sha 6ca6455) and is what the live hooks run;

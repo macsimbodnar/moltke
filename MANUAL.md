@@ -221,7 +221,9 @@ overnight form — the ceiling is the real timeout, and the process ends itself.
 The PreToolUse lint enforces exactly this (INV-17): a persistent monitor that
 is not the primitive is refused at arm time, unless its command carries
 `MOLTKE_UNBOUNDED_OK` — the deliberate escape for genuinely unbounded streams
-such as a dev-server error tail. A single-match follow
+such as a dev-server error tail. The primitive has to be the command that runs:
+mentioning `--watch` in a trailing comment, or echoing it before a
+hand-composed follow, is refused exactly like the bare leak. A single-match follow
 (`tail -f log | grep -m1 DONE`) is refused always: it looks like a fix and
 hangs by construction.
 
