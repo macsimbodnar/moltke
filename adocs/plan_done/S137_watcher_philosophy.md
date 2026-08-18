@@ -7,4 +7,5 @@ decisions:  DEC-052
 closes:
 blocks:     S134
 paused_by:
-done:
+done:      Max chose to keep the arm-time blocker (DEC-054), from three agent-supplied options. DEC-047 does not reach INV-17: it retired checks that were wrong, and strictness was never the complaint; a warning was rejected against DEC-006's blocking-not-warning house style. specs.md INV-17 loses its open clause; AGENTS.md §12, templates/AGENTS.md, MANUAL and --pre-command already described the outcome and were checked unchanged. README does not name the lint. F04 re-read under the outcome: unchanged at planned, S134 closes it. Suite green, 429 tests.
+author:    Maksym Bodnar

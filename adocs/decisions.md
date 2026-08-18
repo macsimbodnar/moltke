@@ -57,6 +57,7 @@ Compacted (S106, DEC-042): ids stable, never reused, newest last. Full context a
 - DEC-051 2026-08-18 — Watcher lint scope narrowed against the live Monitor contract
 - DEC-052 2026-08-18 — The diverged branches are merged, the newer ids re-issued
 - DEC-053 2026-08-18 — Three of the six 2026-08-18 findings do not survive re-triage
+- DEC-054 2026-08-18 — INV-17's arm-time blocker survives the fence retirement
 
 
 ## DEC-001  2026-08-01  Package as a plugin, not a loose skill
@@ -287,3 +288,8 @@ Why: that branch audited and extended a 136-commit-stale tree, so its ids collid
 Tags: audit, findings, merge
 Decision: F01 is accepted, not fixed: it rests on a documented field name, and the running Claude Code builds the UserPromptSubmit payload with `prompt` at both call sites — the only `user_prompt` key in that binary is a telemetry span attribute. The mode it targets no longer exists in any case (DEC-046). F03 is accepted: the reviewer write fence already gave way to post-hoc reconciliation (DEC-022) and the fence police are retired (DEC-047), so an unfenced Bash tool is the chosen design, not an oversight. F05 is accepted as already fixed: renames reach both Stop gates through `porcelain_paths` since S050, and the README/MANUAL substring gate it targeted is gone (DEC-048). F02, F04 and F06 stand against the merged code and carry steps.
 Why: an audit against a stale tree re-finds fixed bugs and misses the decisions that answered them; recording which findings died, and why, is what stops them being re-derived.
+
+## DEC-054  2026-08-18  INV-17's arm-time blocker survives the fence retirement
+Tags: watcher, monitor, hooks, invariants, fences
+Decision: (Max, chat 2026-08-18, from agent-supplied options) INV-17 stays a blocker. `--pre-command` keeps refusing at arm time, and `MOLTKE_UNBOUNDED_OK` stays the one escape. DEC-047 does not reach it: that entry retired checks that were wrong and kept the part that worked, and this check has a paved road to point at, was already narrowed against false positives by DEC-051, and refuses a process that outlives the session rather than text hidden from a scanner. Downgrading it to a warning was rejected against DEC-006, which chose blocking over warning as the house style and left the tool no advisory precedent to follow. 2026-08-18_adversarial-F04, re-read under this outcome, stands unchanged at `planned` and is S134's to close: the incidental substring `moltke --watch` is an undocumented second escape that fires by accident, which is a bug in the check rather than evidence the check is unwanted — under DEC-030 drift writes a bare follow, it does not embed the token to get past a gate.
+Why: DEC-047's cause was a check that misfired about fifteen times across six audits with no better command to offer; strictness was never the complaint, and one finding is not six.
