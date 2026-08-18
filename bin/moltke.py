@@ -1163,9 +1163,15 @@ def _is_watch_primitive(command, depth=0):
 
     A tokenizer, not a shell: shlex strips comments and honours quotes, so the
     primitive's own `'RUN-(DONE|FAILED)'` stays one word while a bare `|` comes
-    back as an operator. Anything past that grammar — env prefixes, `cd x &&`,
-    substitutions — reads as not-the-primitive and is refused loudly, which is
-    the direction to fail when the escape hatch is one token away.
+    back as an operator. Anything past that grammar — an env prefix, `cd x &&` —
+    reads as not-the-primitive and is refused loudly, which is the direction to
+    fail when the escape hatch is one token away.
+
+    What it checks is the command word. An argument's own content is never
+    shell-parsed, so `--watch log "$(tail -f x)"` passes: the substitution runs
+    before the primitive does. Deliberate bypasses are not the threat model —
+    MOLTKE_UNBOUNDED_OK is one token away for anyone who wants one — and reading
+    argument text as shell is the arbitrary-grammar parsing S134 excludes.
     """
     try:
         lexer = shlex.shlex(command, posix=True, punctuation_chars=True)
