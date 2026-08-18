@@ -1648,23 +1648,52 @@ def _pid_alive(pid):
     return True
 
 
-def _watch_scan(log_path, done_re, fail_re):
+class _ScanTimeout(Exception):
+    """The ceiling landed inside a scan rather than between two of them (S132)."""
+
+
+def _scan_alarm(_signum, _frame):
+    raise _ScanTimeout
+
+
+# No interval timer on Windows, where §12 says to arm no persistent watchers.
+HAS_SCAN_ALARM = hasattr(signal, "setitimer") and hasattr(signal, "SIGALRM")
+
+
+def _watch_scan(log_path, done_re, fail_re, budget):
     """(exit_code, matched line) for the first terminal marker, else None.
 
     The whole file is scanned every time, so a marker written before the
     watcher armed is still caught — the race tail -f loses by construction.
+
+    `budget` is the seconds left of the ceiling, held by an interval timer over
+    the read and the search (S132, 2026-08-18_adversarial-F02). Both are caller
+    work — an arbitrary regex over a file of any size — and Python's `re` has no
+    backtracking guard, so a deadline consulted only between polls bounds
+    nothing: a catastrophic pattern hangs inside `search` and the ceiling never
+    arrives. The timer is out of band, so a scan that never returns still ends
+    at the ceiling, raising _ScanTimeout instead of reporting a silent no-match.
     """
+    if HAS_SCAN_ALARM:
+        signal.setitimer(signal.ITIMER_REAL, budget)
     try:
-        text = log_path.read_text(encoding="utf-8", errors="replace")
-    except OSError:
-        return None  # not there yet; the ceiling bounds the wait
-    for code, pattern in ((EXIT_OK, done_re), (EXIT_WATCH_FAIL, fail_re)):
-        match = pattern.search(text) if pattern else None
-        if match:
-            start = text.rfind("\n", 0, match.start()) + 1
-            end = text.find("\n", match.end())
-            return code, text[start:end if end != -1 else len(text)]
-    return None
+        try:
+            text = log_path.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            return None  # not there yet; the ceiling bounds the wait
+        for code, pattern in ((EXIT_OK, done_re), (EXIT_WATCH_FAIL, fail_re)):
+            match = pattern.search(text) if pattern else None
+            if match:
+                start = text.rfind("\n", 0, match.start()) + 1
+                end = text.find("\n", match.end())
+                return code, text[start:end if end != -1 else len(text)]
+        return None
+    finally:
+        # Disarmed first, so the only window where a found marker could still be
+        # overtaken by the alarm is this call itself — and there the ceiling has
+        # genuinely passed, so reporting it is not a lie.
+        if HAS_SCAN_ALARM:
+            signal.setitimer(signal.ITIMER_REAL, 0)
 
 
 def _watch_record_path():
@@ -1735,6 +1764,15 @@ def mode_watch(argv, pid, fail_re_text, ceiling_text, interval_text):
         raise SystemExit(128 + signum)
     for signum in (signal.SIGTERM, signal.SIGINT):
         signal.signal(signum, _bail)
+    if HAS_SCAN_ALARM:
+        # Installed before anything can arm the timer: the default disposition
+        # for SIGALRM kills the process, which would lose the outcome record.
+        signal.signal(signal.SIGALRM, _scan_alarm)
+    else:
+        print("moltke --watch: no interval timer on this platform, so the ceiling "
+              "is only checked between polls and a scan that never returns is "
+              "unbounded (AGENTS.md §12: arm no persistent watchers here)",
+              file=sys.stderr)
 
     outcomes = {EXIT_OK: "success marker", EXIT_WATCH_FAIL: "failure marker"}
     outcome, code = "stopped", None
@@ -1748,28 +1786,41 @@ def mode_watch(argv, pid, fail_re_text, ceiling_text, interval_text):
             _watch_write(record_path, record)
             print(f"moltke --watch: registered {record_path}", file=sys.stderr)
         deadline = time.monotonic() + ceiling
-        while True:
-            hit = _watch_scan(log_path, done_re, fail_re)
-            if hit is None and pid is not None and not _pid_alive(pid):
-                # The run may have written its marker while dying: look once more.
-                hit = _watch_scan(log_path, done_re, fail_re)
-                if hit is None:
-                    outcome, code = "pid died", EXIT_WATCH_PID_DEAD
-                    print(f"moltke --watch: pid {pid} died without a terminal "
-                          f"marker in {log_path}")
-                    return code
-            if hit is not None:
-                code = hit[0]
-                outcome = outcomes[code]
-                print(hit[1])
-                return code
+
+        def scan():
+            """A scan bounded by whatever is left of the ceiling."""
             remaining = deadline - time.monotonic()
             if remaining <= 0:
-                outcome, code = "ceiling", EXIT_WATCH_CEILING
-                print(f"moltke --watch: ceiling {ceiling_text} reached without a "
-                      f"terminal marker in {log_path}")
-                return code
-            time.sleep(min(interval, remaining))
+                raise _ScanTimeout
+            return _watch_scan(log_path, done_re, fail_re, remaining)
+
+        try:
+            while True:
+                hit = scan()
+                if hit is None and pid is not None and not _pid_alive(pid):
+                    # The run may have written its marker while dying: look once more.
+                    hit = scan()
+                    if hit is None:
+                        outcome, code = "pid died", EXIT_WATCH_PID_DEAD
+                        print(f"moltke --watch: pid {pid} died without a terminal "
+                              f"marker in {log_path}")
+                        return code
+                if hit is not None:
+                    code = hit[0]
+                    outcome = outcomes[code]
+                    print(hit[1])
+                    return code
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise _ScanTimeout
+                time.sleep(min(interval, remaining))
+        except _ScanTimeout:
+            # One exit whether the deadline arrived between polls or inside one:
+            # both mean the ceiling, and a cut scan is never a no-match.
+            outcome, code = "ceiling", EXIT_WATCH_CEILING
+            print(f"moltke --watch: ceiling {ceiling_text} reached without a "
+                  f"terminal marker in {log_path}")
+            return code
     except SystemExit as exc:
         code = exc.code
         raise

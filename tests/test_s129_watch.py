@@ -33,7 +33,15 @@ def start_watch(cwd, log, regex, *extra):
 
 def run_watch(cwd, log, regex, *extra, timeout=15):
     proc = start_watch(cwd, log, regex, *extra)
-    out, err = proc.communicate(timeout=timeout)
+    try:
+        out, err = proc.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        # A watcher outliving its ceiling is exactly what these tests catch, and
+        # communicate() leaves it running: the red state of S132 leaked three
+        # spinning watchers into the machine before this.
+        proc.kill()
+        proc.communicate()
+        raise
     return proc.returncode, out, err
 
 
@@ -112,6 +120,98 @@ class TestWatchExits(unittest.TestCase):
             self.assertEqual(code, 124, err)
             self.assertIn("ceiling", out)
             self.assertLess(time.monotonic() - started, 10)
+
+
+# S132 (2026-08-18_adversarial-F02): classic catastrophic backtracking. 40 a's
+# against a non-matching tail is ~2**40 steps, so any exit inside the ceiling is
+# the bound working and never the scan finishing early.
+BACKTRACK_RE = r"(a+)+$"
+BACKTRACK_LOG = "a" * 40 + "X\n"
+
+NO_TIMER_DRIVER = '''\
+"""Drive --watch with the interval timer taken away (S132).
+
+argv: <path to moltke.py> <moltke argv...>.
+"""
+import importlib.util
+import sys
+
+spec = importlib.util.spec_from_file_location("moltke_under_test", sys.argv[1])
+moltke = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(moltke)
+
+moltke.HAS_SCAN_ALARM = False
+sys.exit(moltke.main(sys.argv[2:]))
+'''
+
+
+class TestWatchScanIsBounded(unittest.TestCase):
+    """S132: the ceiling is a deadline for the process, not for the poll loop.
+
+    The scan itself is caller-supplied work — an arbitrary regex over a file of
+    arbitrary size — so a bound checked only between polls is not a bound at
+    all. Each of these hangs forever inside one `pattern.search` without an
+    out-of-band timer.
+    """
+
+    def test_backtracking_regex_still_exits_at_the_ceiling(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            log = Path(tmp) / "run.log"
+            log.write_text(BACKTRACK_LOG, encoding="utf-8")
+            started = time.monotonic()
+            code, out, err = run_watch(tmp, log, BACKTRACK_RE,
+                                       "--ceiling", "1s", "--interval", "5s")
+            self.assertEqual(code, 124, err)
+            self.assertIn("ceiling", out)
+            self.assertLess(time.monotonic() - started, 10)
+
+    def test_bounded_scan_reports_the_ceiling_not_a_dead_pid(self):
+        # A scan cut mid-flight must not fall through as "no marker found" and
+        # get reported as whatever the next check happens to conclude.
+        watched = sleeper(30)
+        self.addCleanup(watched.wait)
+        self.addCleanup(watched.kill)
+        with tempfile.TemporaryDirectory() as tmp:
+            log = Path(tmp) / "run.log"
+            log.write_text(BACKTRACK_LOG, encoding="utf-8")
+            code, out, err = run_watch(tmp, log, BACKTRACK_RE, "--pid", str(watched.pid),
+                                       "--ceiling", "1s", "--interval", "5s")
+            self.assertEqual(code, 124, err)
+            self.assertIn("ceiling", out)
+            self.assertNotIn("died", out)
+
+    def test_platform_without_a_timer_warns_and_still_reaches_its_ceiling(self):
+        # Windows has no setitimer, so the degraded path has no platform in this
+        # suite to run on. Disabling the timer is the only way to observe that
+        # it says so and still ends at the ceiling between polls.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            log = root / "run.log"
+            log.write_text("no marker\n", encoding="utf-8")
+            driver = root / "no_timer_driver.py"
+            driver.write_text(NO_TIMER_DRIVER, encoding="utf-8")
+            proc = subprocess.Popen(
+                [sys.executable, str(driver), str(MOLTKE), "--watch", str(log),
+                 DONE_RE, "--ceiling", "0.4s", "--interval", "0.05s"],
+                cwd=tmp, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            out, err = proc.communicate(timeout=15)
+            self.assertEqual(proc.returncode, 124, err)
+            self.assertIn("no interval timer", err)
+            self.assertIn("ceiling", out)
+
+    def test_bounded_scan_records_a_ceiling_outcome(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            subprocess.run(["git", "init", "-q"], cwd=tmp, check=True)
+            log = root / "run.log"
+            log.write_text(BACKTRACK_LOG, encoding="utf-8")
+            code, _out, err = run_watch(tmp, log, BACKTRACK_RE,
+                                        "--ceiling", "1s", "--interval", "5s")
+            self.assertEqual(code, 124, err)
+            record = json.loads(next((root / ".git" / WATCH_DIR).glob("*.json"))
+                                .read_text(encoding="utf-8"))
+            self.assertEqual(record["outcome"], "ceiling")
+            self.assertEqual(record["exit_code"], 124)
 
 
 class TestWatchRefusals(unittest.TestCase):
