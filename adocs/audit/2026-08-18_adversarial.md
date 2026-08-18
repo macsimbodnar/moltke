@@ -40,7 +40,7 @@ and no longer reports it. Fixing without re-running leaves it `planned`.
 
 ### 2026-08-18_adversarial-F01  high  --log-prompt reads `prompt`; live UserPromptSubmit sends `user_prompt`, so the worklog is never written
 
-Status: planned
+Status: accepted
 
 `mode_log_prompt` reads the user's text from the `prompt` key:
 
@@ -138,7 +138,7 @@ catastrophic patterns is not sufficient; the alarm is.
 
 ### 2026-08-18_adversarial-F03  high  reviewer write fence covers only Write/Edit; the reviewer's Bash writes anywhere unfenced
 
-Status: planned
+Status: accepted
 
 The reviewer is granted Bash and Write:
 
@@ -231,7 +231,7 @@ intended escape.
 
 ### 2026-08-18_adversarial-F05  medium  Stop README/MANUAL gate skips a completion staged as a git rename
 
-Status: planned
+Status: accepted
 
 The Stop hook's mechanical README/MANUAL check inspects only porcelain lines
 whose status is `??` (untracked) or `A ` (staged add):
