@@ -11,8 +11,10 @@ import hashlib
 import json
 import os
 import re
+import signal
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 MARKER = ".moltke.json"
@@ -28,6 +30,11 @@ MARKER_KEYS = ("schema", "enabled", "plan_active_max", "plan_stack_max",
 EXIT_OK = 0
 EXIT_VIOLATIONS = 1
 EXIT_BLOCK = 2
+
+# --watch exit codes (DEC-049). 124 matches GNU timeout's convention.
+EXIT_WATCH_PID_DEAD = 3
+EXIT_WATCH_FAIL = 4
+EXIT_WATCH_CEILING = 124
 
 
 def find_root(start=None):
@@ -943,6 +950,7 @@ def mode_session_start(root, config):
     lines = []
     try:
         lines = local_file_lines(root) + session_context_lines(root, config)
+        lines.extend(watch_report(root))
     except OSError as exc:
         lines.append(f"moltke: could not read the repository ({exc}). Nothing below is "
                      f"reliable until that path is fixed; run bin/moltke.py --validate.")
@@ -1111,6 +1119,54 @@ def mode_pre_write(root, config, path_arg):
         print(f"moltke: {rel.name} looks like a step file but {rel} is outside the three "
               f"plan directories. Create step files only in {DOCS}/plan_todo/ or "
               f"{DOCS}/plan_current/.", file=sys.stderr)
+        return EXIT_BLOCK
+    return EXIT_OK
+
+
+def _tail_follow_into_grep(command):
+    """(follows into grep, single-match follow). A tripwire, not a parser:
+    it recognizes the failure class, not every spelling of it."""
+    match = re.search(r"\btail\b([^|]*)\|(.*)", command, re.S)
+    if not match:
+        return False, False
+    flags, rest = match.group(1), match.group(2)
+    follows = re.search(r"(^|\s)-[a-zA-Z]*[fF]\b|--follow", flags) is not None
+    to_grep = re.search(r"\bgrep\b", rest) is not None
+    single = re.search(r"\bgrep\b[^|]*\s(-[a-zA-Z]*m\s*\d+|--max-count)", rest) is not None
+    return follows and to_grep, follows and single
+
+
+WATCH_HINT = ("watch for a terminal marker with the primitive instead: python3 "
+              "${CLAUDE_PLUGIN_ROOT}/bin/moltke.py --watch LOG REGEX --ceiling "
+              "<2x the expected run time> [--pid P] [--fail-re RE], armed "
+              "persistent: the --ceiling is its timeout and it exits by itself")
+
+
+def mode_pre_command(root, config):
+    # INV-17 (DEC-049, DEC-051): the leaked-monitor class is refused at arm
+    # time. Payload shape verified against the live Monitor schema 2026-08-18:
+    # tool_input.command is absent on ws arms; persistent is required.
+    payload = hook_input()
+    if payload.get("tool_name") != "Monitor":
+        return EXIT_OK
+    tool_input = payload.get("tool_input", {})
+    command = tool_input.get("command") or ""
+    if not command or "MOLTKE_UNBOUNDED_OK" in command:
+        return EXIT_OK
+    _piped, single = _tail_follow_into_grep(command)
+    if single:
+        print(f"moltke: tail -f piped into a single-match grep cannot end itself: "
+              f"grep exits on the match, but tail only learns via SIGPIPE on its "
+              f"next write, and a finished log never writes again (AGENTS.md §12). "
+              f"Bounded or not, this form under-delivers; {WATCH_HINT}",
+              file=sys.stderr)
+        return EXIT_BLOCK
+    if tool_input.get("persistent") and not re.search(r"moltke(\.py)?\b[^|;&]*--watch\b",
+                                                      command):
+        print(f"moltke: a persistent watcher arms only through the watch primitive "
+              f"(INV-17, AGENTS.md §12) — {WATCH_HINT}. For a deliberately unbounded "
+              f"stream (per-occurrence events, dev-server errors), include the token "
+              f"MOLTKE_UNBOUNDED_OK in the command.", file=sys.stderr)
         return EXIT_BLOCK
     return EXIT_OK
 
@@ -1325,6 +1381,10 @@ def mode_stop(root, config, marker_violations):
     except OSError as exc:
         problems.append(f"status.md could not be compared against the filesystem ({exc}); "
                         f"fix the path it names, then run bin/moltke.py --validate")
+
+    # Live watches may outlive the turn by design; lost or untaken ones may not.
+    problems.extend(line for line in watch_report(root)
+                    if not line.startswith("watching:"))
 
     # -uall, like worktree_state since S036 and for the same reason: plain
     # porcelain collapses a wholly untracked directory into one entry, so
@@ -1563,6 +1623,193 @@ def mode_decline():
 def refuse(message):
     print(f"moltke: {message}", file=sys.stderr)
     return EXIT_VIOLATIONS
+
+
+WATCH_DIR = "moltke_watch"  # under .git/, like moltke_stop_state.json
+WATCH_USAGE = ("usage: --watch LOG REGEX --ceiling DUR "
+               "[--pid P] [--fail-re RE] [--interval DUR]")
+DURATION_RE = re.compile(r"^(\d+(?:\.\d+)?)\s*([smhd]?)$")
+DURATION_UNITS = {"": 1.0, "s": 1.0, "m": 60.0, "h": 3600.0, "d": 86400.0}
+
+
+def parse_duration(text):
+    """Seconds from '90', '30s', '10m', '8h', '1d'; None when unparseable."""
+    match = DURATION_RE.match((text or "").strip())
+    return float(match.group(1)) * DURATION_UNITS[match.group(2)] if match else None
+
+
+def _pid_alive(pid):
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except OSError:  # EPERM and friends: it exists, it is just not ours
+        return True
+    return True
+
+
+def _watch_scan(log_path, done_re, fail_re):
+    """(exit_code, matched line) for the first terminal marker, else None.
+
+    The whole file is scanned every time, so a marker written before the
+    watcher armed is still caught — the race tail -f loses by construction.
+    """
+    try:
+        text = log_path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return None  # not there yet; the ceiling bounds the wait
+    for code, pattern in ((EXIT_OK, done_re), (EXIT_WATCH_FAIL, fail_re)):
+        match = pattern.search(text) if pattern else None
+        if match:
+            start = text.rfind("\n", 0, match.start()) + 1
+            end = text.find("\n", match.end())
+            return code, text[start:end if end != -1 else len(text)]
+    return None
+
+
+def _watch_record_path():
+    git_dir = scaffold_root() / ".git"
+    if not git_dir.is_dir():
+        return None
+    directory = git_dir / WATCH_DIR
+    directory.mkdir(exist_ok=True)
+    return directory / f"{int(time.time())}_{os.getpid()}.json"
+
+
+def _watch_write(path, record):
+    if path is None:
+        return
+    try:
+        path.write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
+    except OSError as exc:
+        print(f"moltke --watch: could not write {path}: {exc}", file=sys.stderr)
+
+
+def _now():
+    return datetime.datetime.now().astimezone().isoformat(timespec="seconds")
+
+
+def mode_watch(argv, pid, fail_re_text, ceiling_text, interval_text):
+    # Runs before the INV-11 gate: the gate's silent exit 0 would read as
+    # "success marker seen" in an unmarked repo. A watcher never fakes success.
+    if len(argv) != 2:
+        return refuse(WATCH_USAGE)
+    log_path = Path(argv[0])
+    if not ceiling_text:
+        return refuse("every watcher carries a hard ceiling (AGENTS.md §12): it bounds "
+                      "every mistake in the other exits. Pass --ceiling at least twice "
+                      "the expected run time, e.g. --ceiling 8h")
+    ceiling = parse_duration(ceiling_text)
+    if ceiling is None or ceiling <= 0:
+        return refuse(f"--ceiling {ceiling_text!r} is not a duration; use seconds or an "
+                      f"s/m/h/d suffix, e.g. 90s, 30m, 8h")
+    interval = parse_duration(interval_text)
+    if interval is None or interval <= 0:
+        return refuse(f"--interval {interval_text!r} is not a duration; use e.g. 30s")
+    if pid is not None and sys.platform == "win32":
+        return refuse("--pid liveness is a POSIX kill(pid, 0) probe and does not exist "
+                      "on Windows; watch without --pid, bounded by the ceiling")
+    try:
+        done_re = re.compile(argv[1])
+        fail_re = re.compile(fail_re_text) if fail_re_text else None
+    except re.error as exc:
+        return refuse(f"bad regex: {exc}")
+
+    record_path = _watch_record_path()
+    record = {
+        "schema": 1,
+        "log": str(log_path.resolve()),
+        "regex": argv[1],
+        "fail_regex": fail_re_text or None,
+        "pid": pid,
+        "ceiling": ceiling_text,
+        "interval": interval_text,
+        "armed_at": _now(),
+        "watcher_pid": os.getpid(),
+    }
+    if record_path is None:
+        print("moltke --watch: no .git found, watch state is not registered; "
+              "the watch itself still terminates on its own", file=sys.stderr)
+    else:
+        _watch_write(record_path, record)
+        print(f"moltke --watch: registered {record_path}", file=sys.stderr)
+
+    def _bail(signum, _frame):
+        raise SystemExit(128 + signum)
+    for signum in (signal.SIGTERM, signal.SIGINT):
+        signal.signal(signum, _bail)
+
+    outcomes = {EXIT_OK: "success marker", EXIT_WATCH_FAIL: "failure marker"}
+    outcome, code = "stopped", None
+    deadline = time.monotonic() + ceiling
+    try:
+        while True:
+            hit = _watch_scan(log_path, done_re, fail_re)
+            if hit is None and pid is not None and not _pid_alive(pid):
+                # The run may have written its marker while dying: look once more.
+                hit = _watch_scan(log_path, done_re, fail_re)
+                if hit is None:
+                    outcome, code = "pid died", EXIT_WATCH_PID_DEAD
+                    print(f"moltke --watch: pid {pid} died without a terminal "
+                          f"marker in {log_path}")
+                    return code
+            if hit is not None:
+                code = hit[0]
+                outcome = outcomes[code]
+                print(hit[1])
+                return code
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                outcome, code = "ceiling", EXIT_WATCH_CEILING
+                print(f"moltke --watch: ceiling {ceiling_text} reached without a "
+                      f"terminal marker in {log_path}")
+                return code
+            time.sleep(min(interval, remaining))
+    except SystemExit as exc:
+        code = exc.code
+        raise
+    finally:
+        record.update({"outcome": outcome, "exit_code": code, "ended_at": _now()})
+        _watch_write(record_path, record)
+
+
+def watch_records(root):
+    """[(path, record)] under .git/moltke_watch/; damaged files are skipped."""
+    directory = root / ".git" / WATCH_DIR
+    if not directory.is_dir():
+        return []
+    records = []
+    for path in sorted(directory.glob("*.json")):
+        try:
+            record = json.loads(read_file(path))
+        except (OSError, json.JSONDecodeError):
+            continue
+        if isinstance(record, dict):
+            records.append((path, record))
+    return records
+
+
+def watch_report(root):
+    """One line per watch record. 'watching:' lines are informational; the
+    rest are lost or untaken obligations and block a stop (DEC-049)."""
+    lines = []
+    for path, record in watch_records(root):
+        rel = path.relative_to(root)
+        what = f"{record.get('regex')} in {record.get('log')}"
+        watcher_pid = record.get("watcher_pid")
+        if "outcome" in record:
+            lines.append(f"watch outcome unacknowledged: {record.get('outcome')} "
+                         f"(exit {record.get('exit_code')}) for {what}; act on the "
+                         f"result, then acknowledge it by deleting {rel}")
+        elif not (isinstance(watcher_pid, int) and watcher_pid > 0
+                  and _pid_alive(watcher_pid)):
+            lines.append(f"watcher died without recording an outcome: {what}; "
+                         f"re-arm it with --watch, or delete {rel} if the run "
+                         f"no longer matters")
+        else:
+            lines.append(f"watching: {what}, ceiling {record.get('ceiling')}, "
+                         f"armed {record.get('armed_at')} ({rel})")
+    return lines
 
 
 def locate_step(root, step_id):
@@ -2101,6 +2348,10 @@ def step_status(root, config):
              "beats", "this file: on disagreement, `plan_current/` wins.", "",
              f"Updated: {datetime.date.today().isoformat()} by `moltke --step status`.", ""]
     lines.extend(status_lines(root))
+    watching = watch_report(root)
+    if watching:
+        lines.append("- Watching:")
+        lines.extend(f"  - {line}" for line in watching)
     lines.append("- Parked:")
     lines.extend(parked_lines(root))
 
@@ -2547,6 +2798,8 @@ def build_parser():
     modes.add_argument("--session-start", action="store_true", help="SessionStart hook (S005)")
     modes.add_argument("--pre-write", metavar="PATH", nargs="?", const="",
                        help="PreToolUse hook for Write and Edit; PATH falls back to hook stdin JSON")
+    modes.add_argument("--pre-command", action="store_true",
+                       help="PreToolUse hook for Monitor: watcher arm lint (INV-17, S130)")
     modes.add_argument("--post-write", action="store_true", help="PostToolUse hook (S005)")
     modes.add_argument("--stop", action="store_true", help="Stop hook (S005)")
     modes.add_argument("--validate", action="store_true", help="run every invariant, report all violations")
@@ -2558,8 +2811,19 @@ def build_parser():
                             "unpause <id> | done <id> | status")
     modes.add_argument("--audit", nargs="+", metavar="OP",
                        help="audit reports: new <type> | list | check")
+    modes.add_argument("--watch", nargs="+", metavar="ARG",
+                       help="watch LOG for REGEX, terminating on its own (AGENTS.md §12): "
+                            "exit 0 marker, 4 --fail-re, 3 --pid died, 124 --ceiling")
     parser.add_argument("--goal", default="", help="goal line for --step new")
     parser.add_argument("--stamp", default="", help="completion stamp for --step done")
+    parser.add_argument("--pid", type=int, default=None,
+                        help="for --watch: process whose death ends the watch (exit 3)")
+    parser.add_argument("--fail-re", default="",
+                        help="for --watch: failure-marker regex (exit 4)")
+    parser.add_argument("--ceiling", default="",
+                        help="for --watch: hard time ceiling, e.g. 8h; required")
+    parser.add_argument("--interval", default="30s",
+                        help="for --watch: poll interval (default 30s)")
     return parser
 
 
@@ -2583,6 +2847,9 @@ def main(argv=None):
         return mode_scaffold()
     if args.decline:
         return mode_decline()
+    # --watch too (DEC-049): the gate's exit 0 would fake a marker being seen.
+    if args.watch:
+        return mode_watch(args.watch, args.pid, args.fail_re, args.ceiling, args.interval)
 
     root = find_root()
     if root is None:
@@ -2600,6 +2867,8 @@ def main(argv=None):
             return mode_session_start(root, config)
         if args.pre_write is not None:
             return mode_pre_write(root, config, args.pre_write)
+        if args.pre_command:
+            return mode_pre_command(root, config)
         if args.post_write:
             return mode_post_write(root, config, marker_violations)
         if args.stop:

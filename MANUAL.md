@@ -117,11 +117,15 @@ Nothing to remember. Hooks fire on their own:
   compares them. Everything below `- Parked:` to the end of the file is carried
   through a regeneration verbatim, whatever its indentation, so that block is
   where anything worth remembering that no other file holds belongs
+- a monitor armed as a watcher that cannot end itself is refused at arm time
+  (INV-17): persistent monitors must be the `--watch` primitive or carry
+  `MOLTKE_UNBOUNDED_OK`
 - `adocs/decisions.md` may be compacted freely, ids stable (INV-8 retired in
   0.9.0, DEC-042). Prompt logging and the worklog were removed in 0.11.0
   (DEC-046): forensic history is git
 - writes into completed history are refused
-- the turn will not end with a stale `status.md` or an invariant violation
+- the turn will not end with a stale `status.md`, an invariant violation, a
+  crashed watcher, or a watch outcome nobody acted on
 
 Project-wide rule changes have their own surface too: the `## Project rules`
 section at the end of the scaffolded `AGENTS.md`. Rules there override the base
@@ -178,6 +182,44 @@ report before fixes, every finding landing in a step or a decision. A finding
 closes on a re-run that no longer reports it, or by a recorded decision — the
 loop ends when you say it ends.
 
+## Watching long runs
+
+For overnight or detached work — a tuning run, a long benchmark — never arm a
+`tail -f | grep` watcher: it cannot exit (matching is not exiting), and a
+persistent one leaks until someone notices an idle machine. Arm the primitive
+instead:
+
+```
+python3 ${CLAUDE_PLUGIN_ROOT}/bin/moltke.py --watch run.log 'RUN-(DONE|FAILED)' --ceiling 8h --pid 12345
+```
+
+It polls the log (default every 30s) and terminates by itself on every path:
+
+| Exit | Meaning |
+|---|---|
+| `0` | marker matched; the matched line is printed |
+| `4` | `--fail-re` matched |
+| `3` | `--pid` died without a marker (the log is scanned one final time first) |
+| `124` | `--ceiling` reached — required, at least 2x the expected run time |
+
+The whole file is scanned each poll, so a marker written before arming is
+still caught. Each watch registers itself in `.git/moltke_watch/` and writes
+its outcome there on exit — including being killed — so a session that died
+overnight can find the result the next morning: session start reports it, and
+the turn refuses to end until someone acts on it. After acting on a result,
+delete the record file to acknowledge it. Durations take `s`/`m`/`h`/`d`
+suffixes. Rules and the no-plugin fallback loop: AGENTS.md §12.
+
+In Claude Code, arm it through a persistent monitor: the harness caps bounded
+monitors at one hour, so `persistent: true` plus `--ceiling` is the intended
+overnight form — the ceiling is the real timeout, and the process ends itself.
+The PreToolUse lint enforces exactly this (INV-13): a persistent monitor that
+is not the primitive is refused at arm time, unless its command carries
+`MOLTKE_UNBOUNDED_OK` — the deliberate escape for genuinely unbounded streams
+such as a dev-server error tail. A single-match follow
+(`tail -f log | grep -m1 DONE`) is refused always: it looks like a fix and
+hangs by construction.
+
 ## Reference: every mode
 
 Skills call `bin/moltke.py`. You can run it by hand, and other tools (Codex,
@@ -199,8 +241,10 @@ Cursor) must, since hooks exist only in Claude Code.
 | `--audit new <type>` | open `adocs/audit/YYYY-MM-DD_<type>.md`; never overwrites a report — a same-day re-run becomes `YYYY-MM-DD_<type>.2.md`, and its findings are numbered from that name. The type must match `[A-Za-z0-9_-]+`, so it stays a filename and cannot collide with that `.2` suffix. Also records a working-tree baseline for `--audit check` |
 | `--audit list` | every finding, its status, and what references it; exits 1 while an open finding has neither a step nor a decision, or while a report names a finding a code fence hides, which lists as `hidden` (INV-14) |
 | `--audit check` | reconcile what the run changed against that baseline: the report and new files under `tests/` are expected, anything else exits 1. Run it after the reviewer returns, before acting on a finding |
+| `--watch <log> <regex> --ceiling <dur>` | self-terminating watcher for long runs; see "Watching long runs". Optional `--pid <p>`, `--fail-re <regex>`, `--interval <dur>` |
 | `--session-start` | SessionStart hook: emit the stack and derived next step as context |
 | `--pre-write` | PreToolUse hook for Write and Edit: refuse writes into `plan_done/`, step files outside the plan directories, and reviewer writes other than `adocs/audit/` or a new file under `tests/` |
+| `--pre-command` | PreToolUse hook for Monitor: refuse watcher arms that cannot end themselves (INV-17); see "Watching long runs" |
 | `--post-write` | PostToolUse hook: cheap invariant scan, surfaced but non-blocking |
 | `--stop` | Stop hook: refuse to end a turn on violations, a stale `status.md`, or a completion that arrived without its stamp |
 
@@ -210,7 +254,8 @@ a line break is refused rather than reflowed: the continuation would land flush
 left, where the parser reads it as a new field and drops it, and where `plan.md`
 reads it as another list entry. Long single lines are the convention here. Every mode exits 0 immediately in a repository with no marker, or
 one whose marker says `enabled: false` — except `--scaffold` and `--decline`,
-which exist to create that marker.
+which exist to create that marker, and `--watch`, whose exit codes are answers
+about a run and must never be faked by the gate.
 
 Every `--step` operation refuses, naming `--scaffold`, in a marked repository
 that has no `adocs/` yet, and the hooks name `--scaffold` there too rather than
@@ -225,6 +270,7 @@ Exit codes and streams:
 | `1` | findings — invariant violations, audit bookkeeping, `--audit check` | stdout |
 | `1` | refusals — a command declining to proceed, and why | stderr |
 | `2` | a blocked action, with what to do about it | stderr |
+| `3` `4` `124` | `--watch` only: watched pid died, `--fail-re` matched, ceiling reached | stderr |
 
 Exit `1` means two different things and they arrive on different streams:
 `--validate`, `--audit list`, and `--audit check` print findings to stdout, while

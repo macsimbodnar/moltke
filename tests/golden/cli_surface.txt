@@ -1,8 +1,13 @@
 --audit OP...  ops: check,list,new
+--ceiling VALUE
 --decline
+--fail-re VALUE
 --goal VALUE
 --help/-h
+--interval VALUE
+--pid VALUE
 --post-write
+--pre-command
 --pre-write [PATH]
 --roadmap
 --scaffold
@@ -12,6 +17,7 @@
 --stop
 --validate
 --version
+--watch ARG...
 hooks: PostToolUse,PreToolUse,SessionStart,Stop
 marker keys: enabled,plan_active_max,plan_stack_max,schema,surface_guard,test_command
 skills: audit,init,step

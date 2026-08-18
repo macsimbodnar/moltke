@@ -57,6 +57,14 @@ reused; a retired number stays listed so old audit reports keep meaning.
   prompts verbatim into a tracked file any more.
 - INV-16 retired 2026-08-11 (S124, DEC-047); the planning nudge still stays
   quiet when a directive exists on disk, readable or not.
+- INV-17 the leaked-watcher class is unarmable: a persistent Monitor arm that is
+  not `--watch` is refused unless its command carries `MOLTKE_UNBOUNDED_OK`, and
+  a single-match follow (`tail -f | grep -m N`) is refused always. Enforced at
+  arm time by `--pre-command` in Claude Code (DEC-049 as narrowed by DEC-051);
+  elsewhere it is a §12 rule with no mechanical teeth, like everything else
+  outside Claude Code. 2026-08-18 (DEC-052): arrived as INV-13 on the merged
+  branch; whether an arm-time blocker belongs here at all, given DEC-047, is
+  open and carries a step.
 
 ## What is being built
 
@@ -104,8 +112,10 @@ One entry point, `bin/moltke.py`, one mode per invocation. The golden test
 | `--audit check` | reconcile the tree against the baseline: report and new `tests/` files expected, anything else listed, exit 1 |
 | `--session-start` | SessionStart hook: emit stack, derived next step, staleness, planning nudge as JSON additionalContext |
 | `--pre-write` | PreToolUse hook (Write|Edit): refuse writes into `plan_done/`, step files outside the plan directories, reviewer writes outside `adocs/audit/` + new `tests/` files |
+| `--pre-command` | PreToolUse hook (Monitor): INV-17 at arm time — refuse a persistent non-primitive arm without `MOLTKE_UNBOUNDED_OK`, refuse any single-match follow, allow bounded streams, ws arms, and other tools |
 | `--post-write` | PostToolUse hook: cheap invariant scan, non-blocking by contract |
 | `--stop` | Stop hook: refuse to end a turn on violations, stale `status.md`, or unstamped arrivals; capped against deadlock, counted per problem set |
+| `--watch LOG REGEX --ceiling DUR [--pid P] [--fail-re RE] [--interval DUR]` | poll LOG for REGEX every `--interval` (default 30s, s/m/h/d suffixes) and terminate on its own: exit 0 printing the matched line, 4 on a `--fail-re` match, 3 when `--pid` is dead after one final scan, 124 at the required `--ceiling`. Registers under `.git/moltke_watch/` on arm and writes its outcome on every exit path including a kill; acknowledging a result is deleting its record. Exempt from the INV-11 gate, since the gate's exit 0 would read as a marker seen; `--pid` refused on Windows |
 
 Exit codes: 0 clean; 1 findings (stdout) or refusals (stderr); 2 blocked
 actions (stderr). `--post-write` returns 2 but is non-blocking. Capture both

@@ -84,7 +84,8 @@ order and **never reused or renumbered**. Fields: `id`, `goal`, `accepts`
   are what block you — a teammate's never do.
 - `plan_todo/` → `plan_current/` when work starts; `plan_current/` →
   `plan_done/` only when code is complete, the suite is green, and README and
-  MANUAL were checked. The move is the last action of the step, then commit.
+  MANUAL were checked, and no watcher the step armed is still alive (§12).
+  The move is the last action of the step, then commit.
 - Work discovered mid-step: **trivial and in scope** — fix now, note it.
   **Blocking** — `--step block <parent> <name>` creates the child and pauses
   the parent; at most `plan_active_max` non-paused steps per author, stack
@@ -165,6 +166,7 @@ The agent does not:
 - claim a step complete before the suite is green
 - complete a step that another step still declares in `blocks:`
 - start independent work while one of its own paused steps sits in `plan_current/`
+- arm a watcher lacking a self-terminating exit path (§12)
 
 And one permission, stated so no rule above is misread as denying it:
 **subagents may be spawned freely whenever useful** — audits, fast checks,
@@ -176,6 +178,65 @@ Nothing that matters may exist only in an agent's memory, transcript, or
 tool-local notes. State into `status.md`, intent into `specs.md`, reasoning
 into `decisions.md`, work into the plan directories, machine-specifics into
 `.moltke.local.md`. The repository is the memory; everything else is a cache.
+
+## 12. Watchers
+
+A watcher is any background command armed to wake the agent when something
+happens: a monitor over a log, a background shell loop, a tail in a pane.
+
+**A watcher terminates on its own on every path.** Four exits, all mandatory:
+success marker, failure marker, watched-process death, hard time ceiling. A
+manual stop is a belt, never load-bearing — a watcher whose only exit is a
+manual stop is a leak armed in advance. The ceiling bounds every mistake in the
+other three, so it is never optional.
+
+Arm through the primitive, never by hand:
+
+```
+python3 bin/moltke.py --watch RUN_LOG 'RUN-(DONE|FAILED)' --ceiling 8h --pid 12345
+```
+
+- Exit 0 marker seen, line printed. 4 `--fail-re` matched. 3 the watched pid
+  died, checked once more against the log first. 124 ceiling reached.
+- The whole file is scanned each poll, so a marker written before arming is
+  still caught — the race a follow loses by construction.
+- It registers under `.git/moltke_watch/` on arm and writes its outcome there on
+  every exit path, kill included, so watch state is derivable from the
+  filesystem (§11). Acting on a result means deleting its record.
+- Ceiling at least 2x the expected run. The run prints its own terminal markers,
+  success and failure both, before the watcher exists: a watcher with nothing to
+  match is unbounded by construction. Prefer the harness's own background task
+  when it notifies on exit; a watcher is for runs the session does not own.
+
+**Banned forms.** `tail -f LOG | grep RE` never exits: tail has no last line,
+and grep matching is not grep exiting. `tail -f LOG | grep -m1 RE` is worse —
+grep exits on match, tail learns only by SIGPIPE on its next write, and a
+finished log never writes again. In Claude Code both are refused at arm time,
+along with any persistent monitor that is not the primitive; the one escape is
+`MOLTKE_UNBOUNDED_OK` in the command, for a genuinely unbounded stream
+(per-occurrence events, a dev-server error tail). Arm the primitive
+`persistent`: the harness caps bounded monitors at an hour, so the `--ceiling`
+is the real timeout and the process still ends itself.
+
+Without the primitive, fall back to a poll loop wrapped in `bash -c` so the
+interactive shell is irrelevant — never a follow:
+
+```
+timeout 8h bash -c '
+  until grep -qE "RUN-(DONE|FAILED)" "$1"; do
+    kill -0 "$2" 2>/dev/null || exit 3
+    sleep 30
+  done' _ RUN_LOG RUN_PID
+```
+
+`timeout` is coreutils on GNU userland. On BSD userland (macOS) there is none:
+inline the deadline — `end=$(($(date +%s)+SECS))` before the loop,
+`[ "$(date +%s)" -ge "$end" ] && exit 124` inside it. On Windows arm no
+persistent watchers at all; poll with scheduled wakeups.
+
+**Completion gate.** A step does not complete while a watcher it armed is still
+alive, and a result taken from a watcher is acknowledged before the turn ends.
+Session end asks: is anything still watching?
 
 ## Project rules
 

@@ -48,6 +48,15 @@ Compacted (S106, DEC-042): ids stable, never reused, newest last. Full context a
 - DEC-042 2026-08-11 — Memory is current state; git is the archive
 - DEC-043 2026-08-11 — Two override surfaces: machine-local file, project rules section
 - DEC-044 2026-08-11 — Review has three tiers: fast check by habit, audit by consent
+- DEC-045 2026-08-11 — moltke is team-first
+- DEC-046 2026-08-11 — The worklog is removed
+- DEC-047 2026-08-11 — Fence police retired; stripping stays
+- DEC-048 2026-08-11 — Completion ceremony slimmed
+- DEC-049 2026-08-18 — Watchers arm only through a tested primitive
+- DEC-050 2026-08-18 — VOID — watcher work jumped the queue ahead of install verification
+- DEC-051 2026-08-18 — Watcher lint scope narrowed against the live Monitor contract
+- DEC-052 2026-08-18 — The diverged branches are merged, the newer ids re-issued
+- DEC-053 2026-08-18 — Three of the six 2026-08-18 findings do not survive re-triage
 
 
 ## DEC-001  2026-08-01  Package as a plugin, not a loose skill
@@ -250,3 +259,31 @@ Why: the police generated ~15 findings across six audits and trained workarounds
 Tags: step, testing, ceremony
 Decision: The completion stamp stays required but is free text: multi-line accepted and written as indented continuations, no README/MANUAL substring check. INV-5 reduces to stamp-present. testing.md rows are voluntary documentation, pruned with the same last-5 window as plan.md.
 Why: substring gates verified mention, not truth, and trained formula; the one-line rule produced unreadable 1.4 KB stamps.
+
+## DEC-049  2026-08-18  Watchers arm only through a tested primitive
+Tags: watcher, monitor, background, leak, cli, hooks
+Decision: moltke ships `bin/moltke.py --watch LOG REGEX --ceiling DUR [--pid P] [--fail-re RE] [--interval DUR]` with four self-terminating exits: 0 marker seen, 4 failure marker, 3 watched pid died, 124 ceiling. It scans the whole file each poll, so a marker written before arming is still caught, and registers under `.git/moltke_watch/`, writing its outcome on every exit path; acknowledging an outcome is deleting the record. A PreToolUse lint refuses persistent watcher arms that are not the primitive. Rules live in AGENTS.md §12; the shell poll loop is the fallback where the tool is absent.
+Why: overnight runs leaked hand-composed `tail -f | grep` monitors that cannot exit, and a prose rule had already failed under habit — the cause is improvised infrastructure plus an obligation recorded nowhere in the filesystem.
+Re-issued 2026-08-18 under DEC-052: minted as DEC-022 on the merged branch, which is a different decision here. Context and rejected options are in that branch's history.
+
+## DEC-050  2026-08-18  VOID — watcher work jumped the queue ahead of install verification
+Tags: plan, order
+Decision: VOID 2026-08-18, superseded by DEC-052. It ordered the merged branch's plan so the watcher steps ran before install verification, and demoted that step to `plan_todo/` by hand. The ids it names mean other work here, and install verification completed long before the merge.
+Why: kept because a void entry is never deleted, and because it records the one-time by-hand demotion the step tool has no operation for.
+Re-issued 2026-08-18 under DEC-052: minted as DEC-023 on the merged branch.
+
+## DEC-051  2026-08-18  Watcher lint scope narrowed against the live Monitor contract
+Tags: watcher, monitor, hooks
+Decision: Narrows DEC-049. Block any single-match follow (`tail -f | grep -m N`), bounded or not, since SIGPIPE never arrives on a log that has stopped being written. Block a persistent arm that is not the primitive unless its command carries MOLTKE_UNBOUNDED_OK. Allow bounded streams: an unbounded follow through a filter is Monitor's own documented pattern for per-occurrence events, and a non-persistent arm is already bounded by the harness cap. The blessed overnight form is a persistent arm of the primitive, whose `--ceiling` is then its real timeout.
+Why: an unconditional block would fight designed, bounded usage, and false positives corrode a lint until someone disables it.
+Re-issued 2026-08-18 under DEC-052: minted as DEC-024 on the merged branch.
+
+## DEC-052  2026-08-18  The diverged branches are merged, the newer ids re-issued
+Tags: git, plan, merge, ids
+Decision: (Max, chat 2026-08-18: merge them, review, replan; agent-supplied analysis) The branch that continued from the adocs rename with a watcher primitive is merged into the line that reached 0.11.0, keeping both bodies of work. The 0.11.0 line's code, rules, and numbering win every conflict; the other contributes `--watch` and its arm-time lint. Everything minted in a namespace that branch could not see is re-issued: steps S014→S129 and S015→S130, DEC-022/023/024→DEC-049/050/051, INV-13→INV-17, and its two test files renamed to match. `adocs/worklog.md` is deleted with the subsystem (DEC-046) rather than carried across. `plugin.json` goes to 0.12.0, because 0.11.0 is installed already and this adds public surface. The branch `watch-primitive-a304293` holds the pre-merge tip, worklog included.
+Why: that branch audited and extended a 136-commit-stale tree, so its ids collided with released ones and half its findings were already answered here; merging is what preserves the watcher work, and re-issuing is the collision remedy the Teams section already prescribes.
+
+## DEC-053  2026-08-18  Three of the six 2026-08-18 findings do not survive re-triage
+Tags: audit, findings, merge
+Decision: F01 is accepted, not fixed: it rests on a documented field name, and the running Claude Code builds the UserPromptSubmit payload with `prompt` at both call sites — the only `user_prompt` key in that binary is a telemetry span attribute. The mode it targets no longer exists in any case (DEC-046). F03 is accepted: the reviewer write fence already gave way to post-hoc reconciliation (DEC-022) and the fence police are retired (DEC-047), so an unfenced Bash tool is the chosen design, not an oversight. F05 is accepted as already fixed: renames reach both Stop gates through `porcelain_paths` since S050, and the README/MANUAL substring gate it targeted is gone (DEC-048). F02, F04 and F06 stand against the merged code and carry steps.
+Why: an audit against a stale tree re-finds fixed bugs and misses the decisions that answered them; recording which findings died, and why, is what stops them being re-derived.
