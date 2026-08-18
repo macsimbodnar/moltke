@@ -10,10 +10,10 @@ Updated: 2026-08-18 by `moltke --step status`.
 - Next: S140
 - Blocked: none
 - Parked:
-  - 0.11.0 is installed (2026-08-13, sha 7ea76f7) and is what the live hooks run.
-    0.12.0 is committed and unshipped: `claude plugin install moltke@moltke`
-    before expecting `--watch` or the Monitor lint to exist in a session.
-    `--version` tells you which one you are talking to.
+  - 0.12.0 is installed (2026-08-18, sha 6ca6455) and is what the live hooks run;
+    master and origin/master agree at that sha. S139 is therefore part done: the
+    version is verified, the live Monitor refusal and a SessionStart carrying
+    watch state are not — this session's SessionStart ran 0.11.0.
   - the merge (DEC-052) could not be a git merge: with both branches' `plan_done/`
     trees as ancestors, INV-6 and INV-7 contradict each other and no resolution
     validates. It is a graft instead, and `watch-primitive-a304293` holds the
