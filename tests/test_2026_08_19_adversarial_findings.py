@@ -34,7 +34,6 @@ belong to whoever plans the steps that close these findings.
 """
 
 import ast
-import importlib.util
 import json
 import os
 import re
@@ -45,13 +44,9 @@ import unittest
 from pathlib import Path
 
 from fixtures import marked_repo, workflow_repo
+from surface import REPO, moltke
 
-REPO = Path(__file__).resolve().parent.parent
 MOLTKE = REPO / "bin" / "moltke.py"
-
-_spec = importlib.util.spec_from_file_location("moltke_f08", MOLTKE)
-moltke = importlib.util.module_from_spec(_spec)
-_spec.loader.exec_module(moltke)
 
 
 def parser_flags():
