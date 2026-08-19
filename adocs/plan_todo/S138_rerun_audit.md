@@ -8,3 +8,4 @@ closes:
 blocks:
 paused_by:
 done:
+author:    Maksym Bodnar

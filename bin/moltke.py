@@ -308,6 +308,18 @@ def pauser_id(fields):
     return found.group(0) if found else None
 
 
+def blocks_ids(fields):
+    """The step ids a `blocks` field names, as tokens (2026-08-19_adversarial-F01).
+
+    Stated once and shared with INV-4, for the reason DEC-055 gave about widths:
+    `step_done` asked whether an id occurred *anywhere* in the text, so a dated
+    comment mentioning a second step, which `--step block` writes itself, was
+    read as that step's own field — and once ids widened, `S100` was found inside
+    `S1000`. A token list cannot say either.
+    """
+    return STEP_ID_RE.findall(field_value(fields, "blocks"))
+
+
 def unresolvable_pauses(root, steps=None):
     """{step_id: ("phantom", pauser) or ("cycle", [members])} for every pause a
     step cannot get out from under.
@@ -452,7 +464,7 @@ def inv_4_done_not_blocked(root, config):
     # Only open steps block: a completed child's blocks field is history.
     for dirname in ("plan_todo", "plan_current"):
         for step_id, path, fields in steps[dirname]:
-            for target in STEP_ID_RE.findall(field_value(fields, "blocks")):
+            for target in blocks_ids(fields):
                 if target in done_ids:
                     violations.append(f"INV-4: {target} is in plan_done/ but {step_id} "
                                       f"({path.relative_to(root)}) still declares blocks: {target}; "
@@ -1762,10 +1774,21 @@ def _watch_scan(log_path, done_re, fail_re, budget):
 
 
 def _watch_record_path():
-    git_dir = scaffold_root() / ".git"
-    if not git_dir.is_dir():
+    """Where this watch registers, or None when there is genuinely no git here.
+
+    Through `git_dir()` rather than testing `.git` for directory-ness
+    (2026-08-19_adversarial-F03). That is the mistake S035 fixed for the audit
+    baseline and the Stop cap — in a linked worktree and in a submodule `.git` is
+    a file — and this subsystem never learned it: `--watch` reported "no .git
+    found" with the git directory right there, registered nothing, and left
+    `--stop` with no lost or unacknowledged watcher to report. Worktrees are how
+    MANUAL's Teams section says to work, so the blind spot sat exactly where the
+    project sends people.
+    """
+    resolved = git_dir(scaffold_root())
+    if resolved is None:
         return None
-    directory = git_dir / WATCH_DIR
+    directory = resolved / WATCH_DIR
     directory.mkdir(exist_ok=True)
     return directory / f"{int(time.time())}_{os.getpid()}.json"
 
@@ -1899,8 +1922,14 @@ def mode_watch(argv, pid, fail_re_text, ceiling_text, interval_text):
 
 
 def watch_records(root):
-    """[(path, record)] under .git/moltke_watch/; damaged files are skipped."""
-    directory = root / ".git" / WATCH_DIR
+    """[(path, record)] under the git directory's moltke_watch/; damaged files
+    are skipped. Resolved by `git_dir()` for the reason `_watch_record_path`
+    gives, so the reader and the writer agree in a worktree as well as in a
+    plain clone (2026-08-19_adversarial-F03)."""
+    resolved = git_dir(root)
+    if resolved is None:
+        return []
+    directory = resolved / WATCH_DIR
     if not directory.is_dir():
         return []
     records = []
@@ -1919,7 +1948,15 @@ def watch_report(root):
     rest are lost or untaken obligations and block a stop (DEC-049)."""
     lines = []
     for path, record in watch_records(root):
-        rel = path.relative_to(root)
+        try:
+            rel = path.relative_to(root)
+        except ValueError:
+            # A linked worktree's git directory sits outside its checkout, so a
+            # record there has no path relative to root — and once F03 let those
+            # records exist, this line crashed instead of reporting them. Every
+            # line here names something to delete, so an absolute path is the
+            # answer, not a reason to hide the obligation.
+            rel = path
         what = f"{record.get('regex')} in {record.get('log')}"
         watcher_pid = record.get("watcher_pid")
         if "outcome" in record:
@@ -2362,7 +2399,7 @@ def step_done(root, config, step_id, stamp):
                       f"first, which unpauses this step automatically")
     for open_dir in ("plan_todo", "plan_current"):
         for other_id, _p, other_fields in steps[open_dir]:
-            if other_id != step_id and step_id in field_value(other_fields, "blocks"):
+            if other_id != step_id and step_id in blocks_ids(other_fields):
                 return refuse(f"{other_id} still declares blocks: {step_id}; complete or "
                               f"drop {other_id} first")
     if not stamp or not stamp.strip():
@@ -2384,7 +2421,7 @@ def step_done(root, config, step_id, stamp):
     # it after the point of no return, so a completion could half-apply into a
     # state neither --step done nor --step start could clear.
     parents = [parent_path for _pid, parent_path, parent_fields in steps["plan_current"]
-               if step_id in field_value(parent_fields, "paused_by")]
+               if pauser_id(parent_fields) == step_id]
     for parent_path in [path] + parents:
         if not os.access(parent_path, os.W_OK):
             return refuse(f"{parent_path.relative_to(root)} is not writable, and completing "
@@ -2408,7 +2445,7 @@ def step_done(root, config, step_id, stamp):
                       f"({exc}); the copy was undone and nothing was changed")
     _invalidate_plan_cache()
     for parent_id, parent_path, parent_fields in steps["plan_current"]:
-        if step_id in field_value(parent_fields, "paused_by"):
+        if pauser_id(parent_fields) == step_id:
             try:
                 set_field(parent_path, "paused_by", "")
             except OSError as exc:

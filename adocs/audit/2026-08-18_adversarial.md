@@ -94,7 +94,7 @@ change the S005 test to feed `user_prompt` so it exercises the real field.
 
 ### 2026-08-18_adversarial-F02  high  --watch ceiling does not bound a single scan; a caller regex that backtracks runs forever
 
-Status: planned
+Status: closed
 
 The watch loop scans the whole log with the caller-supplied regex, then sleeps;
 the ceiling deadline is only checked *between* polls, never during a scan:
@@ -188,7 +188,7 @@ best-effort, since a shell fence is not airtight.
 
 ### 2026-08-18_adversarial-F04  medium  --pre-command persistent lint is bypassed by the substring "moltke --watch" anywhere in the command
 
-Status: planned
+Status: closed
 
 The persistent-arm check treats a watcher as the primitive whenever the command
 string merely *contains* something matching `moltke ... --watch`:
@@ -274,7 +274,7 @@ destination, as INV-7 already relies on) and parse from there.
 
 ### 2026-08-18_adversarial-F06  low  step ids silently stop being recognized past S999
 
-Status: planned
+Status: closed
 
 Step files are recognized by `STEP_FILE_RE = ^(S\d{3})_...` — exactly three
 digits — but `next_step_id` formats with `:03d`, which does not cap width:

@@ -235,7 +235,9 @@ log measured in gigabytes wants a wider `--interval` than the 30s default. The
 ceiling bounds the scan itself, not only the wait between scans: a caller regex
 that backtracks catastrophically, or a read that will not finish, exits `124`
 and is recorded as a ceiling like any other, never as a quiet no-match. Each
-watch registers itself in `.git/moltke_watch/` and writes
+watch registers itself in `moltke_watch/` inside the git directory git
+reports — `.git/moltke_watch/` in a plain clone, per-worktree in a linked
+worktree or a submodule, never nowhere — and writes
 its outcome there on exit — including being killed — so a session that died
 overnight can find the result the next morning: session start reports it, and
 the turn refuses to end until someone acts on it. After acting on a result,

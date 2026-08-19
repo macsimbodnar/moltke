@@ -200,9 +200,11 @@ python3 bin/moltke.py --watch RUN_LOG 'RUN-(DONE|FAILED)' --ceiling 8h --pid 123
   died, checked once more against the log first. 124 ceiling reached.
 - The whole file is scanned each poll, so a marker written before arming is
   still caught — the race a follow loses by construction.
-- It registers under `.git/moltke_watch/` on arm and writes its outcome there on
-  every exit path, kill included, so watch state is derivable from the
-  filesystem (§11). Acting on a result means deleting its record.
+- It registers under `moltke_watch/` in the git directory git itself reports —
+  `.git/moltke_watch/` in a plain clone, per-worktree wherever `.git` is a file —
+  on arm, and writes its outcome there on every exit path, kill included, so
+  watch state is derivable from the filesystem (§11). Acting on a result means
+  deleting its record.
 - Ceiling at least 2x the expected run. The run prints its own terminal markers,
   success and failure both, before the watcher exists: a watcher with nothing to
   match is unbounded by construction. Prefer the harness's own background task
