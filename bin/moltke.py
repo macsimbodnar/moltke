@@ -87,7 +87,21 @@ def check_marker(config):
     return violations
 
 
-STEP_FILE_RE = re.compile(r"^(S\d{3})_[A-Za-z0-9_]+\.md$")
+# Three digits or four (S136, 2026-08-18_adversarial-F06). Every scan keyed on
+# an id read exactly three digits, in five places, so past S999 there was not one
+# blind spot but five: the file was on disk, the entry was in plan.md, and
+# plan_steps, plan_order, derived_next, --pre-write's fence and every invariant
+# missed it together with --validate green. Unanchored, the same pattern was
+# worse than blind — `S\d{3}` against `S1000` matches `S100`, a different step,
+# usually one nobody wrote. Stated once here and reused; STEP_ID_MAX keeps the
+# widest id the allocator can mint inside the widest form these can read.
+STEP_ID_DIGITS = r"\d{3,4}"
+STEP_ID_RE = re.compile(rf"\bS{STEP_ID_DIGITS}\b")
+STEP_FILE_RE = re.compile(rf"^(S{STEP_ID_DIGITS})_[A-Za-z0-9_]+\.md$")
+# Deliberately wider than the recognised form, and used only by the id counter:
+# an id it cannot read is an id it can hand out twice (S136).
+ANY_ID_FILE_RE = re.compile(r"^S(\d+)_.*\.md$")
+ANY_ID_TOKEN_RE = re.compile(r"\bS(\d{3,})\b")
 PLAN_DIRS = ("plan_todo", "plan_current", "plan_done")
 # The short name is the second half of a filename STEP_FILE_RE has to match, so
 # the two are one rule stated twice and this is the half that is written
@@ -290,7 +304,7 @@ def _limit(config, key, default):
 def pauser_id(fields):
     """The step id a `paused_by` names, or None. The field carries a dated
     comment, so it is matched rather than compared."""
-    found = re.search(r"S\d{3}", field_value(fields, "paused_by"))
+    found = STEP_ID_RE.search(field_value(fields, "paused_by"))
     return found.group(0) if found else None
 
 
@@ -438,7 +452,7 @@ def inv_4_done_not_blocked(root, config):
     # Only open steps block: a completed child's blocks field is history.
     for dirname in ("plan_todo", "plan_current"):
         for step_id, path, fields in steps[dirname]:
-            for target in re.findall(r"S\d{3}", field_value(fields, "blocks")):
+            for target in STEP_ID_RE.findall(field_value(fields, "blocks")):
                 if target in done_ids:
                     violations.append(f"INV-4: {target} is in plan_done/ but {step_id} "
                                       f"({path.relative_to(root)}) still declares blocks: {target}; "
@@ -789,7 +803,7 @@ def plan_text(root):
 # A list entry, not prose: "1. S001", "- S001", "* S001". S045 — reading every
 # id in document order let a description paragraph decide the next step, since
 # order lives in the list and nowhere else (DEC-008).
-PLAN_ENTRY_RE = re.compile(r"^\s*(?:\d+\.|[-*])\s+(S\d{3})\b", re.M)
+PLAN_ENTRY_RE = re.compile(rf"^\s*(?:\d+\.|[-*])\s+(S{STEP_ID_DIGITS})\b", re.M)
 
 
 def plan_order(root):
@@ -1933,7 +1947,7 @@ def locate_step(root, step_id):
     return None, None, None
 
 
-STEP_ID_MAX = 999
+STEP_ID_MAX = 9999
 
 
 def highest_step_id(root):
@@ -1943,20 +1957,33 @@ def highest_step_id(root):
     gone. `where` exists for the refusal in mode_step: at the ceiling the cause
     is usually a token in plan.md prose rather than a step that exists, and a
     message that cannot say which is not actionable (S097).
+
+    Scanned wider than anything else reads (S136): any id-shaped filename, at any
+    width, and any three-or-more-digit token in plan.md. The counter is what
+    keeps ids unique, so a width it cannot see is a width it hands out twice —
+    that is how S1000 was minted twice before S097 capped the allocator. Here an
+    unreadable id lands above the ceiling instead, where it becomes the refusal.
     """
     highest, where = 0, None
-    steps = plan_steps(root)
     for dirname in PLAN_DIRS:
-        for step_id, path, _f in steps[dirname]:
-            if int(step_id[1:]) > highest:
-                highest, where = int(step_id[1:]), f"{DOCS}/{dirname}/{path.name}"
-    for number in re.findall(r"\bS(\d{3})\b", plan_text(root) or ""):
+        directory = root / DOCS / dirname
+        if not directory.is_dir():
+            continue
+        # Not plan_steps: that reads STEP_FILE_RE, which is the narrower half.
+        for path in sorted(directory.iterdir()):
+            found = ANY_ID_FILE_RE.match(path.name)
+            if found and int(found.group(1)) > highest:
+                highest, where = int(found.group(1)), f"{DOCS}/{dirname}/{path.name}"
+    for number in ANY_ID_TOKEN_RE.findall(plan_text(root) or ""):
         if int(number) > highest:
             highest, where = int(number), f"{DOCS}/plan.md"
     return highest, where
 
 
 def next_step_id(root):
+    """One past every id the repository has used. The `03d` is a floor, not a
+    cap: at S999 it widens to S1000, which every scan reads since S136, and past
+    STEP_ID_MAX mode_step refuses before this is called."""
     highest, _where = highest_step_id(root)
     return f"S{highest + 1:03d}"
 
@@ -1982,21 +2009,25 @@ def field_value_problem(operand, value):
 
 
 def step_id_ceiling_problem(root):
-    """S097 (2026-08-09_adversarial-F01): past S999 the allocator produced an id
-    no scanner can read. STEP_FILE_RE and PLAN_ENTRY_RE both require exactly
-    three digits, so S1000_x.md matched neither: the file was on disk, the entry
+    """S097 (2026-08-09_adversarial-F01): past the recognised id width the
+    allocator produced an id no scanner can read. The file was on disk, the entry
     was in plan.md, and plan_steps, plan_order, derived_next, --roadmap and every
-    invariant were blind to it together, with --validate green. INV-3 could not
-    report it in either direction. Two triggers, both real — any S999 token in
+    invariant were blind to it together, with --validate green; INV-3 could not
+    report it in either direction. Two triggers, both real — an id token in
     plan.md prose, which the shipped template invites, and the id space genuinely
     running out.
+
+    S136 widened the readers to four digits and moved this ceiling with them, so
+    it still says what it said: the allocator never mints an id wider than the
+    scans can read. It is the one funnel for that, whether the width came from a
+    prose token, a hand-written file, or a merge.
     """
     highest, where = highest_step_id(root)
     if highest < STEP_ID_MAX:
         return None
-    return (f"the next id would be S{highest + 1}, past the S{STEP_ID_MAX} ceiling, and a "
-            f"four-digit id is one nothing in this tool can read: step files and plan "
-            f"entries are matched as exactly three digits, so the step would exist on disk, "
+    return (f"the next id would be S{highest + 1}, past the S{STEP_ID_MAX} ceiling, and an id "
+            f"wider than four digits is one nothing in this tool can read: step files and plan "
+            f"entries are matched as three digits or four, so the step would exist on disk, "
             f"be listed in plan.md, and be invisible to every check at once. The highest id "
             f"in use is S{highest:03d}, found in {where}. If that is a token in prose rather "
             f"than a step, change it there; if the id space is genuinely full, widening it is "
@@ -2076,7 +2107,7 @@ def prune_plan(root, done_ids):
         rows = read_file(testing_path).splitlines(keepends=True) if testing_path.is_file() else []
         kept_rows = [line for line in rows
                      if not (line.startswith("|")
-                             and (ids := set(re.findall(r"\bS\d{3}\b", line)))
+                             and (ids := set(STEP_ID_RE.findall(line)))
                              and ids <= dropped_ids)]
         if len(kept_rows) != len(rows):
             testing_path.write_text("".join(kept_rows), encoding="utf-8")
@@ -2227,7 +2258,7 @@ def step_block(root, config, parent_id, name):
     # paused_by, so a second child reported success while taking the repository
     # from all checks pass to an INV-1 violation and erasing the first child's
     # pause — the parent unpaused itself while both children counted as active.
-    paused_by = re.search(r"S\d{3}", field_value(fields, "paused_by"))
+    paused_by = STEP_ID_RE.search(field_value(fields, "paused_by"))
     if paused_by:
         return refuse(f"{parent_id} is already paused by {paused_by.group(0)}; a step is "
                       f"blocked by one child at a time. Complete {paused_by.group(0)}, which "
@@ -2317,7 +2348,7 @@ def step_done(root, config, step_id, stamp):
                       f"carrying one id is INV-6 and --validate reports it; ids are never "
                       f"reused (DEC-008), so one of the two is misnumbered. Resolve it by "
                       f"hand — nothing here can decide which one is the step")
-    pauser = re.search(r"S\d{3}", field_value(fields, "paused_by"))
+    pauser = STEP_ID_RE.search(field_value(fields, "paused_by"))
     if pauser and pauser.group(0) in {done_id for done_id, _p, _f in steps["plan_done"]}:
         # A pause naming a step that is already finished is stale, and refusing
         # on it is a dead end the CLI cannot clear — hand-editing a step file is

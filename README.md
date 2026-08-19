@@ -44,8 +44,9 @@ Full suite:
 python3 -m unittest discover -s tests
 ```
 
-427 tests, no skips. A test whose precondition is genuinely absent skips with a
-message saying what would activate it, rather than passing silently.
+452 tests, 3 of which skip on a case-sensitive filesystem. A test whose
+precondition is genuinely absent skips with a message saying what would activate
+it, rather than passing silently.
 
 Check this repository against its own rules, which is also what other tools
 (Codex, Cursor) can run since hooks only exist in Claude Code:

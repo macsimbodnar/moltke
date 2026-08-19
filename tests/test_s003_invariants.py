@@ -880,5 +880,110 @@ class TestPauserMustExist(unittest.TestCase):
             self.assertIn("stale", done.stdout)
 
 
+
+
+class TestWideStepIdsAreRead(unittest.TestCase):
+    """S136 (2026-08-18_adversarial-F06): every scan keyed on a step id required
+    exactly three digits, so an id past S999 could sit on disk, be listed in
+    plan.md, and be invisible to the plan reader, every invariant, --pre-write's
+    step-file fence and the derived next step at once, with --validate green.
+    S097 stopped the allocator from minting one and taught no reader to see one
+    that arrives by hand, from a merge, or from a project older than moltke.
+
+    The field scans are the sharper half: unanchored `S\\d{3}` against a
+    `paused_by: S1000` does not fail to match, it matches `S100` — a different
+    step, usually one nobody wrote. Blindness is reported as a phantom pause;
+    truncation is reported as the wrong step.
+    """
+
+    def tree_with(self, tmp, dirname, step_id, listed=True):
+        """workflow_repo plus one step in `dirname`, listed in plan.md or not."""
+        root = workflow_repo(tmp)
+        step_file(root / "adocs" / dirname, step_id, "later",
+                  **({"done": "2026-08-18 done"} if dirname == "plan_done" else {}))
+        entry = f"4. {step_id} later\n" if listed else ""
+        (root / "adocs" / "plan.md").write_text(
+            "# Plan\n\n1. S001 base\n2. S002 pending\n3. S003 active\n" + entry,
+            encoding="utf-8")
+        return root
+
+    def test_a_consistent_four_digit_tree_is_green(self):
+        # Non-vacuity anchor for every red below: the widened form must be read
+        # as a step id, not merely refused somewhere new.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.tree_with(tmp, "plan_todo", "S1000")
+            result = run_validate(root)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_an_unlisted_four_digit_step_file_is_an_inv_3_violation(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.tree_with(tmp, "plan_todo", "S1000", listed=False)
+            self.assert_wide_violation(root, "INV-3", "S1000_later.md")
+
+    def test_a_four_digit_plan_entry_without_a_file_is_an_inv_3_violation(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            (root / "adocs" / "plan.md").write_text(
+                "# Plan\n\n1. S001 base\n2. S002 pending\n3. S003 active\n4. S1000 later\n",
+                encoding="utf-8")
+            self.assert_wide_violation(root, "INV-3", "S1000")
+
+    def test_a_four_digit_id_in_two_directories_is_an_inv_6_violation(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.tree_with(tmp, "plan_todo", "S1000")
+            step_file(root / "adocs" / "plan_done", "S1000", "later",
+                      done="2026-08-18 done")
+            self.assert_wide_violation(root, "INV-6", "S1000")
+
+    def test_the_derived_next_step_can_be_a_four_digit_id(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.tree_with(tmp, "plan_todo", "S1000")
+            # S1000 ahead of every other open step: the derived next step is the
+            # first entry not in plan_done/, so anything earlier answers instead.
+            (root / "adocs" / "plan.md").write_text(
+                "# Plan\n\n1. S001 base\n2. S1000 later\n3. S002 pending\n4. S003 active\n",
+                encoding="utf-8")
+            result = run_moltke(root, "--step", "status")
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertIn("- Next: S1000",
+                          (root / "adocs" / "status.md").read_text(encoding="utf-8"))
+
+    def test_the_pre_write_fence_sees_a_four_digit_step_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            result = run_moltke(root, "--pre-write", "src/S1000_rogue.md")
+            self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+            self.assertIn("S1000", result.stderr)
+
+    def test_the_fence_still_allows_a_four_digit_step_file_in_a_plan_directory(self):
+        # The other half of the fence: recognising the id must not fence the
+        # one place the file belongs.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            result = run_moltke(root, "--pre-write", "adocs/plan_todo/S1000_later.md")
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_a_four_digit_pause_is_not_truncated_to_three_digits(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.tree_with(tmp, "plan_todo", "S1000")
+            step_file(root / "adocs" / "plan_current", "S003", "active",
+                      paused_by="S1000  # 2026-08-18")
+            result = run_validate(root)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertNotIn("S100 ", result.stdout)
+
+    def test_a_four_digit_blocks_target_is_seen_by_inv_4(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.tree_with(tmp, "plan_done", "S1000")
+            step_file(root / "adocs" / "plan_todo", "S002", "pending", blocks="S1000")
+            self.assert_wide_violation(root, "INV-4", "S1000")
+
+    def assert_wide_violation(self, root, invariant, needle):
+        result = run_validate(root)
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertIn(invariant, result.stdout)
+        self.assertIn(needle, result.stdout)
+
+
 if __name__ == "__main__":
     unittest.main()

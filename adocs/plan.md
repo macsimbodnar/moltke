@@ -18,7 +18,6 @@ Step ids belong in the numbered list below and nowhere else in this file: the
 derived next step is the first id in document order, so an id mentioned in prose
 above the list becomes the next step instead.
 
-128. S130  arm-time watcher lint and watch-state reporting in hooks
 129. S140  a watcher killed in its arm window still records an outcome
 130. S137  decide whether arm-time watcher enforcement survives the fence retirement
 131. S132  bound each `--watch` scan so the ceiling holds against a runaway regex

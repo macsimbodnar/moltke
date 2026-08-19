@@ -1083,15 +1083,20 @@ class TestStepOwnership(unittest.TestCase):
 
 class TestStepIdCeiling(unittest.TestCase):
     """S097 (2026-08-09_adversarial-F01): `next_step_id` has no upper bound, and
-    `STEP_FILE_RE` and `PLAN_ENTRY_RE` both require exactly three digits. Past
-    S999 the allocator produced an id nothing in the tool can read: the file
-    lands in plan_todo/, the entry lands in plan.md, and `plan_steps`,
-    `plan_order`, `derived_next`, `--roadmap` and all sixteen invariants are
-    blind to it at once, with `--validate` green. S088 validated the step name
-    and left the id half of the same filename unchecked."""
+    every id scan required exactly three digits. Past S999 the allocator produced
+    an id nothing in the tool could read: the file lands in plan_todo/, the entry
+    lands in plan.md, and `plan_steps`, `plan_order`, `derived_next`, `--roadmap`
+    and all sixteen invariants are blind to it at once, with `--validate` green.
+
+    S136 widens the recognised form to four digits, so the ceiling moves with it:
+    S1000 is now an id every reader sees, and the refusal starts one past S9999,
+    the widest form written. The ceiling is what keeps the two ends in step —
+    beyond the widest recognised form the allocator would mint an unreadable id
+    again, so it refuses and names the condition instead.
+    """
 
     def at_the_ceiling(self, tmp):
-        """A tree that passes every check, whose plan.md mentions S999 in prose.
+        """A tree that passes every check, whose plan.md mentions S9999 in prose.
 
         The shipped templates/adocs/plan.md invites exactly this: "An id named in
         a sentence anywhere else in this file is prose: it does not change the
@@ -1099,7 +1104,7 @@ class TestStepIdCeiling(unittest.TestCase):
         """
         root = workflow_repo(tmp)
         plan = root / "adocs" / "plan.md"
-        plan.write_text("# Plan\n\nThe long tail of this work is tracked under S999.\n\n"
+        plan.write_text("# Plan\n\nThe long tail of this work is tracked under S9999.\n\n"
                         "1. S001 base\n2. S002 pending\n3. S003 active\n", encoding="utf-8")
         self.assertEqual(validate(root).returncode, 0,
                          "precondition: the fixture must be green before the allocation")
@@ -1111,7 +1116,7 @@ class TestStepIdCeiling(unittest.TestCase):
             before = (root / "adocs" / "plan.md").read_bytes()
             result = run_moltke(root, "--step", "new", "later_work")
             self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
-            self.assertIn("S999", result.stderr)
+            self.assertIn("S9999", result.stderr)
             self.assertIn("adocs/plan.md", result.stderr,
                           "the refusal must name where the ceiling came from")
             self.assertEqual((root / "adocs" / "plan.md").read_bytes(), before)
@@ -1123,13 +1128,13 @@ class TestStepIdCeiling(unittest.TestCase):
             root = self.at_the_ceiling(tmp)
             result = run_moltke(root, "--step", "block", "S003", "later_work")
             self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
-            self.assertIn("S999", result.stderr)
+            self.assertIn("S9999", result.stderr)
             parent = (root / "adocs" / "plan_current" / "S003_active.md").read_text(
                 encoding="utf-8")
-            self.assertNotIn("S1000", parent)
+            self.assertNotIn("S10000", parent)
             self.assertEqual(validate(root).returncode, 0, validate(root).stdout)
 
-    def test_no_four_digit_id_reaches_the_filesystem_or_the_plan(self):
+    def test_no_id_wider_than_the_recognised_form_reaches_the_disk_or_the_plan(self):
         # The shape the defect produced, pinned directly: a file and a plan entry
         # that exist and that no scanner in the tool can read.
         with tempfile.TemporaryDirectory() as tmp:
@@ -1138,21 +1143,21 @@ class TestStepIdCeiling(unittest.TestCase):
             for directory in ("plan_todo", "plan_current", "plan_done"):
                 self.assertEqual(
                     [p.name for p in (root / "adocs" / directory).iterdir()
-                     if re.match(r"^S\d{4,}_", p.name)], [], directory)
+                     if re.match(r"^S\d{5,}_", p.name)], [], directory)
             self.assertNotRegex((root / "adocs" / "plan.md").read_text(encoding="utf-8"),
-                                r"\bS\d{4,}\b")
+                                r"\bS\d{5,}\b")
 
     def test_the_highest_id_below_the_ceiling_still_allocates(self):
-        # Non-vacuity: S999 itself is a legal id, so the refusal starts at the
+        # Non-vacuity: S9999 itself is a legal id, so the refusal starts at the
         # step after it and not at the step that reaches it.
         with tempfile.TemporaryDirectory() as tmp:
             root = workflow_repo(tmp)
             plan = root / "adocs" / "plan.md"
-            plan.write_text("# Plan\n\nA note about S998.\n\n"
+            plan.write_text("# Plan\n\nA note about S9998.\n\n"
                             "1. S001 base\n2. S002 pending\n3. S003 active\n", encoding="utf-8")
             result = run_moltke(root, "--step", "new", "the_last_one")
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-            self.assertTrue((root / "adocs" / "plan_todo" / "S999_the_last_one.md").is_file())
+            self.assertTrue((root / "adocs" / "plan_todo" / "S9999_the_last_one.md").is_file())
             self.assertEqual(validate(root).returncode, 0, validate(root).stdout)
 
     def test_ordinary_allocation_is_untouched(self):
@@ -1163,6 +1168,60 @@ class TestStepIdCeiling(unittest.TestCase):
             result = run_moltke(root, "--step", "new", "ordinary")
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             self.assertTrue((root / "adocs" / "plan_todo" / "S004_ordinary.md").is_file())
+            self.assertEqual(validate(root).returncode, 0, validate(root).stdout)
+
+    def test_the_step_after_s999_allocates_and_every_reader_sees_it(self):
+        """S136: the old ceiling is now an ordinary allocation. Both halves are
+        asserted together on purpose — an id the allocator hands out and no
+        reader can see is the defect, not the fix."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            plan = root / "adocs" / "plan.md"
+            plan.write_text("# Plan\n\nA note about S999.\n\n"
+                            "1. S001 base\n2. S002 pending\n3. S003 active\n", encoding="utf-8")
+            result = run_moltke(root, "--step", "new", "past_the_old_ceiling")
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            path = root / "adocs" / "plan_todo" / "S1000_past_the_old_ceiling.md"
+            self.assertTrue(path.is_file())
+            self.assertIn("4. S1000", (root / "adocs" / "plan.md").read_text(encoding="utf-8"))
+            self.assertEqual(validate(root).returncode, 0, validate(root).stdout)
+            # Read back through the CLI, not through the file it just wrote.
+            self.assertIn("S1000", run_moltke(root, "--roadmap").stdout)
+            done = run_moltke(root, "--step", "done", "S003", "--stamp", STAMP)
+            self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+            started = run_moltke(root, "--step", "start", "S1000")
+            self.assertEqual(started.returncode, 0, started.stdout + started.stderr)
+            self.assertTrue(
+                (root / "adocs" / "plan_current" / "S1000_past_the_old_ceiling.md").is_file())
+            self.assertEqual(validate(root).returncode, 0, validate(root).stdout)
+
+    def test_an_id_wider_than_the_recognised_form_on_disk_refuses_allocation(self):
+        """S136: the counter is computed from ids it can read, so a width it
+        cannot read is an id it can hand out twice — which is how S1000 was
+        minted twice before S097. Any id-shaped filename bumps the counter now,
+        and a width past the ceiling turns into the loud refusal."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            (root / "adocs" / "plan_todo" / "S10000_from_the_future.md").write_text(
+                "id:         S10000\ngoal:       arrived by hand\n", encoding="utf-8")
+            self.assertEqual(validate(root).returncode, 0,
+                             "precondition: nothing reads this file, so the tree is green")
+            result = run_moltke(root, "--step", "new", "later_work")
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn("S10000_from_the_future.md", result.stderr,
+                          "the refusal must name the file the counter tripped over")
+            self.assertEqual(list((root / "adocs" / "plan_todo").glob("*later_work*")), [])
+
+    def test_an_allocated_id_is_never_one_already_on_disk(self):
+        """The property behind both: `--step new` twice in a row, with the first
+        id left where it landed, must not mint it again."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            for name in ("first", "second", "third"):
+                self.assertEqual(run_moltke(root, "--step", "new", name).returncode, 0, name)
+            todo = sorted(p.name for p in (root / "adocs" / "plan_todo").iterdir())
+            self.assertEqual(todo, ["S002_pending.md", "S004_first.md",
+                                    "S005_second.md", "S006_third.md"])
             self.assertEqual(validate(root).returncode, 0, validate(root).stdout)
 
 
