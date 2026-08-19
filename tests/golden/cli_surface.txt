@@ -18,6 +18,11 @@
 --validate
 --version
 --watch ARG...
+hook PostToolUse Write|Edit -> --post-write
+hook PreToolUse Monitor -> --pre-command
+hook PreToolUse Write|Edit -> --pre-write
+hook SessionStart * -> --session-start
+hook Stop * -> --stop
 hooks: PostToolUse,PreToolUse,SessionStart,Stop
 marker keys: enabled,plan_active_max,plan_stack_max,schema,surface_guard,test_command
 skills: audit,init,step

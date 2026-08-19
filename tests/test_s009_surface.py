@@ -10,8 +10,8 @@ import re
 import unittest
 from pathlib import Path
 
-from surface import (REPO, current_surface, declared_hook_events, declared_skills,
-                     moltke)
+from surface import (REPO, current_surface, declared_hook_events,
+                     declared_hook_wiring, declared_skills, moltke)
 
 GOLDEN = Path(__file__).resolve().parent / "golden" / "cli_surface.txt"
 
@@ -29,8 +29,61 @@ class TestGoldenSurface(unittest.TestCase):
         # Precondition for the tampering the accepts calls for: if these three
         # lines were absent, every component check below would pass vacuously.
         golden = GOLDEN.read_text(encoding="utf-8")
-        for prefix in ("hooks: ", "marker keys: ", "skills: "):
+        for prefix in ("hooks: ", "hook ", "marker keys: ", "skills: "):
             self.assertIn(prefix, golden, f"the golden no longer declares {prefix!r}")
+
+
+class TestHookWiringIsGuarded(unittest.TestCase):
+    """S142 (2026-08-19_adversarial-F02): the golden read only the *set* of event
+    names, so deleting the `Write|Edit` matcher and pointing `Stop` at `--roadmap`
+    left the suite green — both enforcement paths disconnected in the wiring rather
+    than in the code, which is the S023/F10 lesson fixed one level too shallow.
+    The golden now carries the triples; these checks are the part refreshing it
+    cannot silence.
+
+    HOOK_MODES is by hand: nothing in the parser says which modes exist only to be
+    called by a hook. Deriving mode lists from the parser is S150's subject.
+    """
+
+    HOOK_MODES = {"--session-start", "--pre-write", "--pre-command",
+                  "--post-write", "--stop"}
+
+    def parser_flags(self):
+        return {flag for action in moltke.build_parser()._actions
+                for flag in action.option_strings}
+
+    def test_every_hook_only_mode_names_a_real_flag(self):
+        # Non-vacuity anchor: a renamed mode must fail here, not silently drop out
+        # of the wiring check below by no longer matching anything.
+        self.assertEqual(sorted(self.HOOK_MODES - self.parser_flags()), [])
+
+    def test_every_hook_only_mode_is_wired(self):
+        wired = {mode for _, _, mode in declared_hook_wiring()}
+        self.assertEqual(sorted(self.HOOK_MODES - wired), [],
+                         "a mode that exists only for a hook is not invoked by any hook, "
+                         "so the enforcement it implements is off in every marked repository")
+
+    def test_every_wired_mode_is_a_real_flag(self):
+        wired = {mode for _, _, mode in declared_hook_wiring()}
+        self.assertEqual(sorted(wired - self.parser_flags()), [],
+                         "a hook invokes a flag argparse does not accept, so the hook exits 2 "
+                         "on every event")
+
+    def test_the_write_modes_select_write_and_edit(self):
+        for mode in ("--pre-write", "--post-write"):
+            with self.subTest(mode):
+                matchers = [matcher for _, matcher, wired in declared_hook_wiring()
+                            if wired == mode]
+                self.assertEqual(len(matchers), 1, f"{mode} is wired {len(matchers)} times")
+                for tool in ("Write", "Edit"):
+                    self.assertIn(tool, matchers[0].split("|"),
+                                  f"{mode} does not fire on {tool}, so the fence is off for it")
+
+    def test_the_stop_event_invokes_the_stop_mode(self):
+        modes = [mode for event, _, mode in declared_hook_wiring() if event == "Stop"]
+        self.assertEqual(modes, ["--stop"],
+                         "Stop must invoke the mode that refuses to end a turn; --roadmap and "
+                         "--validate exit 0 on a clean read and would leave the gate silently off")
 
 
 class TestSurfaceIsDocumented(unittest.TestCase):

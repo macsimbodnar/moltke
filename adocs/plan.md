@@ -25,7 +25,6 @@ which is why the audit's own steps sit in front of everything it did not raise.
 That run's verdicts closed three of the 2026-08-18 findings and left the other
 three accepted.
 
-133. S136  step ids past 999: recognised everywhere, or allocation refused loudly
 134. S139  install and verify 0.12.0, the merged plugin
 135. S138  re-run the adversarial audit against the merged tree
 136. S141  `--step done` reads paused_by and blocks as tokens, never as substrings

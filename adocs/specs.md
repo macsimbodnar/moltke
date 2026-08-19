@@ -132,6 +132,9 @@ completion on non-zero exit.
 
 Hook events: `SessionStart`, `PreToolUse`, `PostToolUse`, `Stop`. The
 UserPromptSubmit hook left with the worklog (S120, DEC-046). Skills: `init`, `step`, `audit`.
+The wiring is guarded, not only the event names: the golden carries which tool
+matcher selects each hook and which mode it invokes, so unwiring the write fence
+or pointing `Stop` at a mode that enforces nothing fails the suite (S142).
 
 ## Non-goals
 

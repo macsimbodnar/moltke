@@ -91,7 +91,9 @@ python3 tests/test_s009_surface.py --refresh
 ```
 
 The golden test fails on any added, renamed, or removed flag, `--step` / `--audit`
-operation, skill, hook event, or recognised `.moltke.json` key. A second check
+operation, skill, hook event, or recognised `.moltke.json` key, and on any rewiring
+of a hook: it carries one `(event, tool matcher, mode flag)` triple per declared
+hook command, not just the event names. A second check
 requires each one to appear in the specs table and in MANUAL, so refreshing the
 golden alone never makes the suite green. The declarations it reads live in
 `tests/surface.py`.
