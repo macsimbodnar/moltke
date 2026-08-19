@@ -15,9 +15,14 @@ belong to whoever plans the steps that close these findings.
        last path, so the source half of `R  old -> new` is dropped: a staged
        `git mv` of tracked source into `tests/` reconciles as an expected new
        test and the removal is reported nowhere.
+- F05  bin/moltke.py:1706, 1929 — `_pid_alive` lets `os.kill`'s `OverflowError`
+       out and `main` catches `OSError` only, so a pid past `pid_t` in a record
+       or in `--pid` ends the mode in a traceback; `--pid 0` and negatives are
+       process-group targets that read alive forever.
 """
 
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -321,6 +326,99 @@ class TestAuditCheckSeesARenameSource(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             self.assertNotIn("src/thing.py", result.stdout)
 
+
+class TestPidRangeIsRefusedNotRaised(unittest.TestCase):
+    """F05: `_pid_alive` catches `ProcessLookupError` and `OSError`, but
+    `os.kill` raises `OverflowError` past C `pid_t` and `main`'s backstop catches
+    `OSError` only. A watch record carrying such a pid is filesystem state that
+    `watch_records` is written to tolerate, so `--stop` and `--session-start`
+    both end in a traceback — every gate off, and from `--session-start` the
+    whole additionalContext payload lost. A mistyped `--pid` does it to `--watch`
+    after the record is armed, and `--pid 0` or a negative pid is a kill(2)
+    process-group target that reads alive forever, so exit 3 can never fire.
+    """
+
+    OUT_OF_RANGE = 2 ** 40  # inside C long, past pid_t: os.kill overflows
+
+    def _repo(self, tmp):
+        root = workflow_repo(Path(tmp))
+        git_baseline(root)
+        return root
+
+    def _arm_record(self, root, watcher_pid, **extra):
+        """A watch record as `--watch` writes one, with no outcome: an obligation."""
+        directory = root / ".git" / WATCH_DIR
+        directory.mkdir(parents=True, exist_ok=True)
+        record = {"schema": 1, "log": str(root / "run.log"), "regex": "RUN-DONE",
+                  "fail_regex": None, "pid": None, "ceiling": "8h",
+                  "interval": "30s", "armed_at": "2026-08-19T10:00:00+02:00",
+                  "watcher_pid": watcher_pid}
+        record.update(extra)
+        path = directory / "1787000000_4242.json"
+        path.write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
+        return path
+
+    def test_stop_reports_a_watcher_pid_it_cannot_probe(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            before = run_moltke(root, "--stop", stdin="{}")
+            self.assertEqual(before.returncode, 0, before.stdout + before.stderr)
+
+            self._arm_record(root, self.OUT_OF_RANGE)
+            after = run_moltke(root, "--stop", stdin="{}")
+            self.assertNotIn("Traceback", after.stderr)
+            self.assertEqual(after.returncode, 2, after.stdout + after.stderr)
+            self.assertIn("watcher died", after.stderr)
+
+    def test_session_start_still_emits_its_payload(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            self._arm_record(root, self.OUT_OF_RANGE)
+            result = run_moltke(root, "--session-start", stdin="{}")
+            self.assertNotIn("Traceback", result.stderr)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            payload = json.loads(result.stdout)
+            self.assertIn("hookSpecificOutput", payload)
+
+    def test_watch_refuses_a_pid_out_of_range_before_arming_anything(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            (root / "run.log").write_text("RUN-DONE ok\n", encoding="utf-8")
+            result = run_moltke(root, "--watch", str(root / "run.log"), "RUN-DONE",
+                                "--ceiling", "5s", "--interval", "0.05s",
+                                "--pid", str(self.OUT_OF_RANGE))
+            self.assertNotIn("Traceback", result.stderr)
+            # 1, like every other --watch refusal (S129): a refusal, not a marker.
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn("--pid", result.stderr)
+            self.assertEqual(list((root / ".git" / WATCH_DIR).glob("*.json"))
+                             if (root / ".git" / WATCH_DIR).is_dir() else [], [],
+                             "a refused watch left a record blocking every stop")
+
+    def test_watch_refuses_a_process_group_pid(self):
+        # 0 and negatives are process-group targets: os.kill succeeds, the pid
+        # reads alive forever, and the exit 3 the flag exists for cannot fire.
+        for pid in ("0", "-1", f"-{self.OUT_OF_RANGE}"):
+            with self.subTest(pid=pid), tempfile.TemporaryDirectory() as tmp:
+                root = self._repo(tmp)
+                (root / "run.log").write_text("nothing yet\n", encoding="utf-8")
+                result = run_moltke(root, "--watch", str(root / "run.log"),
+                                    "RUN-DONE", "--ceiling", "1s",
+                                    "--interval", "0.05s", "--pid", pid)
+                self.assertEqual(result.returncode, 1,
+                                 result.stdout + result.stderr)
+                self.assertIn("--pid", result.stderr)
+
+    def test_a_pid_that_could_exist_is_still_watched(self):
+        # Non-vacuity: the refusals above must not swallow the flag's own use.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            log = root / "run.log"
+            log.write_text("RUN-DONE ok\n", encoding="utf-8")
+            result = run_moltke(root, "--watch", str(log), "RUN-DONE",
+                                "--ceiling", "5s", "--interval", "0.05s",
+                                "--pid", str(os.getpid()))
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
 if __name__ == "__main__":
     unittest.main()

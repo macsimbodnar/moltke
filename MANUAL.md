@@ -242,7 +242,11 @@ its outcome there on exit — including being killed — so a session that died
 overnight can find the result the next morning: session start reports it, and
 the turn refuses to end until someone acts on it. After acting on a result,
 delete the record file to acknowledge it. Durations take `s`/`m`/`h`/`d`
-suffixes. Rules and the no-plugin fallback loop: AGENTS.md §12.
+suffixes. `--pid` takes a real process id — `0`, a negative number (both are
+`kill(2)` process groups, which would read alive forever and never reach exit
+`3`) and anything above `2147483647` are refused before the watch is armed, so a
+mistyped pid leaves no record behind to acknowledge. Rules and the no-plugin
+fallback loop: AGENTS.md §12.
 
 In Claude Code, arm it through a persistent monitor: the harness caps bounded
 monitors at one hour, so `persistent: true` plus `--ceiling` is the intended

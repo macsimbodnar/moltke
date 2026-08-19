@@ -25,7 +25,6 @@ which is why the audit's own steps sit in front of everything it did not raise.
 That run's verdicts closed three of the 2026-08-18 findings and left the other
 three accepted.
 
-135. S138  re-run the adversarial audit against the merged tree
 136. S141  `--step done` reads paused_by and blocks as tokens, never as substrings
 137. S142  the golden guards hook matchers and mode flags, not just event names
 138. S143  `--watch` registers through git_dir(), so a linked worktree is not "no .git found"

@@ -1715,10 +1715,43 @@ def parse_duration(text):
     return float(match.group(1)) * DURATION_UNITS[match.group(2)] if match else None
 
 
+# os.kill takes a C pid_t — a 32-bit signed int on the POSIX platforms this runs
+# on — and raises OverflowError, not OSError, past it (2026-08-19_adversarial-F05).
+PID_MAX = 2 ** 31 - 1
+
+
+def pid_unusable(pid):
+    """Why `pid` cannot name a process to probe, or None when it could name one.
+
+    Not a liveness question: a plausible pid that is already dead is the
+    watcher's exit 3, not a refusal. Only values `os.kill` cannot answer for are
+    unusable — past pid_t it raises, and 0 or a negative is a process-group
+    target that answers alive forever, so exit 3 could never fire.
+    """
+    if not isinstance(pid, int) or isinstance(pid, bool):
+        return "not a whole number"
+    if pid <= 0:
+        return ("not positive; kill(2) reads 0 and negative pids as process "
+                "groups, which would answer alive forever")
+    if pid > PID_MAX:
+        return f"above {PID_MAX}, past the pid_t kill(2) can express"
+    return None
+
+
 def _pid_alive(pid):
+    """True when `pid` names a live process; a pid that cannot name one is dead.
+
+    Total by construction: every caller is deciding whether to keep waiting, and
+    an OverflowError out of `os.kill` used to leave `--stop` and `--session-start`
+    in a traceback with every gate off (2026-08-19_adversarial-F05).
+    """
+    if pid_unusable(pid):
+        return False
     try:
         os.kill(pid, 0)
     except ProcessLookupError:
+        return False
+    except OverflowError:  # a pid_t narrower than PID_MAX, belt to the guard above
         return False
     except OSError:  # EPERM and friends: it exists, it is just not ours
         return True
@@ -1826,6 +1859,13 @@ def mode_watch(argv, pid, fail_re_text, ceiling_text, interval_text):
     if pid is not None and sys.platform == "win32":
         return refuse("--pid liveness is a POSIX kill(pid, 0) probe and does not exist "
                       "on Windows; watch without --pid, bounded by the ceiling")
+    unusable = pid_unusable(pid) if pid is not None else None
+    if unusable:
+        # Validated here with every other argument, before anything is armed: the
+        # record is an obligation, and a refusal that leaves one behind blocks
+        # every stop until someone deletes it (2026-08-19_adversarial-F05).
+        return refuse(f"--pid {pid} is {unusable}; pass the pid of the run being "
+                      f"watched, or watch without --pid, bounded by the ceiling")
     try:
         done_re = re.compile(argv[1])
         fail_re = re.compile(fail_re_text) if fail_re_text else None
@@ -1963,8 +2003,7 @@ def watch_report(root):
             lines.append(f"watch outcome unacknowledged: {record.get('outcome')} "
                          f"(exit {record.get('exit_code')}) for {what}; act on the "
                          f"result, then acknowledge it by deleting {rel}")
-        elif not (isinstance(watcher_pid, int) and watcher_pid > 0
-                  and _pid_alive(watcher_pid)):
+        elif not _pid_alive(watcher_pid):  # total, damaged records included
             lines.append(f"watcher died without recording an outcome: {what}; "
                          f"re-arm it with --watch, or delete {rel} if the run "
                          f"no longer matters")
