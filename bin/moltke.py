@@ -1227,16 +1227,26 @@ def mode_pre_command(root, config):
         return EXIT_OK
     tool_input = payload.get("tool_input", {})
     command = tool_input.get("command") or ""
-    if not command or "MOLTKE_UNBOUNDED_OK" in command:
-        return EXIT_OK
+    if not command:
+        return EXIT_OK  # a ws arm has no command to judge
+    # The escape hatch is read *after* this branch, not before it: INV-17 refuses
+    # a single-match follow always, and the token is documented for a genuinely
+    # unbounded stream, which `-m N` is the opposite of. Read first, it switched
+    # off the one refusal with no legitimate form behind it, and the persistent
+    # branch below teaches the token to everyone it blocks — so the next arm
+    # carried it here (S146, 2026-08-19_adversarial-F06).
     _piped, single = _tail_follow_into_grep(command)
     if single:
         print(f"moltke: tail -f piped into a single-match grep cannot end itself: "
               f"grep exits on the match, but tail only learns via SIGPIPE on its "
               f"next write, and a finished log never writes again (AGENTS.md §12). "
-              f"Bounded or not, this form under-delivers; {WATCH_HINT}",
+              f"Bounded or not, this form under-delivers, and MOLTKE_UNBOUNDED_OK "
+              f"does not reach it — that escape is for a genuinely unbounded "
+              f"stream, and -m N asks for one match (INV-17); {WATCH_HINT}",
               file=sys.stderr)
         return EXIT_BLOCK
+    if "MOLTKE_UNBOUNDED_OK" in command:
+        return EXIT_OK
     if tool_input.get("persistent") and not _is_watch_primitive(command):
         print(f"moltke: a persistent watcher arms only through the watch primitive, and "
               f"the primitive must be the command that runs — naming it in a comment, or "

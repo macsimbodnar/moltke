@@ -216,7 +216,8 @@ grep exits on match, tail learns only by SIGPIPE on its next write, and a
 finished log never writes again. In Claude Code both are refused at arm time,
 along with any persistent monitor that is not the primitive; the one escape is
 `MOLTKE_UNBOUNDED_OK` in the command, for a genuinely unbounded stream
-(per-occurrence events, a dev-server error tail). Arm the primitive
+(per-occurrence events, a dev-server error tail). The escape reaches the
+persistent-arm rule only: `-m N` is refused token or no token. Arm the primitive
 `persistent`: the harness caps bounded monitors at an hour, so the `--ceiling`
 is the real timeout and the process still ends itself.
 

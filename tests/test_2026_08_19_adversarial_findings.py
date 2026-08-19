@@ -19,6 +19,9 @@ belong to whoever plans the steps that close these findings.
        out and `main` catches `OSError` only, so a pid past `pid_t` in a record
        or in `--pid` ends the mode in a traceback; `--pid 0` and negatives are
        process-group targets that read alive forever.
+- F06  bin/moltke.py:1230 — `mode_pre_command` consults MOLTKE_UNBOUNDED_OK
+       ahead of both branches, so the token also switches off the
+       single-match-follow refusal INV-17 says applies always.
 """
 
 import json
@@ -419,6 +422,59 @@ class TestPidRangeIsRefusedNotRaised(unittest.TestCase):
                                 "--ceiling", "5s", "--interval", "0.05s",
                                 "--pid", str(os.getpid()))
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+
+class TestUnboundedTokenDoesNotReachASingleMatchFollow(unittest.TestCase):
+    """F06: `mode_pre_command` consults MOLTKE_UNBOUNDED_OK before either
+    branch, so the token switches off the single-match-follow refusal too.
+    INV-17 says that form is refused always and DEC-051 says "bounded or not",
+    while the token is documented for a genuinely unbounded stream — which
+    `-m N` is the opposite of. The persistent branch's own refusal teaches the
+    token to every agent it blocks, so the next arm can carry it into the one
+    form that leaks a `tail` forever.
+    """
+
+    SINGLE_MATCH = "tail -f run.log | grep -m1 BOOM"
+    STREAM = "tail -f dev.log | grep --line-buffered ERROR"
+    TOKEN = "  # MOLTKE_UNBOUNDED_OK"
+
+    def _arm(self, root, command, persistent=True):
+        payload = json.dumps({"tool_name": "Monitor",
+                              "tool_input": {"command": command,
+                                             "persistent": persistent}})
+        return run_moltke(root, "--pre-command", stdin=payload)
+
+    def test_the_token_does_not_arm_a_persistent_single_match_follow(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(Path(tmp))
+            result = self._arm(root, self.SINGLE_MATCH + self.TOKEN)
+            self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+            self.assertIn("SIGPIPE", result.stderr)
+
+    def test_the_refusal_states_the_token_does_not_reach_this_form(self):
+        # The refusal is where the rule is taught, and INV-17's word is always.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(Path(tmp))
+            result = self._arm(root, self.SINGLE_MATCH + self.TOKEN)
+            self.assertIn("MOLTKE_UNBOUNDED_OK does not reach", result.stderr)
+
+    def test_the_token_does_not_arm_a_bounded_single_match_follow_either(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(Path(tmp))
+            result = self._arm(root, self.SINGLE_MATCH + self.TOKEN,
+                               persistent=False)
+            self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+
+    def test_the_token_still_arms_a_deliberately_unbounded_stream(self):
+        # Non-vacuity: the escape has to be live for the refusals above to say
+        # anything, so the same stream is refused without the token first.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(Path(tmp))
+            bare = self._arm(root, self.STREAM)
+            self.assertEqual(bare.returncode, 2, bare.stdout + bare.stderr)
+            tokened = self._arm(root, self.STREAM + self.TOKEN)
+            self.assertEqual(tokened.returncode, 0, tokened.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

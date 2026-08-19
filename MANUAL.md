@@ -258,7 +258,8 @@ such as a dev-server error tail. The primitive has to be the command that runs:
 mentioning `--watch` in a trailing comment, or echoing it before a
 hand-composed follow, is refused exactly like the bare leak. A single-match follow
 (`tail -f log | grep -m1 DONE`) is refused always: it looks like a fix and
-hangs by construction.
+hangs by construction, and `MOLTKE_UNBOUNDED_OK` does not reach it — the token
+exempts the persistent-arm rule only.
 
 ## Reference: every mode
 
