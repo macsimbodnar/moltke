@@ -11,6 +11,10 @@ belong to whoever plans the steps that close these findings.
 - F03  bin/moltke.py:1761, 1888 — the watch subsystem reads `<root>/.git` as a
        directory instead of asking git, so nothing is registered in a linked
        worktree and no lost watcher is ever reported there.
+- F04  bin/moltke.py:2567 — `worktree_state` keys each porcelain line on its
+       last path, so the source half of `R  old -> new` is dropped: a staged
+       `git mv` of tracked source into `tests/` reconciles as an expected new
+       test and the removal is reported nowhere.
 """
 
 import json
@@ -20,7 +24,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from fixtures import marked_repo
+from fixtures import marked_repo, workflow_repo
 
 MOLTKE = Path(__file__).resolve().parent.parent / "bin" / "moltke.py"
 
@@ -234,6 +238,88 @@ class TestWatchStateInALinkedWorktree(unittest.TestCase):
             after = run_moltke(worktree, "--stop", stdin="{}")
             self.assertEqual(after.returncode, 2, after.stdout + after.stderr)
             self.assertIn("unacknowledged", after.stderr)
+
+
+def write(root, rel, text):
+    path = Path(root) / rel
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text, encoding="utf-8")
+    return path
+
+
+class TestAuditCheckSeesARenameSource(unittest.TestCase):
+    """F04: `porcelain_paths` returns both halves of `R  old -> new` and its
+    docstring says why both matter, but `worktree_state` kept only the
+    destination. `_is_new_file` treats `R` as newly here (S077), so one
+    `git mv` into `tests/` removed tracked source and reconciled clean."""
+
+    def audit_repo(self, tmp):
+        root = workflow_repo(tmp)
+        write(root, "src/thing.py", "print('source')\n")
+        write(root, "tests/test_existing.py", "# an existing test\n")
+        git_baseline(root)
+        opened = run_moltke(root, "--audit", "new", "adversarial")
+        self.assertEqual(opened.returncode, 0, opened.stdout + opened.stderr)
+        return root
+
+    def staged_rename(self, root, source, destination):
+        git(root, "mv", source, destination)
+        porcelain = git(root, "status", "--porcelain", "-uall").stdout
+        self.assertIn(f"R  {source} -> {destination}", porcelain,
+                      "precondition: git reports one rename line naming both halves")
+
+    def unexpected_section(self, stdout):
+        return stdout.split("unexpected,")[1] if "unexpected," in stdout else ""
+
+    def test_a_staged_rename_into_tests_reports_the_source_it_removed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.audit_repo(tmp)
+            self.staged_rename(root, "src/thing.py", "tests/test_moved_thing.py")
+            result = run_moltke(root, "--audit", "check")
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn("src/thing.py", self.unexpected_section(result.stdout))
+
+    def test_the_destination_of_that_rename_is_still_reported(self):
+        # The departure must be added to what the check says, not swapped for it:
+        # the reviewer needs to see where the source went.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.audit_repo(tmp)
+            self.staged_rename(root, "src/thing.py", "tests/test_moved_thing.py")
+            result = run_moltke(root, "--audit", "check")
+            self.assertIn("tests/test_moved_thing.py", result.stdout)
+
+    def test_a_rename_between_two_source_paths_is_unexpected_too(self):
+        # Nothing about the departure depends on the destination being tests/.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.audit_repo(tmp)
+            self.staged_rename(root, "src/thing.py", "src/renamed.py")
+            result = run_moltke(root, "--audit", "check")
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn("src/thing.py", self.unexpected_section(result.stdout))
+
+    def test_an_ordinary_new_test_is_still_expected(self):
+        # Non-vacuity: the fence permits new files under tests/, and reporting
+        # departures must not turn a red-first regression test into dirt.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.audit_repo(tmp)
+            write(root, "tests/test_regression.py", "# red first\n")
+            result = run_moltke(root, "--audit", "check")
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertNotIn("unexpected", result.stdout)
+
+    def test_a_rename_staged_before_the_run_is_not_blamed_on_it(self):
+        # The departure is recorded in the baseline as well, so a tree that was
+        # already dirty this way reconciles unchanged.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            write(root, "src/thing.py", "print('source')\n")
+            write(root, "tests/test_existing.py", "# an existing test\n")
+            git_baseline(root)
+            self.staged_rename(root, "src/thing.py", "tests/test_moved_thing.py")
+            run_moltke(root, "--audit", "new", "adversarial")
+            result = run_moltke(root, "--audit", "check")
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertNotIn("src/thing.py", result.stdout)
 
 
 if __name__ == "__main__":

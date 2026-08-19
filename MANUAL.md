@@ -407,7 +407,10 @@ Consequences worth knowing. A change to a `.gitignore`d path is invisible, becau
 git does not report those. Pre-existing dirt in your tree, and commits made before
 the run, are in the baseline and are never blamed on the audit. A commit that
 touches only the report and new files under `tests/` is expected; anything else in
-it is not.
+it is not. A staged rename is one git line naming two paths, and both are judged:
+the destination as a file newly here, the source as `removed by a rename to
+<destination>` — so `git mv src/thing.py tests/moved.py` is not an expected new
+test, it is tracked source that left.
 
 If the baseline `HEAD` is no longer reachable, that is reported rather
 than skipped, because history was rewritten under the run. Without git, or before

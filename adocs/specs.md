@@ -112,7 +112,7 @@ One entry point, `bin/moltke.py`, one mode per invocation. The golden test
 | `--step status` | regenerate `status.md` from the filesystem; everything below `- Parked:` is carried through verbatim |
 | `--audit new <type>` | open `adocs/audit/YYYY-MM-DD_<type>.md` (`.2` suffix on a same-day re-run, never overwrites), record the reconciliation baseline; type must match `[A-Za-z0-9_-]+` |
 | `--audit list` | every finding, status, and reference; exit 1 while an open finding has no home or a fence hides one from the scanners |
-| `--audit check` | reconcile the tree against the baseline: report and new `tests/` files expected, anything else listed, exit 1 |
+| `--audit check` | reconcile the tree against the baseline: report and new `tests/` files expected, anything else listed, exit 1. A rename is judged on both halves — the destination is new, the source departed |
 | `--session-start` | SessionStart hook: emit stack, derived next step, staleness, planning nudge as JSON additionalContext |
 | `--pre-write` | PreToolUse hook (Write|Edit): refuse writes into `plan_done/`, step files outside the plan directories, reviewer writes outside `adocs/audit/` + new `tests/` files |
 | `--pre-command` | PreToolUse hook (Monitor): INV-17 at arm time — refuse a persistent non-primitive arm without `MOLTKE_UNBOUNDED_OK`, refuse any single-match follow, allow bounded streams, ws arms, and other tools |

@@ -2551,23 +2551,53 @@ def _content_hash(path):
         return None
 
 
+# Recorded as the status of the source half of a rename, where git reports a
+# two-char code (S144, 2026-08-19_adversarial-F04). It is a sentence, not a code,
+# because it is printed straight into the check's output — and because nothing
+# that reads a porcelain status may mistake a departure for one.
+DEPARTED = "removed by a rename to"
+
+
+def _is_departure(status):
+    """Whether worktree_state recorded this path as the source of a rename."""
+    return status.startswith(DEPARTED)
+
+
 def worktree_state(root):
     """{path: [porcelain status, content hash]} for every changed path, or None
     without git. The hash is what catches a file edited before the audit and
-    edited again during it: its status never moves."""
+    edited again during it: its status never moves.
+
+    A staged rename is one line naming two paths and both are recorded: the
+    destination with git's own status, the source with DEPARTED, since it
+    stopped existing. Keeping only the destination — the last path, which is
+    what the Stop gates want — made `git mv src/x.py tests/x.py` reconcile as an
+    expected new test while the removal was reported nowhere (S144, F04).
+    """
     # -uall, because plain porcelain collapses a wholly untracked directory into
     # one entry: adocs/audit/ would hide the report inside it.
     lines = _git_lines(root, "status", "--porcelain", "-uall")
     if lines is None:
         return None
-    state = {}
+    state, departures = {}, []
     for line in lines:
+        paths = porcelain_paths(line)
         # The new name is what exists now. One definition of that, shared with
         # both Stop gates since S050.
-        entry = from_git_path(root, porcelain_paths(line)[-1])
-        if entry is None:
-            continue
-        state[entry] = [line[:2], _content_hash(root / entry)]
+        entry = from_git_path(root, paths[-1])
+        if entry is not None:
+            state[entry] = [line[:2], _content_hash(root / entry)]
+        for source in paths[:-1]:
+            source = from_git_path(root, source)
+            if source is not None:
+                # git's own spelling of the destination, so a rename out of this
+                # package still says where the file went (S081).
+                departures.append((source, paths[-1]))
+    # A line of its own beats a departure, whatever the order git listed them
+    # in: `R  a -> b` with `a` recreated untracked reports both, and what `a`
+    # is now is the truth about `a`.
+    for source, destination in departures:
+        state.setdefault(source, [f"{DEPARTED} {destination}", None])
     return state
 
 
@@ -2669,7 +2699,10 @@ def audit_check(root, config):
             note = f"{entry}: {now[0].strip() or 'changed'}"
         else:
             note = f"{entry}: changed again (was {was[0].strip()}, now {now[0].strip()})"
-        classify(entry, note, was is None and now is not None and _is_new_file(now[0]))
+        # A departure is never newly here, however it is spelled: the check must
+        # not read the source of a rename into tests/ as a new test (S144, F04).
+        classify(entry, note, was is None and now is not None
+                 and not _is_departure(now[0]) and _is_new_file(now[0]))
 
     # And what the run committed (S032, F01). A clean tracked file that the run
     # patched and committed is in neither snapshot, so it was not misclassified,

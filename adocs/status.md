@@ -5,9 +5,9 @@ this file: on disagreement, `plan_current/` wins.
 
 Updated: 2026-08-19 by `moltke --step status`.
 
-- Last done: S143
+- Last done: S144
 - In progress: none
-- Next: S144
+- Next: S145
 - Blocked: none
 - Parked:
   - two Claude config roots on this machine, each with its own plugin registry and
