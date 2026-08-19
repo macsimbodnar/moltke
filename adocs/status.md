@@ -5,19 +5,22 @@ this file: on disagreement, `plan_current/` wins.
 
 Updated: 2026-08-19 by `moltke --step status`.
 
-- Last done: S136
+- Last done: S139
 - In progress: none
 - Next: S138
 - Blocked: none
 - Parked:
-  - S138 is postponed by decision (DEC-056), not started: `adversarial_reviewer` is
-    not a spawnable subagent type in this session, under that name or scoped, and
-    the plugin's skills are absent from the same registry — only its hooks are live.
-    The merged tree stays unaudited until a session where the plugin's agents load.
-  - 0.12.0 is installed (2026-08-18, sha 6ca6455) and is what the live hooks run;
-    master and origin/master agree at that sha. S139 is therefore part done: the
-    version is verified, the live Monitor refusal and a SessionStart carrying
-    watch state are not — this session's SessionStart ran 0.11.0.
+  - two Claude config roots on this machine, each with its own plugin registry and
+    its own install (DEC-057): `~/.claude` for the CLI, `~/.claude-work` for the
+    desktop app. The desktop root installs from a `directory` source pointing at
+    the checkout, so its cache is a snapshot and an edit reaches the live hooks
+    only after `claude plugin update moltke@moltke` in that root. Machine detail
+    is in `.moltke.local.md`; the general rule is in MANUAL's Install section.
+  - nothing in a session reports which install is answering, so a stale or absent
+    root fails silently — S139 excluded the fix as a behaviour change (DEC-057),
+    and it is unstepped.
+  - master is 2 commits ahead of origin/master (`b37ed95`); the CLI root still runs
+    the older `6ca6455`. Pushes are Max's own.
   - the merge (DEC-052) could not be a git merge: with both branches' `plan_done/`
     trees as ancestors, INV-6 and INV-7 contradict each other and no resolution
     validates. It is a graft instead, and `watch-primitive-a304293` holds the

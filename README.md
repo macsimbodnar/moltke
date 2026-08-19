@@ -113,6 +113,12 @@ whole contract. The short version:
 - Decisions go in `adocs/decisions.md` before or alongside the change, with
   their rejected options.
 - The agent commits; the user pushes.
+- Your checkout is not what the hooks run. Installing from a local path copies
+  the tree into the plugin cache of one Claude config root, so an edit to
+  `bin/moltke.py` reaches the live hooks only after `claude plugin update
+  moltke@moltke` in that root — and a machine with more than one root needs the
+  install repeated per root (DEC-057, MANUAL's Install section). Run
+  `--validate` and the suite against the checkout; that is what they read.
 
 Every commit is expected green: full suite plus `--validate`.
 

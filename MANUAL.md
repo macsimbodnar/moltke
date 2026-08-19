@@ -19,7 +19,24 @@ without `.moltke.json` feels nothing at all.
 
 ## Install
 
-Once per machine. From the hosted repository:
+Once per Claude config root — which is once per machine only if you run one
+Claude. The CLI reads `~/.claude`; other clients, the desktop app among them,
+set `CLAUDE_CONFIG_DIR` to a root of their own. Each root has its own plugin
+registry, so installing in one does nothing for the others, and the miss is
+silent: a root without moltke gets no hooks, no skills, and no reviewer agent,
+while `~/.claude/CLAUDE.md` still loads and the session looks configured.
+
+What a session is reading, and what that root has:
+
+```
+echo $CLAUDE_CONFIG_DIR
+CLAUDE_CONFIG_DIR=<root> claude plugin list
+```
+
+Prefixing the install commands below with `CLAUDE_CONFIG_DIR=<root>` installs
+into that root instead of the default one.
+
+From the hosted repository:
 
 ```
 claude plugin marketplace add https://github.com/macsimbodnar/moltke
@@ -31,6 +48,16 @@ Or from a local checkout, which is what you want while developing moltke itself:
 ```
 claude plugin marketplace add /path/to/moltke
 claude plugin install moltke@moltke
+```
+
+The local form copies the checkout into that root's plugin cache rather than
+referencing it in place, and the copy takes untracked files too — including
+`.moltke.local.md`, so keep naming local credentials by reference and never by
+value. Because it is a copy, editing the checkout does not change what the
+hooks run:
+
+```
+claude plugin update moltke@moltke
 ```
 
 Either form also works from inside Claude Code, with `/plugin marketplace add`

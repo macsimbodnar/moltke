@@ -18,10 +18,9 @@ Step ids belong in the numbered list below and nowhere else in this file: the
 derived next step is the first id in document order, so an id mentioned in prose
 above the list becomes the next step instead.
 
-129. S140  a watcher killed in its arm window still records an outcome
 130. S137  decide whether arm-time watcher enforcement survives the fence retirement
 131. S132  bound each `--watch` scan so the ceiling holds against a runaway regex
 132. S134  the primitive must be the executed command, not a substring anywhere in it
 133. S136  step ids past 999: recognised everywhere, or allocation refused loudly
-134. S138  re-run the adversarial audit against the merged tree
-135. S139  install and verify 0.12.0, the merged plugin
+134. S139  install and verify 0.12.0, the merged plugin
+135. S138  re-run the adversarial audit against the merged tree
