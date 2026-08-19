@@ -10,6 +10,10 @@ Updated: 2026-08-19 by `moltke --step status`.
 - Next: S138
 - Blocked: none
 - Parked:
+  - S138 is postponed by decision (DEC-056), not started: `adversarial_reviewer` is
+    not a spawnable subagent type in this session, under that name or scoped, and
+    the plugin's skills are absent from the same registry — only its hooks are live.
+    The merged tree stays unaudited until a session where the plugin's agents load.
   - 0.12.0 is installed (2026-08-18, sha 6ca6455) and is what the live hooks run;
     master and origin/master agree at that sha. S139 is therefore part done: the
     version is verified, the live Monitor refusal and a SessionStart carrying
