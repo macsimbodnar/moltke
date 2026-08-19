@@ -25,7 +25,6 @@ which is why the audit's own steps sit in front of everything it did not raise.
 That run's verdicts closed three of the 2026-08-18 findings and left the other
 three accepted.
 
-132. S134  the primitive must be the executed command, not a substring anywhere in it
 133. S136  step ids past 999: recognised everywhere, or allocation refused loudly
 134. S139  install and verify 0.12.0, the merged plugin
 135. S138  re-run the adversarial audit against the merged tree

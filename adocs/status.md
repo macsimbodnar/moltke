@@ -7,7 +7,7 @@ Updated: 2026-08-19 by `moltke --step status`.
 
 - Last done: S143
 - In progress: none
-- Next: S138
+- Next: S142
 - Blocked: none
 - Parked:
   - two Claude config roots on this machine, each with its own plugin registry and
