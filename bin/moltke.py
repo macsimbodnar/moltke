@@ -1602,18 +1602,25 @@ def template_drift(target, template):
         return None
 
 
+def left_declined(root):
+    """What both setup modes say over an already-declined marker (INV-11).
+
+    Exit 0 on stdout, deliberately (S102). Routing this through `refuse`
+    for symmetry with an enabled marker was tried and reverted: INV-11 is that
+    every mode exits 0 in a declined repository, and "a repository that
+    declined feels nothing" outranks the tidiness of one exit code. No
+    document calls this a refusal, so nothing disagrees with the code.
+    """
+    print(f"moltke: {root/MARKER} records enabled false; this repository declined the "
+          f"workflow and is left untouched. Delete that file to reconsider.")
+    return EXIT_OK
+
+
 def mode_scaffold():
     # Exempt from the INV-11 gate: this mode exists to create the marker (DEC-017).
     root = scaffold_root()
     if declined(root):
-        # Exit 0 on stdout, deliberately (S102). Routing this through `refuse`
-        # for symmetry with `--decline` was tried and reverted: INV-11 is that
-        # every mode exits 0 in a declined repository, and "a repository that
-        # declined feels nothing" outranks the tidiness of one exit code. No
-        # document calls this a refusal, so nothing disagrees with the code.
-        print(f"moltke: {root/MARKER} records enabled false; this repository declined the "
-              f"workflow and is left untouched. Delete that file to reconsider.")
-        return EXIT_OK
+        return left_declined(root)
     created, kept = [], []
     # Dispatched before main's backstop, which it has to be — that backstop runs
     # after the marker gate this mode exists to create — so an unguarded write
@@ -1687,7 +1694,14 @@ def mode_decline():
     # Exempt from the INV-11 gate for the same reason as --scaffold (DEC-017).
     root = scaffold_root()
     path = root / MARKER
-    if path.is_file() and not declined(root):
+    if declined(root):
+        # INV-11 says both setup modes leave a declined repository untouched,
+        # and this one used to rewrite the marker down to its two keys, losing a
+        # note saying why or configuration a later enabled:true would restore
+        # (S147, .F07). Ahead of the refusal below: a declined marker is neither
+        # an error nor work to redo.
+        return left_declined(root)
+    if path.is_file():
         # Documented as a refusal in MANUAL and in the specs surface table since
         # it was written; now it is one (S102, .F06).
         return refuse(f"{path} already exists and is not a declined marker; leaving it "

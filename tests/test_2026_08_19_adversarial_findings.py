@@ -22,6 +22,10 @@ belong to whoever plans the steps that close these findings.
 - F06  bin/moltke.py:1230 — `mode_pre_command` consults MOLTKE_UNBOUNDED_OK
        ahead of both branches, so the token also switches off the
        single-match-follow refusal INV-17 says applies always.
+- F07  bin/moltke.py:1690 — `mode_decline` returns early only for a marker that
+       is *not* declined, so a second `--decline` rewrites an already-declined
+       marker down to two keys, against INV-11's "both leave a declined
+       repository untouched".
 """
 
 import json
@@ -474,6 +478,54 @@ class TestUnboundedTokenDoesNotReachASingleMatchFollow(unittest.TestCase):
             self.assertEqual(bare.returncode, 2, bare.stdout + bare.stderr)
             tokened = self._arm(root, self.STREAM + self.TOKEN)
             self.assertEqual(tokened.returncode, 0, tokened.stderr)
+
+
+class TestDeclineLeavesADeclinedMarkerAlone(unittest.TestCase):
+    """F07: INV-11 says `--scaffold` and `--decline` both leave a declined
+    repository untouched, and `--scaffold` does. `--decline` returns early only
+    when the marker exists and is not declined, so a declined marker falls
+    through to the write and comes back as `{"schema": 1, "enabled": false}` —
+    a note saying why the repository declined, or configuration a later
+    `enabled: true` would have restored, is discarded by the second run of a
+    mode documented as durable.
+    """
+
+    MARKER = ('{\n  "schema": 1,\n  "enabled": false,\n'
+              '  "note": "declined 2026-01-01 by the team; see docs/why.md",\n'
+              '  "plan_active_max": 2\n}\n')
+
+    def _declined(self, tmp):
+        root = Path(tmp)
+        (root / ".moltke.json").write_text(self.MARKER, encoding="utf-8")
+        return root
+
+    def test_a_second_decline_leaves_the_marker_byte_identical(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._declined(tmp)
+            before = (root / ".moltke.json").read_bytes()
+            result = run_moltke(root, "--decline")
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertEqual((root / ".moltke.json").read_bytes(), before)
+
+    def test_it_says_what_scaffold_says_over_the_same_marker(self):
+        # The two setup modes describe one situation, so they say one thing.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._declined(tmp)
+            declining = run_moltke(root, "--decline")
+            scaffolding = run_moltke(root, "--scaffold")
+            self.assertEqual(scaffolding.returncode, 0, scaffolding.stderr)
+            self.assertIn("left untouched", scaffolding.stdout)  # precondition
+            self.assertEqual(declining.stdout, scaffolding.stdout)
+
+    def test_the_first_decline_still_writes_the_marker(self):
+        # Non-vacuity: the untouched marker above must be the early return, not
+        # a --decline that stopped writing.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            result = run_moltke(root, "--decline")
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            marker = json.loads((root / ".moltke.json").read_text(encoding="utf-8"))
+            self.assertIs(marker["enabled"], False)
 
 
 if __name__ == "__main__":

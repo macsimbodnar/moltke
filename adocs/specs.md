@@ -105,7 +105,7 @@ One entry point, `bin/moltke.py`, one mode per invocation. The golden test
 | `--validate` | run every invariant, print all violations to stdout, exit 1 if any |
 | `--roadmap` | one timeline strip of the plan: done count from `plan_done/`, the split, the current or derived-next step; always exit 0 |
 | `--scaffold` | create marker, `AGENTS.md`, `CLAUDE.md`, `.cursor/rules/moltke.mdc`, `adocs/` from templates; never overwrites; reports template drift; rolls back its own partial work on failure |
-| `--decline` | write a durable `enabled: false` marker; refuses (exit 1, stderr) to disable an already-enabled repository |
+| `--decline` | write a durable `enabled: false` marker; refuses (exit 1, stderr) to disable an already-enabled repository, and leaves an already-declined one byte-identical, saying what `--scaffold` says there |
 | `--step new <name> [--goal TEXT]` | allocate the next id — three digits, widening to four past S999, refused past S9999, the widest form every id scan reads — write the step file, list it in `plan.md`; name must match `[A-Za-z0-9_]+`; `--goal` must be one line |
 | `--step start <id>` | `plan_todo/` → `plan_current/`; refuses an occupied destination |
 | `--step block <parent> <name>` | create a blocking child, pause the parent; same name rule as `new` |
