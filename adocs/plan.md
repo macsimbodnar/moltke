@@ -38,3 +38,4 @@ three accepted.
 149. S154  the lifecycle can undo a claim, returning a step to plan_todo/ without a by-hand move
 150. S155  release 0.13.0 and reinstall it in both config roots
 151. S156  testing.md's header says what the tool does to it: rows leave with their plan entry, so "Append only" reads as write discipline, not as nothing is ever removed
+152. S157  the init skill stops promising a worklog recap gate
