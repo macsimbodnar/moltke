@@ -213,13 +213,15 @@ python3 bin/moltke.py --watch RUN_LOG 'RUN-(DONE|FAILED)' --ceiling 8h --pid 123
 **Banned forms.** `tail -f LOG | grep RE` never exits: tail has no last line,
 and grep matching is not grep exiting. `tail -f LOG | grep -m1 RE` is worse —
 grep exits on match, tail learns only by SIGPIPE on its next write, and a
-finished log never writes again. In Claude Code both are refused at arm time,
-along with any persistent monitor that is not the primitive; the one escape is
+finished log never writes again. In Claude Code the `-m1` form is refused at arm
+time always, a plain follow is refused whenever it is armed `persistent`, and so
+is any other persistent monitor that is not the primitive — a bounded stream
+through a filter is Monitor's own pattern and passes. The one escape is
 `MOLTKE_UNBOUNDED_OK` in the command, for a genuinely unbounded stream
-(per-occurrence events, a dev-server error tail). The escape reaches the
-persistent-arm rule only: `-m N` is refused token or no token. Arm the primitive
-`persistent`: the harness caps bounded monitors at an hour, so the `--ceiling`
-is the real timeout and the process still ends itself.
+(per-occurrence events, a dev-server error tail); it reaches the persistent-arm
+rule only, never the `-m N` form. Arm the primitive `persistent`: the harness
+caps bounded monitors at an hour, so the `--ceiling` is the real timeout and the
+process still ends itself.
 
 Without the primitive, fall back to a poll loop wrapped in `bash -c` so the
 interactive shell is irrelevant — never a follow:

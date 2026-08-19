@@ -66,9 +66,10 @@ reused; a retired number stays listed so old audit reports keep meaning.
   follow arms nothing (S134). Enforced at arm time by `--pre-command` in Claude
   Code (DEC-049 as narrowed by DEC-051); elsewhere it is a §12 rule with no
   mechanical teeth, like everything else outside Claude Code. 2026-08-18
-  (DEC-052): arrived as INV-13 on the merged branch. DEC-054 settled that an arm-time blocker does belong here: DEC-047
-  retired checks that were wrong, not checks that are strict, and this one
-  refuses at arm time while naming the command to use instead.
+  (DEC-052): arrived as INV-13 on the merged branch. DEC-054 settled that an
+  arm-time blocker does belong here: DEC-047 retired checks that were wrong, not
+  checks that are strict, and this one refuses at arm time while naming the
+  command to use instead.
 
 ## What is being built
 
