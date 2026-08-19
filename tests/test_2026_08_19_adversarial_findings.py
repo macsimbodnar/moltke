@@ -26,10 +26,18 @@ belong to whoever plans the steps that close these findings.
        is *not* declined, so a second `--decline` rewrites an already-declined
        marker down to two keys, against INV-11's "both leave a declined
        repository untouched".
+- F08  skills/audit/SKILL.md:81, 10 and tests/test_s005_hooks.py:397 — the skill
+       that drives every audit still documents `adocs/worklog.md` and
+       `--log-prompt`, removed in 0.11.0 (DEC-046), and cites the review model
+       as AGENTS.md §10, which is Hard prohibitions; `_turn_exits` invokes the
+       removed flag from nowhere.
 """
 
+import ast
+import importlib.util
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -38,7 +46,17 @@ from pathlib import Path
 
 from fixtures import marked_repo, workflow_repo
 
-MOLTKE = Path(__file__).resolve().parent.parent / "bin" / "moltke.py"
+REPO = Path(__file__).resolve().parent.parent
+MOLTKE = REPO / "bin" / "moltke.py"
+
+_spec = importlib.util.spec_from_file_location("moltke_f08", MOLTKE)
+moltke = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(moltke)
+
+
+def parser_flags():
+    return {flag for action in moltke.build_parser()._actions
+            for flag in action.option_strings}
 
 WATCH_DIR = "moltke_watch"  # mirrors bin/moltke.py
 
@@ -526,6 +544,99 @@ class TestDeclineLeavesADeclinedMarkerAlone(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             marker = json.loads((root / ".moltke.json").read_text(encoding="utf-8"))
             self.assertIs(marker["enabled"], False)
+
+
+class TestComponentDocsNameOnlyWhatExists(unittest.TestCase):
+    """F08: AGENTS.md §7 makes a doc claim a claim about code, traced to the code
+    path producing it. The worklog and `--log-prompt` left in 0.11.0 (DEC-046),
+    but the skill that drives every audit still tells an operator to expect a
+    worklog append among `--audit check`'s expected changes and says an edit
+    there turns off a `Stop` recap gate that no longer exists. The same file
+    cites the review model as AGENTS.md §10, which is Hard prohibitions. A dead
+    test helper invoking the removed flag is the same removal's other half.
+
+    Skills and agent definitions are scanned whole because every command they
+    quote is moltke's own; README, MANUAL and specs also quote git, whose flags
+    argparse rightly refuses.
+    """
+
+    def component_docs(self):
+        return sorted((REPO / "skills").glob("*/SKILL.md")) + \
+            sorted((REPO / "agents").glob("*.md"))
+
+    def flags_named_in(self, path):
+        return set(re.findall(r"--[a-z][a-z0-9-]*",
+                              path.read_text(encoding="utf-8")))
+
+    def moltke_flags_in(self, path):
+        """Every string constant passed to a `run_moltke(...)` call in `path`
+        that looks like a flag. Read from the syntax tree, so a call spanning
+        lines is one call and a flag inside a comment is not a call at all."""
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        flags = set()
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            func = node.func
+            name = func.id if isinstance(func, ast.Name) else getattr(func, "attr", "")
+            if name != "run_moltke":
+                continue
+            for arg in node.args:
+                if isinstance(arg, ast.Constant) and isinstance(arg.value, str) \
+                        and arg.value.startswith("--"):
+                    flags.add(arg.value)
+        return flags
+
+    def test_the_scans_below_have_something_to_scan(self):
+        # Non-vacuity: both checks pass trivially over an empty set, so the
+        # preconditions that make them meaningful are asserted first.
+        docs = self.component_docs()
+        self.assertTrue(any(self.flags_named_in(path) for path in docs),
+                        f"no component doc under {docs} names any flag")
+        suite = sorted((REPO / "tests").glob("test_*.py"))
+        self.assertTrue(any(self.moltke_flags_in(path) for path in suite),
+                        "no test file invokes run_moltke with a flag")
+
+    def test_no_component_doc_names_a_flag_the_parser_refuses(self):
+        flags = parser_flags()
+        stale = sorted(f"{path.relative_to(REPO)}: {flag}"
+                       for path in self.component_docs()
+                       for flag in self.flags_named_in(path) - flags)
+        self.assertEqual(stale, [],
+                         "a shipped skill or agent definition documents a flag argparse "
+                         "refuses, so an operator following it gets exit 2")
+
+    def test_no_test_invokes_moltke_with_a_flag_the_parser_refuses(self):
+        flags = parser_flags()
+        stale = sorted(f"{path.relative_to(REPO)}: {flag}"
+                       for path in sorted((REPO / "tests").glob("test_*.py"))
+                       for flag in self.moltke_flags_in(path) - flags)
+        self.assertEqual(stale, [],
+                         "a test invokes a mode the parser no longer has, so it either "
+                         "asserts over exit 2 or is dead code the removal left behind")
+
+    def test_the_audit_skill_names_no_worklog(self):
+        lines = (REPO / "skills" / "audit" / "SKILL.md").read_text(
+            encoding="utf-8").splitlines()
+        naming = [f"{number}: {line}" for number, line in enumerate(lines, 1)
+                  if "worklog" in line.lower()]
+        self.assertEqual(naming, [],
+                         "the audit skill describes a file DEC-046 deleted, so step 3 "
+                         "expects a change --audit check never classifies")
+
+    def test_the_audit_skill_cites_the_section_that_holds_the_review_model(self):
+        headings = re.findall(r"^## (\d+)\. (.+)$",
+                              (REPO / "AGENTS.md").read_text(encoding="utf-8"),
+                              flags=re.MULTILINE)
+        review = [number for number, title in headings if title.startswith("Review")]
+        self.assertEqual(len(review), 1,
+                         f"precondition: one AGENTS.md section holds the review model, "
+                         f"found {review} in {[t for _, t in headings]}")
+        text = (REPO / "skills" / "audit" / "SKILL.md").read_text(encoding="utf-8")
+        cited = re.findall(r"AGENTS\.md §(\d+)", text)
+        self.assertEqual(cited, review,
+                         "the audit skill points a reader at a section that is not the "
+                         "review model it claims to be tier 3 of")
 
 
 if __name__ == "__main__":

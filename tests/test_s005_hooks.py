@@ -1,7 +1,9 @@
 """S005: hook modes. Contract verified against live docs on 2026-08-01:
-UserPromptSubmit exit 2 erases the prompt, so --log-prompt must always exit 0;
 SessionStart context reaches Claude only via hookSpecificOutput JSON;
 Stop has no documented block cap, so moltke imposes its own.
+
+The UserPromptSubmit clause left with the worklog (S120, DEC-046); no test here
+invokes that event now.
 """
 
 import json
@@ -393,15 +395,6 @@ class TestStop(unittest.TestCase):
             root = self._completed_by_hand(tmp, git_mv)
             result = run_moltke(root, "--stop", stdin="{}")
             self.assertEqual(len(stamp_complaints(result)), 1, result.stderr)
-
-    def _turn_exits(self, root, turns, payload="{}"):
-        """--log-prompt then --stop, `turns` times: the shape of a real session."""
-        exits = []
-        for number in range(turns):
-            run_moltke(root, "--log-prompt",
-                       stdin=json.dumps({"prompt": f"turn {number}"}))
-            exits.append(run_moltke(root, "--stop", stdin=payload).returncode)
-        return exits
 
     def _violating_repo(self, tmp):
         root = workflow_repo(tmp)
