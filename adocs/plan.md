@@ -25,7 +25,6 @@ which is why the audit's own steps sit in front of everything it did not raise.
 That run's verdicts closed three of the 2026-08-18 findings and left the other
 three accepted.
 
-147. S152  DEC and finding id scanners are not blind past their width, and AGENTS.md 5's lint claim is enforced or dropped
 148. S153  the self-host checks name what they check, and the audit commit shape is stated
 149. S154  the lifecycle can undo a claim, returning a step to plan_todo/ without a by-hand move
 150. S155  release 0.13.0 and reinstall it in both config roots

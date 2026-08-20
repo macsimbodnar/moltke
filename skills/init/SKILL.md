@@ -42,8 +42,9 @@ Ask whether to set up the workflow here. State plainly what it does:
 - writes `AGENTS.md` (the ruleset), `CLAUDE.md`, `.cursor/rules/moltke.mdc`,
   `.moltke.json`, and a `adocs/` directory of state files
 - turns on blocking enforcement in this repository only: hooks refuse writes
-  into completed history, and refuse to end a turn with a stale `status.md`, an
-  invariant violation, or source changes with no worklog recap
+  into completed history, and refuse to end a turn on an invariant violation, a
+  stale `status.md`, a step that reached `plan_done/` with no completion stamp,
+  or a watcher whose result was never taken
 - costs nothing in repositories without the marker
 
 If the answer is no, run `--decline` (step 5) and stop.

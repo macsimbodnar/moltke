@@ -624,14 +624,22 @@ class TestComponentDocsNameOnlyWhatExists(unittest.TestCase):
                          "a test invokes a mode the parser no longer has, so it either "
                          "asserts over exit 2 or is dead code the removal left behind")
 
-    def test_the_audit_skill_names_no_worklog(self):
-        lines = (REPO / "skills" / "audit" / "SKILL.md").read_text(
-            encoding="utf-8").splitlines()
-        naming = [f"{number}: {line}" for number, line in enumerate(lines, 1)
+    def test_no_component_doc_names_the_worklog(self):
+        """Widened from the audit skill alone (S157): the init skill promised a
+        recap gate over the same deleted file, so scanning one doc left the
+        finding half open. Every shipped skill and agent definition is scanned,
+        the same set the flag scan above reads."""
+        docs = self.component_docs()
+        self.assertTrue(docs, "no component doc to scan; the scan below would be vacuous")
+        naming = [f"{path.relative_to(REPO)}:{number}: {line.strip()}"
+                  for path in docs
+                  for number, line in enumerate(
+                      path.read_text(encoding="utf-8").splitlines(), 1)
                   if "worklog" in line.lower()]
         self.assertEqual(naming, [],
-                         "the audit skill describes a file DEC-046 deleted, so step 3 "
-                         "expects a change --audit check never classifies")
+                         "a shipped skill or agent definition describes a file DEC-046 "
+                         "deleted, so an operator following it expects a change no mode "
+                         "produces and a gate no hook applies")
 
     def test_the_audit_skill_cites_the_section_that_holds_the_review_model(self):
         headings = re.findall(r"^## (\d+)\. (.+)$",
