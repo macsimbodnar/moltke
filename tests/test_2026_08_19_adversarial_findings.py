@@ -687,6 +687,29 @@ class TestABlankLineInAStampIsRefused(unittest.TestCase):
             self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
             self.assertIn("blank line", result.stderr)
 
+    def test_the_refusal_comes_before_the_suite_gate(self):
+        # The ordering specs, MANUAL and the stamp all claim: a stamp that cannot
+        # be written is not worth a full test run. Every other test here runs
+        # under a marker with no `test_command`, so without this one the check
+        # could sit below the gate and stay green.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            marker = json.loads((root / ".moltke.json").read_text(encoding="utf-8"))
+            marker["test_command"] = "touch suite_ran"  # shell=True, cwd is the root
+            (root / ".moltke.json").write_text(json.dumps(marker, indent=2) + "\n",
+                                               encoding="utf-8")
+            refused = self._done(root, self.PARAGRAPHED)
+            self.assertEqual(refused.returncode, 1, refused.stdout + refused.stderr)
+            self.assertIn("blank line", refused.stderr)
+            self.assertFalse((root / "suite_ran").exists(),
+                             "the suite gate ran before the stamp was checked")
+            # Non-vacuity: the same marker does reach the gate once the stamp
+            # passes, so the sentinel above is absent by ordering and not because
+            # nothing here ever runs a `test_command`.
+            passed = self._done(root, "the whole stamp on one line")
+            self.assertEqual(passed.returncode, 0, passed.stdout + passed.stderr)
+            self.assertTrue((root / "suite_ran").exists())
+
     def test_a_multi_line_stamp_without_one_completes_and_round_trips(self):
         # Non-vacuity, and the half of DEC-048 that stands: multi-line is still
         # accepted, so the refusals above are about the blank line and not about
