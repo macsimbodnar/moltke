@@ -123,9 +123,11 @@ whole contract. The short version:
   `.claude-plugin/plugin.json` is bumped and `claude plugin update
   moltke@moltke` is run in that root. The update compares `version` alone, so
   without the bump it reports success and copies nothing. A machine with more
-  than one root needs this per root, and a root installed from a `git` source
-  takes it from the pushed branch instead (DEC-057, MANUAL's Install section).
-  Run `--validate` and the suite against the checkout; that is what they read.
+  than one root needs this per root, and a root holding the plugin at more than
+  one scope needs it per scope — `--scope project` is not implied by the default
+  `user` run. A root installed from a `git` source takes the release from the
+  pushed branch instead (DEC-057, DEC-061, MANUAL's Install section). Run
+  `--validate` and the suite against the checkout; that is what they read.
 
 Every commit is expected green: full suite plus `--validate`.
 

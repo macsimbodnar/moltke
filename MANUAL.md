@@ -386,10 +386,11 @@ enforce the previous release's rules against the previous release's paths.
 The update reports success in both cases, which is what makes this quiet. It
 compares the manifest `version` alone, so an unbumped checkout and a source
 whose branch has moved on both come back `already at the latest version` —
-observed on 2026-08-20 in a root whose cache sat two commits behind its own
-recorded source, at the same version as it. The version field is the whole
-comparison; the commit is recorded, never checked. See the Install section for
-the two gates and for scope.
+observed on 2026-08-20 in a root whose git source had advanced six commits at an
+unchanged `version`, leaving the cache exactly as installed. The install record
+names the commit it copied, and the cache does match that commit; what it does
+not track is the branch moving past it. The version field is the whole
+comparison. See the Install section for the two gates and for scope.
 
 A developer can therefore be locked out of updating one of their own roots. A
 root installed from a `git` source takes the release from the pushed branch, and
@@ -397,6 +398,13 @@ moltke's agents never push (Git section), so on a machine running one root off a
 directory source and another off the git source, an agent-made release reaches
 the first and cannot reach the second until the branch is pushed by hand. That
 is the state 0.13.0 shipped in here.
+
+The snapshot is taken when the update runs, so a release whose own commit lands
+afterwards ships the documents as they read a moment before. 0.13.0's cache
+carries this section uncorrected for that reason, and cannot be corrected there
+without another bump. Those files are inert in a cache (DEC-020); the components
+that are not — `bin/`, `hooks/`, `skills/`, `agents/`, `templates/` — were
+byte-identical to the checkout when the release was verified.
 
 **The plugin ships moltke's own project state.** The repository root is also
 the plugin root, so `adocs/`, `tests/`, `AGENTS.md`, and `CLAUDE.md` are
@@ -453,9 +461,12 @@ whatever this run is, and is refused there too.
 Two gaps in that dating shipped with 0.13.0 and are open as step S158. A
 baseline records that a run started and nothing records that one ended, so a
 reviewer holding a finished run's baseline is still dated against it. And a file
-git cannot see as new is read as older than the run: a `tests/` path under
-`.gitignore`, or a rename source the run recreated, is refused as having been
-here before, though this run wrote it.
+git cannot see at all is read as older than the run: a `tests/` path under
+`.gitignore` is refused as having been here before, though this run wrote it.
+Being invisible to git is the whole of that second gap. A path git can see is
+dated correctly however tangled its history — a rename source the run recreated
+reports both the rename and its own untracked line, and the line of its own
+wins, so it is permitted.
 
 Paths are resolved before any of that is decided, so `tests/../bin/moltke.py` is
 judged as `bin/moltke.py`. Before 0.4.0 only absolute paths were resolved, and a
