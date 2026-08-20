@@ -1595,7 +1595,7 @@ class TestAClaimCanBeUndone(unittest.TestCase):
             self.assertIn("done:", result.stderr)
             self.assertTrue(path.is_file(), "the refusal moved nothing")
 
-    def test_a_step_with_a_live_blocking_child_is_refused(self):
+    def test_a_step_paused_by_a_live_blocking_child_is_refused(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = self.repo(tmp)
             self.assertEqual(
@@ -1603,7 +1603,69 @@ class TestAClaimCanBeUndone(unittest.TestCase):
             result = self.unclaim(root)
             self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
             self.assertIn("S004", result.stderr, "the refusal names the child")
+            self.assertIn("--step done S004", result.stderr,
+                          "and routes to the command that clears a pause on live work")
             self.assertTrue((root / "adocs" / "plan_current" / "S003_active.md").is_file())
+
+    def test_a_blocks_field_with_no_matching_pause_is_still_refused(self):
+        # The belt branch, which --step block never reaches: it writes both
+        # sides, so the pause answers first and this one had no test at all
+        # (S154 fast check). A blocks: written by hand is the case it is for.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.repo(tmp)
+            step_file(root / "adocs" / "plan_current", "S004", "blocker", blocks="S003")
+            (root / "adocs" / "plan.md").write_text(
+                "# Plan\n\n1. S001 a\n2. S002 b\n3. S003 c\n4. S004 blocker\n",
+                encoding="utf-8")
+            result = self.unclaim(root)
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn("blocks: S003", result.stderr)
+            self.assertIn("S004", result.stderr)
+            self.assertTrue((root / "adocs" / "plan_current" / "S003_active.md").is_file())
+
+    def test_the_pause_remedy_names_a_command_that_can_actually_run(self):
+        # S154 fast check: the refusal said `--step done <pauser>` for every
+        # pause the walk calls resolvable, and unclaim's own permitted path
+        # leaves the pauser in plan_todo/, where --step done refuses. The
+        # sentence prescribed a command that cannot run, in the state this
+        # command creates. Both refusals that route a pause are checked here.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.repo(tmp)
+            run_moltke(root, "--step", "block", "S003", "blocker")
+            self.assertEqual(self.unclaim(root, "S004").returncode, 0,
+                             "precondition: the child goes back to plan_todo/")
+            for command in (("--step", "unclaim", "S003"), ("--step", "unpause", "S003")):
+                with self.subTest(command=command[1]):
+                    result = run_moltke(root, *command)
+                    self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+                    self.assertIn("--step start S004", result.stderr)
+                    self.assertNotIn("--step done S004", result.stderr,
+                                     "--step done refuses a plan_todo/ step")
+            self.assertEqual(run_moltke(root, "--step", "start", "S004").returncode, 0,
+                             "and the remedy it names works")
+
+    def test_a_teammates_claim_is_named_when_it_is_dropped(self):
+        # unclaim is author-blind on purpose — a stale claim by someone who is
+        # gone is exactly what it exists to undo, and refusing would restore the
+        # by-hand move. Silence is the part that is wrong (S154 fast check).
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.repo(tmp)
+            step_file(root / "adocs" / "plan_current", "S003", "active", author="Alice")
+            result = self.unclaim(root)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertIn("Alice", result.stdout,
+                          "dropping someone else's claim is not something to do quietly")
+
+    def test_the_same_id_in_two_directories_is_named_as_the_duplicate_it_is(self):
+        # locate_step walks plan_todo first, so a duplicated id answered the
+        # "already unclaimed" refusal and the twin guard below it was dead code
+        # (S154 fast check). INV-6 is what this is.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.repo(tmp)
+            step_file(root / "adocs" / "plan_todo", "S003", "active")
+            result = self.unclaim(root)
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn("INV-6", result.stderr)
 
     def test_an_unresolvable_pause_is_sent_to_unpause_rather_than_moved(self):
         # A phantom pauser is not a child in plan_current/, but carrying the

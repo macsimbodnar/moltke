@@ -2418,6 +2418,27 @@ def step_start(root, config, step_id):
     return EXIT_OK
 
 
+def pause_remedy(root, step_id, pauser):
+    """The command that actually clears a pause on `step_id`, as one clause.
+
+    S154 fast check: both refusals that route a pause said `--step done
+    <pauser>` for every pause the walk calls resolvable, and `--step unclaim`
+    made a `plan_todo/` pauser reachable through the tool — where `--step done`
+    refuses. The sentence prescribed a command that cannot run, in the state the
+    new command creates. Where the pauser sits decides, and both callers read it
+    here so the two cannot drift (S098's rule, applied to a remedy rather than a
+    check).
+    """
+    if step_id in unresolvable_pauses(root):
+        return (f"run bin/moltke.py --step unpause {step_id}, which clears exactly this "
+                f"pause")
+    if locate_step(root, pauser)[0] == "plan_todo":
+        return (f"claim {pauser} with --step start {pauser} and finish it, which unpauses "
+                f"{step_id} on its way out")
+    return (f"complete {pauser} with --step done {pauser}, which unpauses {step_id} on its "
+            f"way out")
+
+
 def step_unclaim(root, config, step_id):
     """`--step start` run backwards (S154, DEC-056, DEC-058).
 
@@ -2436,6 +2457,13 @@ def step_unclaim(root, config, step_id):
     if dirname is None:
         return refuse(f"{step_id} does not exist, so there is no claim to undo")
     if dirname == "plan_todo":
+        also = [p for found, p, _f in plan_steps(root)["plan_current"] if found == step_id]
+        if also:
+            return refuse(f"{step_id} names two files, {path.relative_to(root)} and "
+                          f"{also[0].relative_to(root)}. Two files carrying one id is INV-6 "
+                          f"and --validate reports it; ids are never reused (DEC-008), so one "
+                          f"of the two is misnumbered. Resolve it by hand — nothing here can "
+                          f"decide which one is the step")
         return refuse(f"{step_id} is already in plan_todo/, unclaimed; --step start {step_id} "
                       f"is what claims it")
     if dirname == "plan_done":
@@ -2447,10 +2475,11 @@ def step_unclaim(root, config, step_id):
                       f"a stamped step does not go back to plan_todo/ as unstarted work. "
                       f"Complete it with --step done {step_id}, or clear the stamp by hand if "
                       f"it was written in error")
-    twin = [p for found, p, _f in plan_steps(root)["plan_todo"] if found == step_id]
+    # A twin id in plan_todo/ is refused above, since locate_step finds it first;
+    # what is left here is a file of the same name carrying a different id.
     destination = root / DOCS / "plan_todo" / path.name
-    if twin or destination.exists():
-        held = (twin[0] if twin else destination).relative_to(root)
+    if destination.exists():
+        held = destination.relative_to(root)
         return refuse(f"{step_id} is already carried by {held}, and returning "
                       f"{path.relative_to(root)} would rename onto it. Two files carrying one "
                       f"id is INV-6 and --validate reports it; resolve the duplicate by hand "
@@ -2463,13 +2492,10 @@ def step_unclaim(root, config, step_id):
     pauser = pauser_id(fields)
     if pauser:
         where = locate_step(root, pauser)[0] or "no plan directory"
-        route = (f"run bin/moltke.py --step unpause {step_id}, which clears exactly this pause"
-                 if step_id in unresolvable_pauses(root) else
-                 f"complete {pauser} with --step done {pauser}, which unpauses {step_id} on "
-                 f"its way out")
         return refuse(f"{step_id} is paused by {pauser} ({where}); unclaiming it would leave a "
                       f"paused step in plan_todo/, where nothing ever unpauses it. Clear the "
-                      f"pause first: {route}. Then unclaim {step_id}")
+                      f"pause first: {pause_remedy(root, step_id, pauser)}. Then unclaim "
+                      f"{step_id}")
     # The belt for the same relation written from the other side by hand: a
     # child declaring blocks: without the parent's paused_by to match it.
     children = [child for child, _p, child_fields in plan_steps(root)["plan_current"]
@@ -2487,9 +2513,14 @@ def step_unclaim(root, config, step_id):
     # Absent rather than empty is left absent: with_field appends a key it does
     # not find, and a step that never carried an author should not grow one on
     # the way out.
+    claimant = field_value(fields, "author")
     if "author" in fields:
         set_field(destination, "author", "")
-    print(f"moltke: {step_id} returned to plan_todo/, unclaimed; "
+    # Author-blind on purpose: a stale claim by someone who has gone is exactly
+    # what this exists to undo, and refusing a teammate's would put the by-hand
+    # move back. Saying whose it was is the part that is not optional.
+    whose = f" (claimed by {claimant})" if claimant and claimant != git_author(root) else ""
+    print(f"moltke: {step_id} returned to plan_todo/, unclaimed{whose}; "
           f"--step start {step_id} claims it again.")
     # Its own children stay where they are. Reported rather than refused: a
     # blocker that goes back to plan_todo/ leaves its parent paused on work
@@ -2524,9 +2555,9 @@ def step_unpause(root, config, step_id):
     # accounting rather than a repair.
     if step_id not in unresolvable_pauses(root):
         return refuse(f"{step_id} is paused by {pauser}, which exists and is reachable. "
-                      f"Complete {pauser} with --step done {pauser}, which unpauses {step_id} "
-                      f"on its way out; this command only clears a pause that never resolves, "
-                      f"which is the case --validate reports")
+                      f"{pause_remedy(root, step_id, pauser)[0].upper()}"
+                      f"{pause_remedy(root, step_id, pauser)[1:]}; this command only clears a "
+                      f"pause that never resolves, which is the case --validate reports")
     kind, _detail = unresolvable_pauses(root)[step_id]
     set_field(path, "paused_by", "")
     reason = {"phantom": f"{pauser} had no step file in any plan directory",
