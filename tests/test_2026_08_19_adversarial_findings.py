@@ -35,6 +35,10 @@ belong to whoever plans the steps that close these findings.
        as twelve spaces and `parse_step_file` ends the field on any line that
        strips to empty, so a paragraphed `--stamp` — documented multi-line and
        deliberately ungated — comes back as its first paragraph.
+- F12  bin/moltke.py:635, 644 — `FINDING_RE` and the INV-9 scanner read a
+       fixed width unanchored on the right, the shape S136's own comment calls
+       worse than blind: `DEC-1000` and a hundredth finding match nothing at
+       all, so INV-9 abstains and INV-10 never sees the finding's status.
 - F11  bin/moltke.py:1037 — `reviewer_may_write` decides both halves on
        existence alone and gets each backwards: any path under `adocs/audit/`
        is permitted, so a `Write` at an earlier report's path destroys
@@ -53,7 +57,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from fixtures import marked_repo, workflow_repo
+from fixtures import audit_report, marked_repo, workflow_repo
 from surface import REPO, moltke
 
 MOLTKE = REPO / "bin" / "moltke.py"
@@ -875,6 +879,87 @@ class TestReviewerFenceJudgesWhenAFileArrived(unittest.TestCase):
                                           "tree": None, "head": None}), encoding="utf-8")
             for path in ("tests/test_existing.py", "tests/test_untracked.py"):
                 self.assertEqual(self.fence(root, path).returncode, 2, path)
+
+
+class TestIdScannersReadAnyWidth(unittest.TestCase):
+    """F12: the same width defect S136 fixed for step ids, left in the two
+    scanners that read ids nobody allocates. There is no ceiling to refuse at,
+    so a width nothing reads is a silent skip rather than a loud refusal.
+    """
+
+    def decisions(self, root, *headings):
+        path = Path(root) / "adocs" / "decisions.md"
+        body = ["# Decisions", "", "## Index", ""]
+        for heading in headings:
+            body += [f"## {heading}", "", "Tags: t", "",
+                     "Decision: something.", "Why: because.", ""]
+        path.write_text("\n".join(body) + "\n", encoding="utf-8")
+        return path
+
+    def test_a_four_digit_dec_id_is_read_by_inv_9(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            self.decisions(root, "DEC-1000  2026-08-20  first",
+                                 "DEC-1000  2026-08-20  duplicate")
+            result = run_moltke(root, "--validate")
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn("INV-9", result.stdout)
+            self.assertIn("DEC-1000", result.stdout)
+
+    def test_a_three_digit_dec_id_is_still_read(self):
+        # Non-vacuity anchor: the width in use today keeps working, so the test
+        # above is about the width and not about the fixture.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            self.decisions(root, "DEC-057  2026-08-20  first",
+                                 "DEC-057  2026-08-20  duplicate")
+            result = run_moltke(root, "--validate")
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn("DEC-057", result.stdout)
+
+    def test_a_heading_that_looks_like_a_decision_and_is_not_an_id_is_reported(self):
+        # The other half of "never silently skipped": a width below the form is
+        # as unreadable as a width above it, and INV-9 said nothing about either.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            self.decisions(root, "DEC-57  2026-08-20  too narrow to be an id")
+            result = run_moltke(root, "--validate")
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn("INV-9", result.stdout)
+            self.assertIn("DEC-57", result.stdout)
+
+    def test_an_ordinary_decisions_file_stays_silent(self):
+        # Non-vacuity for the report above: the shape every decisions.md in the
+        # wild has must not become a violation.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            self.decisions(root, "DEC-001  2026-08-20  first",
+                                 "DEC-002  2026-08-20  second")
+            result = run_moltke(root, "--validate")
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_a_hundredth_finding_is_seen_by_inv_10_and_audit_list(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            stem = "2026-08-01_adversarial"
+            audit_report(root, [(f"{stem}-F01", "closed"),
+                                (f"{stem}-F100", "bogus")])
+            result = run_moltke(root, "--validate")
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn("INV-10", result.stdout)
+            self.assertIn(f"{stem}-F100", result.stdout)
+            listing = run_moltke(root, "--audit", "list")
+            self.assertIn(f"{stem}-F100", listing.stdout)
+
+    def test_a_wide_finding_id_still_has_to_carry_its_own_report_name(self):
+        # Widening the read does not widen what is accepted: INV-10's stem rule
+        # is what a newly visible id now gets checked against.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            audit_report(root, [("2026-07-01_adversarial-F100", "closed")])
+            result = run_moltke(root, "--validate")
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn("2026-07-01_adversarial-F100", result.stdout)
 
 
 if __name__ == "__main__":

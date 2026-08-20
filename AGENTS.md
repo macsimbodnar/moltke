@@ -98,7 +98,7 @@ order and **never reused or renumbered**. Fields: `id`, `goal`, `accepts`
 
 - The agent **never pushes**. The agent commits; the user pushes.
 - Commit on request, on step completion, and on any plan change. Every commit
-  is green: build, lint, full suite.
+  is green: build and the full suite.
 - Imperative subject under 72 characters; body says **why**; reference the
   step id and any `INV-n`.
 - No history rewriting, no force operations. Teams run branch-per-member;

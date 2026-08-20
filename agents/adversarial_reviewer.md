@@ -68,7 +68,8 @@ Append findings to it, most severe first.
 
 Every finding needs:
 
-- an id, `YYYY-MM-DD_<type>-F<nn>`, carrying this report's own name
+- an id, `YYYY-MM-DD_<type>-F<nn>`, carrying this report's own name; two
+  digits or more, so a hundredth finding is read like the first
 - a severity, and a one-line title
 - `Status: open` (only a later re-run can make it `closed`)
 - **Evidence**: file and line, or the command and its exact output. A finding

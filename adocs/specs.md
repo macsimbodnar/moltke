@@ -38,7 +38,9 @@ reused; a retired number stays listed so old audit reports keep meaning.
 - INV-8  retired 2026-08-11 (S105, DEC-042). It held `decisions.md` append-only
   with a high-water mark over git history. The documents hold current state and
   are compacted freely; git is the archive.
-- INV-9  every `decisions.md` entry has a unique `DEC-<nnn>` id.
+- INV-9  every `decisions.md` entry has a unique `DEC-<nnn>` id, three digits
+  or more; a `## DEC-` heading that is not one is reported, not skipped, since
+  a width no scanner reads is an entry no invariant checks.
 - INV-10 every audit finding is `open`, `planned`, `closed`, or `accepted`, and
   no report has `open` findings without a step or decision referencing them.
 - INV-11 every mode exits 0 immediately when `.moltke.json` is absent or

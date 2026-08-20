@@ -644,7 +644,19 @@ def inv_7_done_immutable(root, config):
 # What it guarded — nothing rewrites the reasons — mattered less than what it
 # cost: an always-read file that could never shrink.
 FINDING_STATUSES = ("open", "planned", "closed", "accepted")
-FINDING_RE = re.compile(r"^###\s+(\S*-F\d{2})\b", re.M)
+# Both id widths in one place, with no upper bound (S152, F12). S136 widened step
+# ids and left these two reading a fixed width unanchored on the right, the shape
+# its own comment calls worse than blind: `\d{3}\b` does not truncate DEC-1000,
+# it skips the line whole, so INV-9 abstained on a duplicate and a hundredth
+# finding was invisible to INV-10 and --audit list alike. Neither id has an
+# allocator that could refuse at a ceiling — both are written by hand — so the
+# answer is that no width is unreadable, and a heading that is not an id at all
+# is reported rather than skipped.
+DEC_ID_DIGITS = r"\d{3,}"
+FINDING_ID_DIGITS = r"\d{2,}"
+FINDING_RE = re.compile(rf"^###\s+(\S*-F{FINDING_ID_DIGITS})\b", re.M)
+DEC_HEADING_RE = re.compile(r"^## (DEC-\S*)", re.M)
+DEC_ID_RE = re.compile(rf"DEC-{DEC_ID_DIGITS}")
 
 
 def inv_9_unique_dec_ids(root, config):
@@ -653,7 +665,13 @@ def inv_9_unique_dec_ids(root, config):
         return []
     seen, violations = set(), []
     text = read_stripped(path)
-    for dec_id in re.findall(r"^## (DEC-\d{3})\b", text, re.M):
+    for dec_id in DEC_HEADING_RE.findall(text):
+        if not DEC_ID_RE.fullmatch(dec_id):
+            violations.append(f"INV-9: {dec_id} heads an entry in decisions.md and is not a "
+                              f"decision id; ids read DEC- followed by three digits or more, "
+                              f"so an entry headed anything else is skipped by everything "
+                              f"that scans for one")
+            continue
         if dec_id in seen:
             violations.append(f"INV-9: duplicate decision id {dec_id} in decisions.md; "
                               f"renumber the new entry to the next free DEC id")
@@ -686,7 +704,7 @@ def own_finding_headings(text, stem):
     own report can be a finding of this file.
     """
     return [match.group(1) for match in FINDING_RE.finditer(text)
-            if re.fullmatch(rf"{re.escape(stem)}-F\d{{2}}", match.group(1))]
+            if re.fullmatch(rf"{re.escape(stem)}-F{FINDING_ID_DIGITS}", match.group(1))]
 
 
 def hidden_findings(report):
@@ -739,7 +757,7 @@ def inv_10_audit_findings(root, config):
             # Exact, not startswith: a same-day re-run is `<stem>.2`, so the first
             # report's stem is a prefix of the re-run's and a re-run id would
             # otherwise sit unnoticed in the first report (S020).
-            if not re.fullmatch(rf"{re.escape(report.stem)}-F\d{{2}}", finding_id):
+            if not re.fullmatch(rf"{re.escape(report.stem)}-F{FINDING_ID_DIGITS}", finding_id):
                 violations.append(f"INV-10: finding {finding_id} lives in {report.name}; "
                                   f"finding ids carry their own report's name, so it should "
                                   f"read {report.stem}-F<nn>")
@@ -1022,9 +1040,6 @@ def session_context_lines(root, config):
     return lines
 
 
-def git_dir(root):    return lines
-
-
 def git_dir(root):
     """Where moltke's own state files live, or None when there is no git here.
 
@@ -1043,7 +1058,7 @@ def git_dir(root):
 # hook is gone from hooks.json in the same commit.
 
 
-REVIEWER_AGENT = REVIEWER_AGENT = "adversarial_reviewer"
+REVIEWER_AGENT = "adversarial_reviewer"
 
 
 def reviewer_write_refusal(root, rel):

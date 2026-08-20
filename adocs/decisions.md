@@ -63,6 +63,7 @@ Compacted (S106, DEC-042): ids stable, never reused, newest last. Full context a
 - DEC-057 2026-08-19 — One install per Claude config root, not one per machine
 - DEC-058 2026-08-19 — An audit's red-first tests couple the steps that close them, and a claim still cannot be undone
 - DEC-059 2026-08-20 — A blank line in a stamp is refused, not reflowed
+- DEC-060 2026-08-20 — AGENTS.md §5 drops "lint", rather than gaining a linter
 
 
 ## DEC-001  2026-08-01  Package as a plugin, not a loose skill
@@ -324,3 +325,8 @@ Why: red-first tests are evidence, and a gate that reads the whole suite makes t
 Tags: step, testing, ceremony, docs
 Decision: (Max, chat 2026-08-20, from agent-supplied options) DEC-048's free-text multi-line stamp is narrowed: `--step done` refuses a `--stamp` containing a blank line, naming the condition, before anything is written or moved. Multi-line stays accepted and is still written as indented continuations. Teaching `parse_step_file` that an indented whitespace-only line continues a field was rejected: preserving the paragraph break means the fold stops joining continuations with a space, and that fold is shared by `goal:`, `accepts:`, `touches:` and `excludes:` throughout the plan directories, so the blast radius would be every field reader rather than the one field the finding names. The rule counts any blank line, a leading or trailing one included, even though `with_field`'s `rstrip` absorbs a trailing one and a single leading one lands where the `key:` line already ends — two leading ones do not, and a rule that separated the blank line which parses from the blank line which does not would be a second rule with a boundary to get wrong.
 Why: a stamp is evidence, so the two honest options were refuse or round-trip and reflowing was never one of them; refusing costs a retype at completion, and round-tripping costs the fold semantics every other multi-line field depends on.
+
+## DEC-060  2026-08-20  AGENTS.md §5 drops "lint", rather than gaining a linter
+Tags: rules, gates, testing, ceremony
+Decision: (Max, chat 2026-08-20, from agent-supplied options) §5's "build, lint, full suite" becomes "build and the full suite", in `AGENTS.md` and `templates/AGENTS.md` together. There is no lint configuration in the repository, no linter in `test_command`, and none installed, so the word has never checked anything — which is how `def git_dir(root):    return lines`, a definition shadowed three lines later, survived eight days and twenty commits of review (2026-08-19_adversarial-F12). Two alternatives were rejected. A stdlib `ast` self-host check in the suite — redefinitions and doubled assignments, no dependency — would have made a narrower word true, and was declined as more machinery than the defect class earns. `ruff` as a dev dependency was declined as a dependency plus a config file plus a pass over every existing line. The dead definition and the doubled `REVIEWER_AGENT` assignment are deleted in S152 regardless; nothing now stops the next one, and that is the accepted cost.
+Why: a rule nothing enforces is worse than no rule, because it reads as a gate at every review and is one at none of them.
