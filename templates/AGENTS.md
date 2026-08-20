@@ -81,7 +81,8 @@ order and **never reused or renumbered**. Fields: `id`, `goal`, `accepts`
 
 - The plan is common; anyone picks the derived next step. `--step start`
   claims it: `author:` from `git config user.name`, and your own active steps
-  are what block you — a teammate's never do.
+  are what block you — a teammate's never do. `--step unclaim` puts a claim back
+  down; the directories are still moved only by `--step`, never by hand.
 - `plan_todo/` → `plan_current/` when work starts; `plan_current/` →
   `plan_done/` only when code is complete, the suite is green, and README and
   MANUAL were checked, and no watcher the step armed is still alive (§12).

@@ -13,7 +13,7 @@
 --scaffold
 --session-start
 --stamp VALUE
---step OP...  ops: block,done,new,start,status,unpause
+--step OP...  ops: block,done,new,start,status,unclaim,unpause
 --stop
 --validate
 --version

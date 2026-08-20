@@ -16,6 +16,7 @@ All commands: `python3 ${CLAUDE_PLUGIN_ROOT}/bin/moltke.py --step ...`
 ```
 --step new <short_name> [--goal "one line"]     # allocate the next id, list it in plan.md
 --step start <id>                               # plan_todo -> plan_current
+--step unclaim <id>                             # plan_current -> plan_todo, undoing the claim
 ```
 
 Ids are allocated in creation order and never reused, even after a file is
@@ -25,6 +26,13 @@ the step does not belong last. Order lives in `plan.md` and nowhere else.
 Starting is refused when the active slot is taken. That refusal is information:
 either finish what is in progress, or the new work is really a blocker, in
 which case use `block`.
+
+`unclaim` is the way back, and the only one: never move a step between the plan
+directories by hand. It clears `author:` — the claim — and leaves every other
+field as it was. It refuses a step carrying a `done:` stamp or a `paused_by`,
+naming the command that clears the pause. Use it when a claim turns out to be
+the wrong one to hold, not to park work you are midway through: the step file
+keeps no record of how far you got.
 
 ## Work discovered mid-step
 

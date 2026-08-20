@@ -2418,6 +2418,90 @@ def step_start(root, config, step_id):
     return EXIT_OK
 
 
+def step_unclaim(root, config, step_id):
+    """`--step start` run backwards (S154, DEC-056, DEC-058).
+
+    AGENTS.md §2 says the plan directories are moved only by `--step`, and twice
+    a step left `plan_current/` by hand because nothing here could put it back —
+    once when an audit was postponed, once when a claim had to step aside at
+    `plan_active_max` 1. Both were recorded as deviations rather than taken
+    silently, and the second made this a step.
+
+    Narrow like `unpause`: it undoes a claim and nothing else. `author:` comes
+    off with the move, because `author:` *is* the claim `start` wrote and a
+    plan_todo/ step carrying one reads as held by someone. Every other field
+    describes the step rather than the claim and is left exactly as it was.
+    """
+    dirname, path, fields = locate_step(root, step_id)
+    if dirname is None:
+        return refuse(f"{step_id} does not exist, so there is no claim to undo")
+    if dirname == "plan_todo":
+        return refuse(f"{step_id} is already in plan_todo/, unclaimed; --step start {step_id} "
+                      f"is what claims it")
+    if dirname == "plan_done":
+        return refuse(f"{step_id} is in plan_done/, which is immutable history; a completed "
+                      f"step is not a claim and never returns to plan_todo/ (DEC-008, INV-7). "
+                      f"Create a new step for whatever is left")
+    if field_value(fields, "done"):
+        return refuse(f"{step_id} carries a done: stamp, which is evidence the work finished; "
+                      f"a stamped step does not go back to plan_todo/ as unstarted work. "
+                      f"Complete it with --step done {step_id}, or clear the stamp by hand if "
+                      f"it was written in error")
+    twin = [p for found, p, _f in plan_steps(root)["plan_todo"] if found == step_id]
+    destination = root / DOCS / "plan_todo" / path.name
+    if twin or destination.exists():
+        held = (twin[0] if twin else destination).relative_to(root)
+        return refuse(f"{step_id} is already carried by {held}, and returning "
+                      f"{path.relative_to(root)} would rename onto it. Two files carrying one "
+                      f"id is INV-6 and --validate reports it; resolve the duplicate by hand "
+                      f"— deciding which of the two is the step is not something this command "
+                      f"can do for you")
+    # A pause is the record of a blocking child, and plan_todo/ is not a place a
+    # pause resolves: step_done only unpauses parents it finds in plan_current/,
+    # so a paused step carried out of it keeps that field for good. Refuse and
+    # route, rather than clear something this command was not asked to clear.
+    pauser = pauser_id(fields)
+    if pauser:
+        where = locate_step(root, pauser)[0] or "no plan directory"
+        route = (f"run bin/moltke.py --step unpause {step_id}, which clears exactly this pause"
+                 if step_id in unresolvable_pauses(root) else
+                 f"complete {pauser} with --step done {pauser}, which unpauses {step_id} on "
+                 f"its way out")
+        return refuse(f"{step_id} is paused by {pauser} ({where}); unclaiming it would leave a "
+                      f"paused step in plan_todo/, where nothing ever unpauses it. Clear the "
+                      f"pause first: {route}. Then unclaim {step_id}")
+    # The belt for the same relation written from the other side by hand: a
+    # child declaring blocks: without the parent's paused_by to match it.
+    children = [child for child, _p, child_fields in plan_steps(root)["plan_current"]
+                if child != step_id and step_id in blocks_ids(child_fields)]
+    if children:
+        return refuse(f"{', '.join(children)} in plan_current/ declares blocks: {step_id}, so "
+                      f"{step_id} is what that work is waiting on. Complete or drop "
+                      f"{children[0]} first")
+    if not os.access(path, os.W_OK):
+        return refuse(f"{path.relative_to(root)} is not writable, and unclaiming {step_id} has "
+                      f"to rewrite its author:; nothing was changed. Make it writable and run "
+                      f"this again")
+    path.rename(destination)
+    _invalidate_plan_cache()
+    # Absent rather than empty is left absent: with_field appends a key it does
+    # not find, and a step that never carried an author should not grow one on
+    # the way out.
+    if "author" in fields:
+        set_field(destination, "author", "")
+    print(f"moltke: {step_id} returned to plan_todo/, unclaimed; "
+          f"--step start {step_id} claims it again.")
+    # Its own children stay where they are. Reported rather than refused: a
+    # blocker that goes back to plan_todo/ leaves its parent paused on work
+    # nobody holds, which --validate calls reachable and --step unpause refuses,
+    # and the way out is one command.
+    for parent, _p, parent_fields in plan_steps(root)["plan_current"]:
+        if pauser_id(parent_fields) == step_id:
+            print(f"moltke: {parent} stays paused by {step_id}, which nobody is now working; "
+                  f"--step start {step_id} picks it back up.")
+    return EXIT_OK
+
+
 def step_unpause(root, config, step_id):
     """The way out of a pause naming work that exists nowhere (S090, DEC-040).
 
@@ -3061,7 +3145,7 @@ def _mode_audit(root, config, op, rest):
     return audit_new(root, config, rest[0])
 
 
-STEP_OPS = ("new", "start", "block", "unpause", "done", "status")
+STEP_OPS = ("new", "start", "unclaim", "block", "unpause", "done", "status")
 
 
 def mode_step(root, config, argv, goal, stamp, marker_violations=()):
@@ -3098,6 +3182,8 @@ def mode_step(root, config, argv, goal, stamp, marker_violations=()):
             return refuse(problem) if problem else step_new(root, config, rest[0], goal)
         if op == "start":
             return step_start(root, config, rest[0])
+        if op == "unclaim":
+            return step_unclaim(root, config, rest[0])
         if op == "unpause":
             return step_unpause(root, config, rest[0])
         if op == "block":
@@ -3109,7 +3195,7 @@ def mode_step(root, config, argv, goal, stamp, marker_violations=()):
     except IndexError:
         usage = {"new": "new <short_name> [--goal TEXT]", "start": "start <id>",
                  "block": "block <parent_id> <short_name>",
-                 "unpause": "unpause <id>",
+                 "unclaim": "unclaim <id>", "unpause": "unpause <id>",
                  "done": "done <id> --stamp TEXT"}[op]
         return refuse(f"usage: --step {usage}")
     except OSError as exc:
@@ -3242,8 +3328,8 @@ def build_parser():
     modes.add_argument("--scaffold", action="store_true", help=f"create the marker, AGENTS.md, and {DOCS}/ from templates")
     modes.add_argument("--decline", action="store_true", help="record that this repository declines the workflow, durably")
     modes.add_argument("--step", nargs="+", metavar="OP",
-                       help="lifecycle: new <name> | start <id> | block <parent> <name> | "
-                            "unpause <id> | done <id> | status")
+                       help="lifecycle: new <name> | start <id> | unclaim <id> | "
+                            "block <parent> <name> | unpause <id> | done <id> | status")
     modes.add_argument("--audit", nargs="+", metavar="OP",
                        help="audit reports: new <type> | list | check")
     modes.add_argument("--watch", nargs="+", metavar="ARG",

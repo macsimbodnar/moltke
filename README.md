@@ -107,7 +107,9 @@ This repository enforces the rules it ships. Read `AGENTS.md` first; it is the
 whole contract. The short version:
 
 - Work moves through `adocs/plan_todo` → `plan_current` → `plan_done`, driven
-  by `python3 bin/moltke.py --step ...`, never by moving files by hand.
+  by `python3 bin/moltke.py --step ...`, never by moving files by hand. That
+  holds backwards too: `--step unclaim` returns a claimed step to `plan_todo`.
+  Only `plan_done` is one-way.
 - Red first. Write the test, watch it fail, record what it printed, then
   implement. A test never observed failing is not evidence.
 - `testing.md` rows are voluntary documentation; the `test_command` gate is

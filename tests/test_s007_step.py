@@ -1495,6 +1495,169 @@ class TestMultilineStepFields(unittest.TestCase):
         self.assertIn("done:", rewritten)
 
 
+class TestAClaimCanBeUndone(unittest.TestCase):
+    """S154 (DEC-056, DEC-058): `--step` offered new, start, block, unpause,
+    done and status, and nothing that undoes a claim. Twice the answer was to
+    move a step out of `plan_current/` by hand, against §2's rule that the plan
+    directories are moved only by `--step`. `unclaim` is `start` run backwards:
+    the file returns to `plan_todo/` and the `author:` stamp `start` wrote comes
+    off with it, because `author:` is the claim."""
+
+    def repo(self, tmp):
+        root = workflow_repo(tmp)
+        subprocess.run(["git", "-C", str(root), "init", "-q"], check=True)
+        subprocess.run(["git", "-C", str(root), "config", "user.name", "Tester"],
+                       check=True)
+        return root
+
+    def unclaim(self, root, step_id="S003"):
+        return run_moltke(root, "--step", "unclaim", step_id)
+
+    def test_a_claimed_step_returns_to_plan_todo(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.repo(tmp)
+            self.assertEqual(run_moltke(root, "--step", "start", "S002").returncode, 0)
+            result = self.unclaim(root, "S002")
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertTrue((root / "adocs" / "plan_todo" / "S002_pending.md").is_file())
+            self.assertFalse((root / "adocs" / "plan_current" / "S002_pending.md").exists())
+            self.assertEqual(validate(root).returncode, 0, validate(root).stdout)
+
+    def test_the_author_stamp_comes_off_with_the_claim(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.repo(tmp)
+            run_moltke(root, "--step", "start", "S002")
+            claimed = (root / "adocs" / "plan_current" / "S002_pending.md").read_text(
+                encoding="utf-8")
+            self.assertIn("Tester", claimed, "precondition: --step start stamped an author")
+            self.unclaim(root, "S002")
+            returned = (root / "adocs" / "plan_todo" / "S002_pending.md").read_text(
+                encoding="utf-8")
+            self.assertNotIn("Tester", returned)
+            self.assertIn("author:", returned, "the field stays, emptied, like every cleared field")
+
+    def test_it_clears_nothing_but_the_author(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.repo(tmp)
+            path = root / "adocs" / "plan_current" / "S003_active.md"
+            path.write_text("id:         S003\n"
+                            "goal:       active\n"
+                            "accepts:    a testable thing\n"
+                            "            spanning two lines\n"
+                            "touches:    bin/moltke.py\n"
+                            "decisions:  DEC-001\n"
+                            "closes:     2026-08-01_adversarial-F01\n"
+                            "blocks:\n"
+                            "author:     Tester\n"
+                            "done:\n", encoding="utf-8")
+            self.assertEqual(self.unclaim(root).returncode, 0)
+            returned = (root / "adocs" / "plan_todo" / "S003_active.md").read_text(
+                encoding="utf-8")
+            for kept in ("a testable thing", "spanning two lines", "bin/moltke.py",
+                         "DEC-001", "2026-08-01_adversarial-F01"):
+                self.assertIn(kept, returned)
+
+    def test_a_step_that_was_never_claimed_is_refused(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.repo(tmp)
+            result = self.unclaim(root, "S002")
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn("plan_todo", result.stderr)
+
+    def test_a_completed_step_is_refused_as_immutable_history(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.repo(tmp)
+            result = self.unclaim(root, "S001")
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn("plan_done", result.stderr)
+            self.assertTrue((root / "adocs" / "plan_done" / "S001_base.md").is_file())
+
+    def test_a_step_that_does_not_exist_is_refused(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.repo(tmp)
+            result = self.unclaim(root, "S099")
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn("S099", result.stderr)
+
+    def test_a_stamped_step_in_plan_current_is_refused(self):
+        # A stamp is the evidence a step finished. Sending one back to plan_todo/
+        # would make the plan claim unstarted work that records its own
+        # completion, and --step done would then refuse it as a duplicate id the
+        # moment it was completed properly.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.repo(tmp)
+            path = root / "adocs" / "plan_current" / "S003_active.md"
+            path.write_text("id:         S003\ngoal:       active\n"
+                            "done:       2026-08-01 the work is finished\n",
+                            encoding="utf-8")
+            result = self.unclaim(root)
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn("done:", result.stderr)
+            self.assertTrue(path.is_file(), "the refusal moved nothing")
+
+    def test_a_step_with_a_live_blocking_child_is_refused(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.repo(tmp)
+            self.assertEqual(
+                run_moltke(root, "--step", "block", "S003", "blocker").returncode, 0)
+            result = self.unclaim(root)
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn("S004", result.stderr, "the refusal names the child")
+            self.assertTrue((root / "adocs" / "plan_current" / "S003_active.md").is_file())
+
+    def test_an_unresolvable_pause_is_sent_to_unpause_rather_than_moved(self):
+        # A phantom pauser is not a child in plan_current/, but carrying the
+        # pause back to plan_todo/ would hide a violation --validate reports.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.repo(tmp)
+            step_file(root / "adocs" / "plan_current", "S003", "active",
+                      paused_by="S099  # 2026-08-01")
+            result = self.unclaim(root)
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn("--step unpause S003", result.stderr,
+                          "the refusal must route to the command that clears the pause; "
+                          "a bare \"unpause\" is in the unknown-operation message too")
+            self.assertIn("S099", result.stderr, "and name the pauser")
+
+    def test_unclaiming_frees_the_active_slot(self):
+        # The whole point (DEC-056): plan_active_max is 1, and the by-hand move
+        # existed because a claimed step could not step aside for another.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.repo(tmp)
+            step_file(root / "adocs" / "plan_current", "S003", "active", author="Tester")
+            blocked = run_moltke(root, "--step", "start", "S002")
+            self.assertEqual(blocked.returncode, 1, "precondition: the slot is taken")
+            self.assertEqual(self.unclaim(root).returncode, 0)
+            freed = run_moltke(root, "--step", "start", "S002")
+            self.assertEqual(freed.returncode, 0, freed.stdout + freed.stderr)
+            self.assertEqual(validate(root).returncode, 0, validate(root).stdout)
+
+    def test_a_blocking_child_may_be_unclaimed_and_says_what_it_leaves_paused(self):
+        # The other side of the block relation, permitted on purpose: refusing
+        # here too would make a claimed stack impossible to put down, since the
+        # parent is refused for its pause and the child for its parent. The
+        # state it leaves is green and one command from repaired, so it is
+        # reported instead.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.repo(tmp)
+            run_moltke(root, "--step", "block", "S003", "blocker")
+            result = self.unclaim(root, "S004")
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertIn("S003 stays paused by S004", result.stdout)
+            self.assertIn("--step start S004", result.stdout)
+            self.assertEqual(validate(root).returncode, 0, validate(root).stdout)
+            resumed = run_moltke(root, "--step", "start", "S004")
+            self.assertEqual(resumed.returncode, 0, resumed.stdout + resumed.stderr)
+            self.assertEqual(validate(root).returncode, 0, validate(root).stdout)
+
+    def test_usage_is_named_when_the_id_is_missing(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.repo(tmp)
+            result = run_moltke(root, "--step", "unclaim")
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn("unclaim <id>", result.stderr)
+
+
 class TestThisRepositoryPassesValidate(unittest.TestCase):
     """S153 (2026-08-19_adversarial-F13): the non-vacuity anchor for this file.
     `goal:`, `accepts:`, `touches:` and `excludes:` span lines all over `adocs/`,
