@@ -19,8 +19,9 @@ Updated: 2026-08-20 by `moltke --step status`.
   - nothing in a session reports which install is answering, so a stale or absent
     root fails silently — S139 excluded the fix as a behaviour change (DEC-057),
     and it is unstepped.
-  - master is 2 commits ahead of origin/master (`b37ed95`); the CLI root still runs
-    the older `6ca6455`. Pushes are Max's own.
+  - master is unpushed ahead of origin/master (`b37ed95`, S134); the CLI root still
+    runs the older `6ca6455`. Pushes are Max's own. The count was written as 2 and
+    was 30 by 2026-08-20 — no number here survives a commit, so it is not kept.
   - the merge (DEC-052) could not be a git merge: with both branches' `plan_done/`
     trees as ancestors, INV-6 and INV-7 contradict each other and no resolution
     validates. It is a graft instead, and `watch-primitive-a304293` holds the
