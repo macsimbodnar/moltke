@@ -205,9 +205,13 @@ risk (security-adjacent, public surface, a long stretch unaudited) the agent
 proposes a full adversarial audit and you accept or postpone; a postponed
 proposal waits as one line in `status.md`'s Parked block. And `/moltke:audit`
 runs the full machinery whenever you ask, unchanged: clean-context reviewer,
-report before fixes, every finding landing in a step or a decision. A finding
-closes on a re-run that no longer reports it, or by a recorded decision — the
-loop ends when you say it ends.
+report before fixes, every finding landing in a step or a decision. Those land
+in one commit: a commit carrying the report alone is red, since an open finding
+with no home is an INV-10 violation, and fixing something first to get green is
+the one thing the skill forbids. Expect `--validate` and the suite to report
+those INV-10 lines while the triage is in progress. A finding closes on a re-run
+that no longer reports it, or by a recorded decision — the loop ends when you say
+it ends.
 
 ## Watching long runs
 

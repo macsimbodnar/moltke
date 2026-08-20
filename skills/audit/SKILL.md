@@ -107,6 +107,14 @@ independently, and a bundle hides which ones actually got fixed.
 Correctness defects jump the queue ahead of planned work. Reorder `plan.md`
 accordingly rather than appending them at the end out of politeness.
 
+**The report and the steps that close it land in one commit.** Every commit is
+green (AGENTS.md's Git section) and INV-10 makes an `open` finding with neither a step nor a
+decision a violation, so a commit carrying the report alone is red by
+construction — and step 3 forbids reaching green by fixing anything first. Do
+steps 1 through 4, then commit the report, the steps, and any decision entries
+together. In between, `--validate` and the suite report those INV-10 lines; that
+is the expected transient, not a break.
+
 ## 5. Close by re-running, never by asserting
 
 A finding moves to `closed` on a re-run that no longer reports it, or by a

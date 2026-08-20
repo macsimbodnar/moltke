@@ -528,12 +528,6 @@ class TestTheIdFieldAgreesWithTheFilename(unittest.TestCase):
                 "goal:       pending\ndone:\n", encoding="utf-8")
             self.assertEqual(run_validate(root).returncode, 0, run_validate(root).stdout)
 
-    def test_this_repository_passes(self):
-        # Non-vacuity anchor: every step file across the three plan directories
-        # carries the field today, so a rule that fired wrongly would be loud.
-        result = run_moltke(REPO, "--validate")
-        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-
 
 class TestAPauseMustResolve(unittest.TestCase):
     """S098 (2026-08-09_adversarial-F02): S090 made a pause naming a step in no
@@ -983,6 +977,27 @@ class TestWideStepIdsAreRead(unittest.TestCase):
         self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
         self.assertIn(invariant, result.stdout)
         self.assertIn(needle, result.stdout)
+
+
+class TestThisRepositoryPassesValidate(unittest.TestCase):
+    """S153 (2026-08-19_adversarial-F13): the non-vacuity anchor for every rule
+    in this file. Every step file across the three plan directories carries an
+    `id:` field today, and `goal:`, `accepts:`, `touches:` and `excludes:` span
+    lines all over `adocs/`, so a rule that fired wrongly on the real tree would
+    be loud here. It used to sit inside the class whose rule it anchored, which
+    named the wrong thing on failure: an untriaged audit finding turned "the id
+    field agrees with the filename" red."""
+
+    def test_this_repository_passes(self):
+        result = run_moltke(REPO, "--validate")
+        self.assertEqual(
+            result.returncode, 0,
+            "this repository does not pass --validate.\n"
+            "INV-10 lines here are the expected transient between writing an audit "
+            "report and giving its findings a home: the report and the steps that "
+            "close it land in one commit (skills/audit/SKILL.md step 4). "
+            "Any other violation is a real break.\n"
+            + result.stdout + result.stderr)
 
 
 if __name__ == "__main__":

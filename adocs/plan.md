@@ -25,7 +25,6 @@ which is why the audit's own steps sit in front of everything it did not raise.
 That run's verdicts closed three of the 2026-08-18 findings and left the other
 three accepted.
 
-143. S148  the audit skill stops documenting the removed worklog and --log-prompt
 144. S149  a multi-line --stamp round-trips, or a blank line in one is refused
 145. S150  INV-11's marker-gate test derives its mode list from the parser, with a named exempt set
 146. S151  the reviewer fence refuses overwriting another report and permits correcting its own new test

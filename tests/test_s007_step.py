@@ -1494,12 +1494,24 @@ class TestMultilineStepFields(unittest.TestCase):
         self.assertNotIn("stale continuation", rewritten)
         self.assertIn("done:", rewritten)
 
+
+class TestThisRepositoryPassesValidate(unittest.TestCase):
+    """S153 (2026-08-19_adversarial-F13): the non-vacuity anchor for this file.
+    `goal:`, `accepts:`, `touches:` and `excludes:` span lines all over `adocs/`,
+    so a change to how fields are read has to leave the real tree green. It used
+    to sit inside `TestMultilineStepFields`, which named the wrong thing on
+    failure: an untriaged audit finding turned "multiline step fields" red."""
+
     def test_this_repository_still_validates(self):
-        # The non-vacuity anchor: goal:, accepts:, touches: and excludes: span
-        # lines all over adocs/, so a change to how fields are read has to leave
-        # the real tree green.
         result = run_moltke(REPO, "--validate")
-        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(
+            result.returncode, 0,
+            "this repository does not pass --validate.\n"
+            "INV-10 lines here are the expected transient between writing an audit "
+            "report and giving its findings a home: the report and the steps that "
+            "close it land in one commit (skills/audit/SKILL.md step 4). "
+            "Any other violation is a real break.\n"
+            + result.stdout + result.stderr)
 
 
 if __name__ == "__main__":
