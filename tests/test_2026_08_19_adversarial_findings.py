@@ -35,9 +35,15 @@ belong to whoever plans the steps that close these findings.
        as twelve spaces and `parse_step_file` ends the field on any line that
        strips to empty, so a paragraphed `--stamp` — documented multi-line and
        deliberately ungated — comes back as its first paragraph.
+- F11  bin/moltke.py:1037 — `reviewer_may_write` decides both halves on
+       existence alone and gets each backwards: any path under `adocs/audit/`
+       is permitted, so a `Write` at an earlier report's path destroys
+       evidence, and any existing `tests/` path is refused, so correcting the
+       run's own red test has to go through `Bash`, which nothing fences.
 """
 
 import ast
+import datetime
 import json
 import os
 import re
@@ -722,6 +728,91 @@ class TestABlankLineInAStampIsRefused(unittest.TestCase):
             done = root / "adocs" / "plan_done" / "S003_active.md"
             self.assertEqual(moltke.parse_step_file(done)["done"],
                              "first line of the stamp README and MANUAL checked; suite green")
+
+
+TODAY = datetime.date.today().isoformat()
+SCOPED_REVIEWER = "moltke:adversarial_reviewer"
+
+
+class TestReviewerFenceJudgesWhenAFileArrived(unittest.TestCase):
+    """F11: the fence permits what the run produced, not what it finds lying
+    there. `--audit new` records the tree as it stood when the report opened,
+    so "this run wrote it" is a question the baseline can answer.
+    """
+
+    def fence(self, root, path):
+        payload = json.dumps({"agent_type": SCOPED_REVIEWER,
+                              "tool_input": {"file_path": path}})
+        return run_moltke(root, "--pre-write", stdin=payload)
+
+    def audited_repo(self, tmp):
+        """A committed repository with an older report and a committed test,
+        then a fresh audit run opened over it."""
+        root = workflow_repo(tmp)
+        write(root, "src/main.py", "print('source')\n")
+        write(root, "tests/test_existing.py", "# committed before the run\n")
+        write(root, "adocs/audit/2026-01-01_adversarial.md",
+              "# Audit 2026-01-01\n\nEvidence from an earlier run.\n")
+        git_baseline(root)
+        opened = run_moltke(root, "--audit", "new", "adversarial")
+        self.assertEqual(opened.returncode, 0, opened.stdout + opened.stderr)
+        return root
+
+    def test_an_earlier_report_cannot_be_overwritten(self):
+        # AGENTS.md §2: "add files, never overwrite a report". `--audit new`
+        # honours it with next_report_path; the fence did not.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.audited_repo(tmp)
+            result = self.fence(root, "adocs/audit/2026-01-01_adversarial.md")
+            self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+            self.assertIn("2026-01-01_adversarial.md", result.stderr)
+
+    def test_a_test_this_run_created_can_be_corrected(self):
+        # The mirror image: a typo in one's own red test had to be fixed
+        # through Bash, where nothing is fenced or classified. The 2026-08-19
+        # run did exactly that and disclosed it.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.audited_repo(tmp)
+            write(root, "tests/test_f11_red.py", "# written by this run\n")
+            result = self.fence(root, "tests/test_f11_red.py")
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_this_runs_own_report_is_still_writable(self):
+        # Non-vacuity for the refusal above: the run's report exists too, and
+        # the reviewer writes it many times.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.audited_repo(tmp)
+            result = self.fence(root, f"adocs/audit/{TODAY}_adversarial.md")
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_a_committed_test_is_still_a_patch(self):
+        # Non-vacuity for the permission above: the widening is "this run wrote
+        # it", not "it is under tests/".
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.audited_repo(tmp)
+            result = self.fence(root, "tests/test_existing.py")
+            self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+
+    def test_a_test_that_was_already_sitting_untracked_is_refused(self):
+        # And the baseline is what draws that line: an untracked file present
+        # before the run reads as new to git and is not this run's work.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            git_baseline(root)
+            write(root, "tests/test_someone_elses.py", "# uncommitted, predates the run\n")
+            run_moltke(root, "--audit", "new", "adversarial")
+            result = self.fence(root, "tests/test_someone_elses.py")
+            self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+
+    def test_a_new_report_path_is_still_created_freely(self):
+        # Non-vacuity for every refusal above: nothing here narrows creation,
+        # which is what the reviewer is spawned to do.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.audited_repo(tmp)
+            for path in (f"adocs/audit/{TODAY}_adversarial.2.md",
+                         "tests/test_brand_new.py"):
+                result = self.fence(root, path)
+                self.assertEqual(result.returncode, 0, (path, result.stderr))
 
 
 if __name__ == "__main__":

@@ -1046,15 +1046,55 @@ def git_dir(root):
 REVIEWER_AGENT = REVIEWER_AGENT = "adversarial_reviewer"
 
 
-def reviewer_may_write(root, rel):
-    """DEC-022: the fence is a fast clear failure on the common path, not the
+def reviewer_write_refusal(root, rel):
+    """Why the reviewer may not write rel, or None when it may.
+
+    DEC-022: the fence is a fast clear failure on the common path, not the
     guarantee — the reviewer also holds Bash, which no matcher sees. It permits
-    the report, and a new regression test, which is evidence. Editing a test that
-    already exists is a patch."""
+    the evidence a run produces: its own report, and the regression tests it
+    writes.
+
+    Existence alone used to decide both halves, and got each backwards (S151,
+    F11). Every path under audit/ was permitted, so a Write at an earlier
+    report's path destroyed evidence with no refusal, against "add files, never
+    overwrite a report". Every existing path under tests/ was refused, so
+    correcting a typo in the run's own red test had to go through Bash, where
+    nothing is fenced or classified — the 2026-08-19 run did exactly that. The
+    question is not whether the file exists but whether this run made it, and
+    --audit new records precisely that.
+    """
     parts = rel.parts
-    if parts[:2] == (DOCS, "audit"):
-        return True
-    return parts[:1] == ("tests",) and not (root / rel).exists()
+    under_audit = parts[:2] == (DOCS, "audit")
+    if not under_audit and parts[:1] != ("tests",):
+        return (f"the {REVIEWER_AGENT} may write under {DOCS}/audit/, and the tests it "
+                f"writes under tests/, and {rel} is neither. Record what you found as a "
+                f"finding in your report; fixes are planned as steps afterwards, by "
+                f"someone else.")
+    if not (root / rel).exists():
+        return None     # creating evidence is what the reviewer is spawned to do
+    baseline = audit_baseline(root)
+    report = baseline.get("report") if isinstance(baseline, dict) else None
+    if report is not None and str(rel) == report:
+        return None
+    arrived = _arrived_during_the_run(root, rel, baseline)
+    if arrived is None:
+        # No git, so no run to date anything against. Each half falls back to
+        # what it did before there was a baseline to read: the report is
+        # permitted, since refusing would lock the reviewer out of the one it
+        # just opened, and an existing test is a patch. --audit new has already
+        # warned there that nothing about the run can be reconciled at all.
+        arrived = under_audit
+    if arrived:
+        return None
+    if under_audit:
+        where = (f"; this run's report is {report}, and that one you may write."
+                 if report else ". Open your own with --audit new <type>.")
+        return (f"{rel} was here before this run, and a report is evidence that is added "
+                f"to, never overwritten (AGENTS.md §2){where}")
+    return (f"{rel} was here before this run, so writing it is a patch, and the "
+            f"{REVIEWER_AGENT} produces evidence. Record what you found as a finding in "
+            f"your report, or put the regression in a new file beside it; the fix is "
+            f"planned as a step afterwards, by someone else.")
 
 
 def _canonical_case(root, rel):
@@ -1130,12 +1170,11 @@ def mode_pre_write(root, config, path_arg):
         agent = REVIEWER_AGENT  # unreadable: fence rather than wave through
     else:
         agent = payload_str(payload, "agent_type").split(":")[-1]
-    if agent == REVIEWER_AGENT and not reviewer_may_write(root, rel):
-        print(f"moltke: the {REVIEWER_AGENT} may write under {DOCS}/audit/, and may create new "
-              f"files under tests/, and {rel} is neither. Record what you found as a finding in "
-              f"your report; fixes are planned as steps afterwards, by someone else.",
-              file=sys.stderr)
-        return EXIT_BLOCK
+    if agent == REVIEWER_AGENT:
+        refusal = reviewer_write_refusal(root, rel)
+        if refusal is not None:
+            print(f"moltke: {refusal}", file=sys.stderr)
+            return EXIT_BLOCK
     if parts[:2] == (DOCS, "plan_done"):
         print(f"moltke: {rel} is under plan_done/, which is immutable history. "
               f"Completed steps are moved there with mv/git mv as the last action of a step; "
@@ -2638,6 +2677,42 @@ def _audit_baseline_path(root):
     return resolved / "moltke_audit_baseline.json" if resolved else None
 
 
+def audit_baseline(root):
+    """The record `--audit new` left for the current run, or None when there is
+    none to read: no git directory to hold one, no run opened here, or a record
+    that will not parse. `--audit check` and the reviewer's write fence read the
+    same file, so both judge a run against the tree as it stood when its report
+    was opened.
+    """
+    path = _audit_baseline_path(root)
+    if path is None or not path.is_file():
+        return None
+    try:
+        saved = json.loads(read_file(path))
+    except (OSError, ValueError):
+        return None
+    return saved if isinstance(saved, dict) else None
+
+
+def _arrived_during_the_run(root, rel, baseline):
+    """Whether rel is in the worktree now but was not when this run's baseline
+    was taken. None when there is no git to ask.
+
+    Both halves are needed and neither answers alone: git's status says a path
+    is newly here but not since when, and the baseline records only paths that
+    were already changed, so a tracked clean file is in neither snapshot.
+    """
+    state = worktree_state(root)
+    if state is None:
+        return None
+    entry = str(rel)
+    tree = baseline.get("tree") if isinstance(baseline, dict) else None
+    if isinstance(tree, dict) and entry in tree:
+        return False        # already here and already changed before the run
+    now = state.get(entry)
+    return now is not None and not _is_departure(now[0]) and _is_new_file(now[0])
+
+
 def _content_hash(path):
     try:
         return hashlib.sha256(path.read_bytes()).hexdigest()
@@ -2758,14 +2833,8 @@ def _is_new_file(status):
 def audit_check(root, config):
     """DEC-022: prevention gave way to detection. Report what the run actually
     changed, so a contaminated report is known before any finding is acted on."""
-    baseline_path = _audit_baseline_path(root)
-    saved = None
-    if baseline_path is not None and baseline_path.is_file():
-        try:
-            saved = json.loads(read_file(baseline_path))
-        except (OSError, ValueError):
-            saved = None
-    if not isinstance(saved, dict) or not isinstance(saved.get("tree"), dict):
+    saved = audit_baseline(root)
+    if saved is None or not isinstance(saved.get("tree"), dict):
         return refuse("no audit baseline recorded here; run --audit new <type> first, because "
                       "check reconciles a run against the tree as it stood when the report "
                       "was opened")

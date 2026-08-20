@@ -284,7 +284,7 @@ Cursor) must, since hooks exist only in Claude Code.
 | `--audit check` | reconcile what the run changed against that baseline: the report and new files under `tests/` are expected, anything else exits 1. Run it after the reviewer returns, before acting on a finding |
 | `--watch <log> <regex> --ceiling <dur>` | self-terminating watcher for long runs; see "Watching long runs". Optional `--pid <p>`, `--fail-re <regex>`, `--interval <dur>` |
 | `--session-start` | SessionStart hook: emit the stack and derived next step as context |
-| `--pre-write` | PreToolUse hook for Write and Edit: refuse writes into `plan_done/`, step files outside the plan directories, and reviewer writes other than `adocs/audit/` or a new file under `tests/` |
+| `--pre-write` | PreToolUse hook for Write and Edit: refuse writes into `plan_done/`, step files outside the plan directories, and reviewer writes other than the evidence this run produced under `adocs/audit/` and `tests/` |
 | `--pre-command` | PreToolUse hook for Monitor: refuse watcher arms that cannot end themselves (INV-17); see "Watching long runs" |
 | `--post-write` | PostToolUse hook: cheap invariant scan, surfaced but non-blocking |
 | `--stop` | Stop hook: refuse to end a turn on violations, a stale `status.md`, or a completion that arrived without its stamp |
@@ -396,9 +396,19 @@ as legitimate (DEC-022): `--audit check` reports what a run actually changed
 rather than trying to prevent it. Because the match is by suffix, another plugin
 shipping an agent named `adversarial_reviewer` would be fenced too — the
 deliberate direction of failure, since a wrong block says so out loud while a
-wrong pass is what F02 was. And the fence permits new files under `tests/`,
-because a red-first regression test is evidence; editing a test that already
-exists is a patch and stays blocked.
+wrong pass is what F02 was. And the fence judges a file by when it
+arrived, not by whether it exists. What the run produced it may write again:
+this run's report, named by the baseline `--audit new` recorded, and any file
+under `adocs/audit/` or `tests/` that git reports as having arrived since. What
+was already there it may not: an earlier report is evidence that is added to and
+never overwritten, and editing a test that predates the run is a patch. Until
+0.13.0 existence alone decided both, and each way round was the wrong one —
+overwriting an older report was permitted, and correcting a typo in the run's own
+red test was refused, which pushed the correction into `Bash`, where nothing is
+fenced (finding F11, fixed in step S151). Where there is no git to date anything,
+each half falls back to what it did before: the report is permitted, since
+refusing would lock the reviewer out of the one it just opened, and an existing
+test is refused.
 
 Paths are resolved before any of that is decided, so `tests/../bin/moltke.py` is
 judged as `bin/moltke.py`. Before 0.4.0 only absolute paths were resolved, and a

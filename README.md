@@ -18,7 +18,7 @@ working on moltke itself.
 bin/moltke.py                    every check and command, one entry point
 hooks/hooks.json                 four hook events, all shelling out to bin/moltke.py
 skills/init|step|audit/SKILL.md  the three skills, invoked as /moltke:<name>
-agents/adversarial_reviewer.md   auditor: reads anything, writes adocs/audit/ and new tests/
+agents/adversarial_reviewer.md   auditor: reads anything, writes what its own run produced
 templates/                       what `--scaffold` copies into a target repository
 tests/                           the suite; tests/surface.py declares the guarded surface
 AGENTS.md                        the live ruleset; templates/AGENTS.md is its shipped copy
