@@ -58,6 +58,22 @@ def declared_hook_wiring():
     return triples
 
 
+def declared_modes():
+    """Every mode flag the parser declares mutually exclusive, in that order.
+
+    The marker gate (INV-11) asserts over this rather than a hand-written tuple,
+    which had drifted to six of the thirteen modes without the test's name
+    ceasing to read as all of them (S150, 2026-08-19_adversarial-F10). A mode's
+    first flag stands for it, the way argparse names it in a usage line.
+    """
+    modes = []
+    for group in moltke.build_parser()._mutually_exclusive_groups:
+        for action in group._group_actions:
+            if action.option_strings:
+                modes.append(action.option_strings[0])
+    return modes
+
+
 def cli_lines():
     """One line per option: its flags, its argument shape, and its operations.
 

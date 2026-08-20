@@ -10,17 +10,33 @@ import unittest
 from pathlib import Path
 
 from fixtures import marked_repo, workflow_repo, write_marker
+from surface import declared_modes
 
 MOLTKE = Path(__file__).resolve().parent.parent / "bin" / "moltke.py"
 
-ALL_MODES = (
-    ["--session-start"],
-    ["--pre-write", "some/path"],
-    ["--post-write"],
-    ["--stop"],
-    ["--validate"],
-    ["--scaffold"],
-)
+# Exempt from the gate by design, each for a stated reason:
+#   --version   answers "which moltke is this", and is most useful exactly where
+#               checkout and hooks disagree, marker or no marker (S127)
+#   --scaffold  exists to create the marker the gate reads (DEC-017)
+#   --decline   exists to write the marker that says no (DEC-017)
+#   --watch     its exit codes are answers about a run; the gate's exit 0 would
+#               read as a marker seen (DEC-049)
+# The set is named rather than derived, so a mode added without a decision about
+# it lands in the gated list and has to exit 0 (S150).
+GATE_EXEMPT = ("--version", "--scaffold", "--decline", "--watch")
+
+# Arguments for the gated modes that require them; a mode absent here takes none.
+MODE_ARGS = {
+    "--pre-write": ["some/path"],
+    "--step": ["status"],
+    "--audit": ["list"],
+}
+
+
+def gated_modes():
+    """Every mode the parser declares that INV-11 must cover, as argv lists."""
+    return [[mode, *MODE_ARGS.get(mode, [])]
+            for mode in declared_modes() if mode not in GATE_EXEMPT]
 
 
 def run_moltke(cwd, *args):
@@ -39,16 +55,31 @@ class TestInv11MarkerGate(unittest.TestCase):
 
     def test_every_mode_exits_0_without_marker(self):
         with tempfile.TemporaryDirectory() as tmp:
-            for mode in ALL_MODES:
+            for mode in gated_modes():
                 result = run_moltke(tmp, *mode)
                 self.assertEqual(result.returncode, 0, (mode, result.stderr))
 
     def test_every_mode_exits_0_when_disabled(self):
         with tempfile.TemporaryDirectory() as tmp:
             marked_repo(tmp, overrides={"enabled": False})
-            for mode in ALL_MODES:
+            for mode in gated_modes():
                 result = run_moltke(tmp, *mode)
                 self.assertEqual(result.returncode, 0, (mode, result.stderr))
+
+    def test_the_gated_list_is_the_parsers_own(self):
+        """Non-vacuity for the two tests above: a derivation that returned
+        nothing, or an exemption naming a mode that no longer exists, would let
+        them pass over an empty or shrinking list while still reading as every
+        mode — which is the failure they replace (F10).
+        """
+        declared = declared_modes()
+        self.assertIn("--validate", declared)
+        self.assertIn("--session-start", declared)
+        for mode in GATE_EXEMPT:
+            self.assertIn(mode, declared, "exempts a mode the parser does not declare")
+        for mode in MODE_ARGS:
+            self.assertIn(mode, declared, "arms a mode the parser does not declare")
+        self.assertEqual(len(gated_modes()) + len(GATE_EXEMPT), len(declared))
 
     def test_disabled_beats_other_marker_errors(self):
         with tempfile.TemporaryDirectory() as tmp:

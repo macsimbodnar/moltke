@@ -25,7 +25,6 @@ which is why the audit's own steps sit in front of everything it did not raise.
 That run's verdicts closed three of the 2026-08-18 findings and left the other
 three accepted.
 
-140. S145  an out-of-range or non-positive --pid is refused at parse time, never a traceback
 141. S146  MOLTKE_UNBOUNDED_OK covers the persistent-arm rule only, never the follow refusal
 142. S147  `--decline` leaves an already-declined marker untouched, as INV-11 says
 143. S148  the audit skill stops documenting the removed worklog and --log-prompt

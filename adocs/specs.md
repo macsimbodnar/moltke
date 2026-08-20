@@ -42,9 +42,13 @@ reused; a retired number stays listed so old audit reports keep meaning.
 - INV-10 every audit finding is `open`, `planned`, `closed`, or `accepted`, and
   no report has `open` findings without a step or decision referencing them.
 - INV-11 every mode exits 0 immediately when `.moltke.json` is absent or
-  `enabled` is false — except `--scaffold` and `--decline`, which run before the
-  gate because they exist to create the marker; both leave a declined repository
-  untouched.
+  `enabled` is false — except four that run before the gate: `--scaffold` and
+  `--decline`, which exist to create the marker, and both leave a declined
+  repository untouched; `--watch`, whose exit codes are answers about a run that
+  the gate's exit 0 would fake; and `--version`, which answers which moltke is
+  running and is most useful exactly where checkout and hooks disagree. The
+  gated list is derived from the parser, so a new mode is covered on the day it
+  is added and an exemption has to be written down to exist.
 - INV-12 every blocking exit carries a message stating exactly what to do to
   unblock. The `Stop` cap on consecutive blocks lives wherever moltke can write
   its state beside the git directory; where it cannot, the gap is accepted

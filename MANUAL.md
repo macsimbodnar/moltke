@@ -299,9 +299,10 @@ same reason one step further in: a field ends at the first blank line, so the
 continuations below it are dropped by every reader of the stamp.
 
 Every mode exits 0 immediately in a repository with no marker, or
-one whose marker says `enabled: false` — except `--scaffold` and `--decline`,
-which exist to create that marker, and `--watch`, whose exit codes are answers
-about a run and must never be faked by the gate.
+one whose marker says `enabled: false` — except four: `--scaffold` and
+`--decline`, which exist to create that marker, `--watch`, whose exit codes are
+answers about a run and must never be faked by the gate, and `--version`, which
+tells you which moltke is answering and so has to answer anywhere.
 
 Every `--step` operation refuses, naming `--scaffold`, in a marked repository
 that has no `adocs/` yet, and the hooks name `--scaffold` there too rather than
