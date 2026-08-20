@@ -44,7 +44,7 @@ Ask whether to set up the workflow here. State plainly what it does:
 - turns on blocking enforcement in this repository only: hooks refuse writes
   into completed history, and refuse to end a turn on an invariant violation, a
   stale `status.md`, a step that reached `plan_done/` with no completion stamp,
-  or a watcher whose result was never taken
+  a crashed watcher, or a watch outcome nobody acted on
 - costs nothing in repositories without the marker
 
 If the answer is no, run `--decline` (step 5) and stop.
