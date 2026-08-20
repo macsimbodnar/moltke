@@ -765,7 +765,11 @@ class TestReviewerFenceJudgesWhenAFileArrived(unittest.TestCase):
             root = self.audited_repo(tmp)
             result = self.fence(root, "adocs/audit/2026-01-01_adversarial.md")
             self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
-            self.assertIn("2026-01-01_adversarial.md", result.stderr)
+            # The message, not just the code: every refusal here interpolates
+            # the path, so the filename alone cannot tell this refusal from the
+            # generic one for a path under neither directory.
+            self.assertIn("never overwritten", result.stderr)
+            self.assertIn(f"{TODAY}_adversarial.md", result.stderr)
 
     def test_a_test_this_run_created_can_be_corrected(self):
         # The mirror image: a typo in one's own red test had to be fixed
@@ -813,6 +817,64 @@ class TestReviewerFenceJudgesWhenAFileArrived(unittest.TestCase):
                          "tests/test_brand_new.py"):
                 result = self.fence(root, path)
                 self.assertEqual(result.returncode, 0, (path, result.stderr))
+
+    def test_the_baseline_names_this_runs_report_even_once_it_is_committed(self):
+        # The branch that reads `report` off the baseline, which nothing else
+        # reaches: a committed report is in neither snapshot, so "arrived during
+        # the run" answers no and only the name keeps it writable. The audit
+        # skill commits, so this is the ordinary end of a run.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.audited_repo(tmp)
+            git(root, "add", "-A")
+            git(root, "commit", "-qm", "report so far")
+            result = self.fence(root, f"adocs/audit/{TODAY}_adversarial.md")
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_without_git_the_report_half_still_permits_and_the_tests_half_refuses(self):
+        # The fallback for a repository nothing can date a run in. Each half
+        # keeps what it did before S151 gave it a baseline to read: refusing the
+        # report would lock the reviewer out of the one it is writing, and an
+        # existing test is still a patch.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            write(root, "adocs/audit/2026-01-01_adversarial.md", "# no git here\n")
+            write(root, "tests/test_existing.py", "# no git here\n")
+            self.assertEqual(
+                self.fence(root, "adocs/audit/2026-01-01_adversarial.md").returncode, 0)
+            self.assertEqual(self.fence(root, "tests/test_existing.py").returncode, 2)
+
+    def test_with_git_but_no_run_a_committed_report_is_still_refused(self):
+        # Found by the S151 fast check. The reviewer is spawnable directly, with
+        # no --audit new and so no baseline, and reading git's "untracked" as
+        # "this run wrote it" waved through every file the run merely found. Git
+        # can still settle one thing without a baseline: a tracked file with no
+        # change against HEAD is not a report this session opened.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            write(root, "adocs/audit/2026-01-01_adversarial.md", "# an earlier run\n")
+            write(root, "tests/test_existing.py", "# committed\n")
+            git_baseline(root)
+            for path in ("adocs/audit/2026-01-01_adversarial.md", "tests/test_existing.py"):
+                self.assertEqual(self.fence(root, path).returncode, 2, path)
+            # And the report a reviewer opens by hand is still writable.
+            write(root, f"adocs/audit/{TODAY}_adversarial.md", "# opened by hand\n")
+            self.assertEqual(
+                self.fence(root, f"adocs/audit/{TODAY}_adversarial.md").returncode, 0)
+
+    def test_a_baseline_that_cannot_date_anything_is_not_read_as_permission(self):
+        # The same fast check, second half: an unreadable `tree` fell through to
+        # the git-only answer, so the fence permitted what --audit check refuses
+        # to reconcile at all. A record that cannot date a file abstains.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            write(root, "tests/test_existing.py", "# untracked, predates the run\n")
+            git_baseline(root)
+            write(root, "tests/test_untracked.py", "# untracked, predates the run\n")
+            record = Path(root) / ".git" / "moltke_audit_baseline.json"
+            record.write_text(json.dumps({"report": f"adocs/audit/{TODAY}_adversarial.md",
+                                          "tree": None, "head": None}), encoding="utf-8")
+            for path in ("tests/test_existing.py", "tests/test_untracked.py"):
+                self.assertEqual(self.fence(root, path).returncode, 2, path)
 
 
 if __name__ == "__main__":

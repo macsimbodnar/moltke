@@ -1078,12 +1078,15 @@ def reviewer_write_refusal(root, rel):
         return None
     arrived = _arrived_during_the_run(root, rel, baseline)
     if arrived is None:
-        # No git, so no run to date anything against. Each half falls back to
-        # what it did before there was a baseline to read: the report is
-        # permitted, since refusing would lock the reviewer out of the one it
-        # just opened, and an existing test is a patch. --audit new has already
-        # warned there that nothing about the run can be reconciled at all.
-        arrived = under_audit
+        # No run recorded here to date the file against — no --audit new, or a
+        # record that will not parse. Each half falls back to what it did before
+        # there was a baseline to read: an existing test is a patch, and the
+        # report is permitted, since refusing would lock a reviewer spawned
+        # without --audit new out of the report it is writing. Except for the
+        # one thing git can still settle on its own: a tracked file with no
+        # change against HEAD is a report from an earlier run, whatever this run
+        # is, and overwriting it is what the finding is about.
+        arrived = under_audit and not _tracked_and_unchanged(root, rel)
     if arrived:
         return None
     if under_audit:
@@ -2694,20 +2697,41 @@ def audit_baseline(root):
     return saved if isinstance(saved, dict) else None
 
 
+def _tracked_and_unchanged(root, rel):
+    """Whether git has this path and reports nothing changed about it.
+
+    The one thing git can still rule out with no baseline to read: a file it
+    tracks with no change against HEAD cannot be a report the session in front
+    of it just opened. False when there is no git to ask, leaving the caller's
+    fallback exactly as it was.
+    """
+    state = worktree_state(root)
+    return state is not None and str(rel) not in state
+
+
 def _arrived_during_the_run(root, rel, baseline):
     """Whether rel is in the worktree now but was not when this run's baseline
-    was taken. None when there is no git to ask.
+    was taken. None when nothing here can date it.
 
-    Both halves are needed and neither answers alone: git's status says a path
-    is newly here but not since when, and the baseline records only paths that
-    were already changed, so a tracked clean file is in neither snapshot.
+    Both halves are needed and neither answers alone. Git says a path is newly
+    here, never since when: untracked is not "this run wrote it", and reading it
+    that way permitted every untracked file the run merely found — the S151 fast
+    check reproduced an earlier report and a pre-existing test both waved
+    through in a repository where no audit had been opened at all. And the
+    baseline records only paths that were already changed, so a tracked clean
+    file is in neither snapshot. With no usable baseline there is no run to date
+    against, and the answer is None rather than a guess from git alone; that is
+    the same record `--audit check` refuses without, so the two do not disagree
+    about whether a run is reconcilable.
     """
+    tree = baseline.get("tree") if isinstance(baseline, dict) else None
+    if not isinstance(tree, dict):
+        return None
     state = worktree_state(root)
     if state is None:
         return None
     entry = str(rel)
-    tree = baseline.get("tree") if isinstance(baseline, dict) else None
-    if isinstance(tree, dict) and entry in tree:
+    if entry in tree:
         return False        # already here and already changed before the run
     now = state.get(entry)
     return now is not None and not _is_departure(now[0]) and _is_new_file(now[0])

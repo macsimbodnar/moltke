@@ -405,10 +405,13 @@ never overwritten, and editing a test that predates the run is a patch. Until
 0.13.0 existence alone decided both, and each way round was the wrong one —
 overwriting an older report was permitted, and correcting a typo in the run's own
 red test was refused, which pushed the correction into `Bash`, where nothing is
-fenced (finding F11, fixed in step S151). Where there is no git to date anything,
-each half falls back to what it did before: the report is permitted, since
-refusing would lock the reviewer out of the one it just opened, and an existing
-test is refused.
+fenced (finding F11, fixed in step S151). Where no run is recorded to date a file
+against — no `--audit new` here, or a record that will not parse — each half
+falls back to what it did before: an existing test is refused, and the report is
+permitted, since refusing would lock a reviewer spawned without `--audit new`
+out of the report it is writing. With one exception git settles on its own: a
+file it tracks with no change against `HEAD` is a report from an earlier run
+whatever this run is, and is refused there too.
 
 Paths are resolved before any of that is decided, so `tests/../bin/moltke.py` is
 judged as `bin/moltke.py`. Before 0.4.0 only absolute paths were resolved, and a
