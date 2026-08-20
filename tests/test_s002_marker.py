@@ -10,7 +10,7 @@ import unittest
 from pathlib import Path
 
 from fixtures import marked_repo, workflow_repo, write_marker
-from surface import declared_modes
+from surface import declared_modes, moltke
 
 MOLTKE = Path(__file__).resolve().parent.parent / "bin" / "moltke.py"
 
@@ -67,19 +67,27 @@ class TestInv11MarkerGate(unittest.TestCase):
                 self.assertEqual(result.returncode, 0, (mode, result.stderr))
 
     def test_the_gated_list_is_the_parsers_own(self):
-        """Non-vacuity for the two tests above: a derivation that returned
-        nothing, or an exemption naming a mode that no longer exists, would let
-        them pass over an empty or shrinking list while still reading as every
-        mode — which is the failure they replace (F10).
+        """Non-vacuity for the two tests above: they asserted over a derived
+        list, and a derivation quietly returning fewer modes would shrink their
+        coverage while the names still read as every mode — F10 one level up.
+
+        So the derivation is checked against a second read of the same parser:
+        `declared_modes` walks the mutually exclusive group, this walks every
+        action, and each option has to be a declared mode or one of the
+        modifiers named here. Counting them instead would be an identity, since
+        the gated list is the declared list minus the exempt one.
         """
+        modifiers = {"-h", "--goal", "--stamp", "--pid", "--fail-re",
+                     "--ceiling", "--interval"}
+        options = {action.option_strings[0]
+                   for action in moltke.build_parser()._actions
+                   if action.option_strings}
         declared = declared_modes()
-        self.assertIn("--validate", declared)
-        self.assertIn("--session-start", declared)
+        self.assertEqual(options - modifiers, set(declared))
         for mode in GATE_EXEMPT:
             self.assertIn(mode, declared, "exempts a mode the parser does not declare")
         for mode in MODE_ARGS:
             self.assertIn(mode, declared, "arms a mode the parser does not declare")
-        self.assertEqual(len(gated_modes()) + len(GATE_EXEMPT), len(declared))
 
     def test_disabled_beats_other_marker_errors(self):
         with tempfile.TemporaryDirectory() as tmp:
