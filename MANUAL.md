@@ -54,11 +54,22 @@ The local form copies the checkout into that root's plugin cache rather than
 referencing it in place, and the copy takes untracked files too — including
 `.moltke.local.md`, so keep naming local credentials by reference and never by
 value. Because it is a copy, editing the checkout does not change what the
-hooks run:
+hooks run, and the command that copies it again is only half the remedy:
 
 ```
 claude plugin update moltke@moltke
 ```
+
+That command compares the manifest `version` and nothing else. Against an
+unbumped checkout it prints `already at the latest version` and touches nothing
+— success, and a no-op. Bump `version` first; then the same command copies the
+tree. Both halves observed on 2026-08-20 against a `directory` source.
+
+Scope is per install, not per root: a root holding the plugin at both `user` and
+`project` scope updates one of them, `user` by default, and the other keeps
+serving the version it was installed at. `claude plugin update moltke@moltke
+--scope project`, run from that project, brings the second along. `claude plugin
+list` names the scopes a root has.
 
 Either form also works from inside Claude Code, with `/plugin marketplace add`
 and `/plugin install`, followed by `/reload-plugins` to activate it in the
@@ -70,7 +81,11 @@ marketplace, and both are named moltke.
 Updates arrive only when `version` in `.claude-plugin/plugin.json` is bumped.
 That is deliberate: plugin hooks run shell commands on every machine where the
 plugin is installed, so an update should be a decision, not a side effect of a
-push.
+push. A `git` source adds a second gate on top of that one: it resolves against
+the pushed branch, so a bump that exists only in a local checkout is invisible
+to it however many times you run the update. A root installed from a git source
+is updated by pushing; a root installed from a directory source is updated from
+the checkout, and a machine can hold one of each.
 
 ## Set up a repository
 
@@ -368,6 +383,21 @@ resolve `${CLAUDE_PLUGIN_ROOT}` to the plugin cache, pinned at the installed
 version is bumped and the plugin reinstalled, so during an upgrade the hooks
 enforce the previous release's rules against the previous release's paths.
 
+The update reports success in both cases, which is what makes this quiet. It
+compares the manifest `version` alone, so an unbumped checkout and a source
+whose branch has moved on both come back `already at the latest version` —
+observed on 2026-08-20 in a root whose cache sat two commits behind its own
+recorded source, at the same version as it. The version field is the whole
+comparison; the commit is recorded, never checked. See the Install section for
+the two gates and for scope.
+
+A developer can therefore be locked out of updating one of their own roots. A
+root installed from a `git` source takes the release from the pushed branch, and
+moltke's agents never push (Git section), so on a machine running one root off a
+directory source and another off the git source, an agent-made release reaches
+the first and cannot reach the second until the branch is pushed by hand. That
+is the state 0.13.0 shipped in here.
+
 **The plugin ships moltke's own project state.** The repository root is also
 the plugin root, so `adocs/`, `tests/`, `AGENTS.md`, and `CLAUDE.md` are
 copied into every install's cache. They are inert. `claude plugin validate
@@ -419,6 +449,13 @@ permitted, since refusing would lock a reviewer spawned without `--audit new`
 out of the report it is writing. With one exception git settles on its own: a
 file it tracks with no change against `HEAD` is a report from an earlier run
 whatever this run is, and is refused there too.
+
+Two gaps in that dating shipped with 0.13.0 and are open as step S158. A
+baseline records that a run started and nothing records that one ended, so a
+reviewer holding a finished run's baseline is still dated against it. And a file
+git cannot see as new is read as older than the run: a `tests/` path under
+`.gitignore`, or a rename source the run recreated, is refused as having been
+here before, though this run wrote it.
 
 Paths are resolved before any of that is decided, so `tests/../bin/moltke.py` is
 judged as `bin/moltke.py`. Before 0.4.0 only absolute paths were resolved, and a

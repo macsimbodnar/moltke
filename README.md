@@ -119,10 +119,13 @@ whole contract. The short version:
 - The agent commits; the user pushes.
 - Your checkout is not what the hooks run. Installing from a local path copies
   the tree into the plugin cache of one Claude config root, so an edit to
-  `bin/moltke.py` reaches the live hooks only after `claude plugin update
-  moltke@moltke` in that root — and a machine with more than one root needs the
-  install repeated per root (DEC-057, MANUAL's Install section). Run
-  `--validate` and the suite against the checkout; that is what they read.
+  `bin/moltke.py` reaches the live hooks only after `version` in
+  `.claude-plugin/plugin.json` is bumped and `claude plugin update
+  moltke@moltke` is run in that root. The update compares `version` alone, so
+  without the bump it reports success and copies nothing. A machine with more
+  than one root needs this per root, and a root installed from a `git` source
+  takes it from the pushed branch instead (DEC-057, MANUAL's Install section).
+  Run `--validate` and the suite against the checkout; that is what they read.
 
 Every commit is expected green: full suite plus `--validate`.
 
