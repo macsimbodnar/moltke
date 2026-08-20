@@ -108,12 +108,17 @@ Correctness defects jump the queue ahead of planned work. Reorder `plan.md`
 accordingly rather than appending them at the end out of politeness.
 
 **The report and the steps that close it land in one commit.** Every commit is
-green (AGENTS.md's Git section) and INV-10 makes an `open` finding with neither a step nor a
-decision a violation, so a commit carrying the report alone is red by
-construction — and step 3 forbids reaching green by fixing anything first. Do
-steps 1 through 4, then commit the report, the steps, and any decision entries
-together. In between, `--validate` and the suite report those INV-10 lines; that
-is the expected transient, not a break.
+green (AGENTS.md's Git section) and INV-10 makes an `open` finding with neither a
+step nor a decision a violation, so a commit carrying a report with an open
+finding is red by construction — and step 3 forbids reaching green by fixing
+anything first. Do steps 1 through 4, then commit the report, the steps, and any
+decision entries together.
+
+Expect the transient to be loud while you are in it. `--validate` and the suite
+report those INV-10 lines, `--post-write` prints them after every edit, and
+`Stop` refuses the turn end three times before its deadlock waiver lets the
+fourth through. None of that is a break, and none of it is a reason to fix a
+finding early — finish step 4 and the lines go away.
 
 ## 5. Close by re-running, never by asserting
 

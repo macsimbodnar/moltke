@@ -980,13 +980,13 @@ class TestWideStepIdsAreRead(unittest.TestCase):
 
 
 class TestThisRepositoryPassesValidate(unittest.TestCase):
-    """S153 (2026-08-19_adversarial-F13): the non-vacuity anchor for every rule
-    in this file. Every step file across the three plan directories carries an
-    `id:` field today, and `goal:`, `accepts:`, `touches:` and `excludes:` span
-    lines all over `adocs/`, so a rule that fired wrongly on the real tree would
-    be loud here. It used to sit inside the class whose rule it anchored, which
-    named the wrong thing on failure: an untriaged audit finding turned "the id
-    field agrees with the filename" red."""
+    """S153 (2026-08-19_adversarial-F13): the real-tree anchor, next to
+    `TestInvariants.test_valid_tree_passes`, which anchors the fixture rules a
+    run against this repository never reaches. Every step file across the three
+    plan directories carries an `id:` field today, so an id rule that fired
+    wrongly would be loud here. It used to sit inside the class whose rule it
+    anchored, which named the wrong thing on failure: an untriaged audit finding
+    turned "the id field agrees with the filename" red."""
 
     def test_this_repository_passes(self):
         result = run_moltke(REPO, "--validate")

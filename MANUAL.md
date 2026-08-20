@@ -206,10 +206,12 @@ proposes a full adversarial audit and you accept or postpone; a postponed
 proposal waits as one line in `status.md`'s Parked block. And `/moltke:audit`
 runs the full machinery whenever you ask, unchanged: clean-context reviewer,
 report before fixes, every finding landing in a step or a decision. Those land
-in one commit: a commit carrying the report alone is red, since an open finding
-with no home is an INV-10 violation, and fixing something first to get green is
-the one thing the skill forbids. Expect `--validate` and the suite to report
-those INV-10 lines while the triage is in progress. A finding closes on a re-run
+in one commit: a commit carrying a report whose findings have no home yet is
+red, since an open finding with neither a step nor a decision is an INV-10
+violation, and fixing something first to get green is the one thing the skill
+forbids. Expect that window to be loud — `--validate`, the suite, and every
+`--post-write` report those INV-10 lines, and `Stop` refuses the turn end until
+the waiver below fires. It clears when the last finding gets its home. A finding closes on a re-run
 that no longer reports it, or by a recorded decision — the loop ends when you say
 it ends.
 
