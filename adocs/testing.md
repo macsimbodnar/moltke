@@ -2,11 +2,12 @@
 
 Acceptance criteria with their covering tests. Rows are added with the feature,
 never after, and not edited once written — append only is the rule for writing
-rows, not a promise that a row stays. `--step done` drops a row when one
-completion prunes the `plan.md` entry of every step that row names, on the same
-newest-5-done window as the plan (DEC-048); `plan_done/` and git keep the
-history. Rows are voluntary documentation: `test_command` is what gates a green
-suite.
+rows, not a promise that a row stays. `--step done` drops a row only when that
+one completion prunes the `plan.md` entry of every step the row names, on the
+same newest-5-done window as the plan (DEC-048); a row naming steps whose
+entries leave in different completions stays for good, and `plan_done/` and git keep the
+history either way. Rows are voluntary documentation: `test_command` is what
+gates a green suite.
 
 | Step | Criterion | Covering test | Result |
 |---|---|---|---|
@@ -634,3 +635,4 @@ suite.
 | S154 | dropping a teammate's claim names them, and the same id in two directories is reported as INV-6 rather than as already unclaimed | same class, test_a_teammates_claim_is_named_when_it_is_dropped and test_the_same_id_in_two_directories_is_named_as_the_duplicate_it_is (red observed on both: the success line said nothing about Alice, and a duplicate id answered "already in plan_todo/, unclaimed" because `locate_step` walks `plan_todo` first — which also made the twin half of the destination guard dead code) | pass 2026-08-20 |
 | S156 | the ledger header states what the tool does to it: rows leave when one completion prunes the `plan.md` entry of every step a row names, and append only is the rule for writing rows, not a promise they stay | no test — prose; the claim is traced to `prune_plan` in bin/moltke.py, whose row filter keeps a line unless `set(STEP_ID_RE.findall(line)) <= dropped_ids` for that single pass, and to `PLAN_DONE_KEPT = 5`. Suite 527 OK and `--validate` green after the edit | pass 2026-08-20 |
 | S156 | `templates/adocs/testing.md` carries the same header, with no live decision id in prose (DEC-002), and stops claiming a step cannot complete without a row | tests/test_s006_scaffold.py TestTemplatesAreGeneric (green; the removed sentence contradicted `inv_5_done_evidence`, stamp-present only since S125) | pass 2026-08-20 |
+| S156 | the header's pruning claim survives a row that names more than one step | no test — prose; verified against `prune_plan`, whose `dropped_ids` is scoped to a single call while the filter is `ids <= dropped_ids`, so an id pruned from plan.md never reappears in a later call's set. Found by the S156 fast check, which reproduced it: a row naming S001+S002 survived twelve completions, S001's entry leaving at the sixth and S002's at the seventh. The first wording read cumulatively and was false; `adocs/testing.md`'s own S145 row, naming S129 in prose, is a live instance | pass 2026-08-20 |
