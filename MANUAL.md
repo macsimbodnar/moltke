@@ -277,7 +277,7 @@ Cursor) must, since hooks exist only in Claude Code.
 | `--step start <id>` | move a step from `plan_todo/` to `plan_current/` and claim it: `author:` is stamped from `git config user.name`. Refuses when *your* active step is already at `plan_active_max` — a teammate's claimed step never blocks you — or when the destination id is already carried |
 | `--step block <parent> <name>` | create a blocking child in `plan_current/` and pause its parent; the name follows the same `[A-Za-z0-9_]+` rule as `--step new` |
 | `--step unpause <id>` | clear a `paused_by` that never resolves: one naming a step in no plan directory, one naming the step itself, or one in a ring of steps pausing each other. Exactly the cases `--validate` reports. Refuses when the pauser exists and is reachable — complete that one instead, which unpauses the parent on its way out |
-| `--step done <id>` | complete a step and move it to `plan_done/`, refusing before the suite gate runs when `plan_done/` already holds that id — history is never overwritten. Runs the `test_command` suite gate when the marker sets one, refuses on a non-zero exit. `--stamp` is required free text; multi-line stamps are written as indented continuations (DEC-048) |
+| `--step done <id>` | complete a step and move it to `plan_done/`, refusing before the suite gate runs when `plan_done/` already holds that id — history is never overwritten. Runs the `test_command` suite gate when the marker sets one, refuses on a non-zero exit. `--stamp` is required free text; multi-line stamps are written as indented continuations (DEC-048), and a stamp containing a blank line is refused before anything moves — a field ends at the first blank line, so the paragraphs below it would reach disk and be read by nobody (DEC-059) |
 | `--step status` | regenerate `status.md` from the filesystem, keeping the Parked list |
 | `--audit new <type>` | open `adocs/audit/YYYY-MM-DD_<type>.md`; never overwrites a report — a same-day re-run becomes `YYYY-MM-DD_<type>.2.md`, and its findings are numbered from that name. The type must match `[A-Za-z0-9_-]+`, so it stays a filename and cannot collide with that `.2` suffix. Also records a working-tree baseline for `--audit check` |
 | `--audit list` | every finding, its status, and what references it; exits 1 while an open finding has neither a step nor a decision, or while a report names a finding a code fence hides, which lists as `hidden` (INV-14) |
@@ -290,10 +290,15 @@ Cursor) must, since hooks exist only in Claude Code.
 | `--stop` | Stop hook: refuse to end a turn on violations, a stale `status.md`, or a completion that arrived without its stamp |
 
 `--step new` takes `--goal TEXT`; `--step done` takes `--stamp TEXT` and
-requires it. Both are written as one line of a step file, so a value containing
-a line break is refused rather than reflowed: the continuation would land flush
-left, where the parser reads it as a new field and drops it, and where `plan.md`
-reads it as another list entry. Long single lines are the convention here. Every mode exits 0 immediately in a repository with no marker, or
+requires it. `--goal` is written as one line of a step file, so a value
+containing a line break is refused rather than reflowed: the continuation would
+land flush left, where the parser reads it as a new field and drops it, and
+where `plan.md` reads it as another list entry. `--stamp` may span lines and is
+written as indented continuations, but a blank line in it is refused for the
+same reason one step further in: a field ends at the first blank line, so the
+continuations below it are dropped by every reader of the stamp.
+
+Every mode exits 0 immediately in a repository with no marker, or
 one whose marker says `enabled: false` — except `--scaffold` and `--decline`,
 which exist to create that marker, and `--watch`, whose exit codes are answers
 about a run and must never be faked by the gate.

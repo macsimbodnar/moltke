@@ -31,6 +31,10 @@ belong to whoever plans the steps that close these findings.
        `--log-prompt`, removed in 0.11.0 (DEC-046), and cites the review model
        as AGENTS.md §10, which is Hard prohibitions; `_turn_exits` invokes the
        removed flag from nowhere.
+- F09  bin/moltke.py:2228, 149 — `with_field` renders a blank line in a value
+       as twelve spaces and `parse_step_file` ends the field on any line that
+       strips to empty, so a paragraphed `--stamp` — documented multi-line and
+       deliberately ungated — comes back as its first paragraph.
 """
 
 import ast
@@ -632,6 +636,69 @@ class TestComponentDocsNameOnlyWhatExists(unittest.TestCase):
         self.assertEqual(cited, review,
                          "the audit skill points a reader at a section that is not the "
                          "review model it claims to be tier 3 of")
+
+
+class TestABlankLineInAStampIsRefused(unittest.TestCase):
+    """F09: `with_field` renders every continuation at twelve spaces, a blank
+    line among them, and `parse_step_file` ends a field on the first line that
+    strips to empty and then drops the indented lines below it. specs documents
+    `--stamp` as multi-line and `field_value_problem` deliberately does not gate
+    it, so a paragraphed stamp reached disk whole and came back as its first
+    paragraph — S095's truncation narrowed to the one field documented as
+    multi-line, in front of INV-5, the `Stop` arrival gate, and everything else
+    that quotes a stamp.
+
+    Refused rather than reflowed (DEC-059), which is the rule
+    `field_value_problem` already applies to a line break in a one-line field: a
+    stamp is evidence, and rewriting it quietly is the same class of defect as
+    reading it short.
+    """
+
+    PARAGRAPHED = "first paragraph of the stamp\n\nREADME and MANUAL checked; suite green"
+
+    def _done(self, root, stamp):
+        return run_moltke(root, "--step", "done", "S003", "--stamp", stamp)
+
+    def test_a_paragraphed_stamp_is_refused_and_nothing_moves(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            result = self._done(root, self.PARAGRAPHED)
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn("blank line", result.stderr)
+            self.assertIn("--stamp", result.stderr)
+            self.assertTrue((root / "adocs" / "plan_current" / "S003_active.md").exists())
+            self.assertEqual(list((root / "adocs" / "plan_done").glob("S003*")), [])
+
+    def test_a_whitespace_only_line_is_the_same_line(self):
+        # It renders as twelve spaces either way, so the parser cannot tell the
+        # two apart and neither may the check.
+        with tempfile.TemporaryDirectory() as tmp:
+            result = self._done(workflow_repo(tmp), "first paragraph\n   \nsecond paragraph")
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn("blank line", result.stderr)
+
+    def test_two_leading_blank_lines_are_refused_with_the_rest(self):
+        # Not politeness: one leading blank line lands where the `key:` line
+        # already ends, and parses; two put a twelve-space line between that key
+        # and its first continuation, and the whole value is dropped. The rule
+        # is one rule so that boundary is nobody's to remember.
+        with tempfile.TemporaryDirectory() as tmp:
+            result = self._done(workflow_repo(tmp), "\n\nthe whole stamp on one line")
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn("blank line", result.stderr)
+
+    def test_a_multi_line_stamp_without_one_completes_and_round_trips(self):
+        # Non-vacuity, and the half of DEC-048 that stands: multi-line is still
+        # accepted, so the refusals above are about the blank line and not about
+        # the newline `field_value_problem` refuses elsewhere.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            stamp = "first line of the stamp\nREADME and MANUAL checked; suite green"
+            result = self._done(root, stamp)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            done = root / "adocs" / "plan_done" / "S003_active.md"
+            self.assertEqual(moltke.parse_step_file(done)["done"],
+                             "first line of the stamp README and MANUAL checked; suite green")
 
 
 if __name__ == "__main__":

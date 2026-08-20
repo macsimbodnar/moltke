@@ -3,11 +3,11 @@
 Convenience view, rewritten at the end of every work turn. The filesystem beats
 this file: on disagreement, `plan_current/` wins.
 
-Updated: 2026-08-19 by `moltke --step status`.
+Updated: 2026-08-20 by `moltke --step status`.
 
-- Last done: S148
+- Last done: S149
 - In progress: none
-- Next: S149
+- Next: S150
 - Blocked: none
 - Parked:
   - two Claude config roots on this machine, each with its own plugin registry and

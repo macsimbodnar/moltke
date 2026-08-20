@@ -2108,6 +2108,34 @@ def field_value_problem(operand, value):
             f"it as a single line — long is fine, every completed step here is one line")
 
 
+def blank_line_problem(operand, value):
+    """S149 (2026-08-19_adversarial-F09): the one field the writers do allow to
+    span lines had a shape the reader still drops. `with_field` renders every
+    continuation at twelve spaces, a blank line among them, and
+    `parse_step_file` ends a field on the first line that strips to empty and
+    then discards the indented lines below it — so a paragraphed `--stamp`
+    reached disk whole and came back as its first paragraph, in front of INV-5,
+    the `Stop` arrival gate, and everything else that quotes a stamp. S095's
+    truncation, narrowed to the field documented as multi-line.
+
+    Refused rather than reflowed, for the reason `field_value_problem` gives: a
+    stamp is evidence. Any blank line counts, a leading or trailing one
+    included, even though `with_field`'s `rstrip` absorbs a trailing one and a
+    single leading one lands where the `key:` line already ends. Two leading
+    ones do not, and separating the blank line that parses from the blank line
+    that does not would be a second rule with a boundary to get wrong
+    (DEC-059).
+    """
+    if value is None or all(line.strip() for line in value.splitlines()):
+        return None
+    return (f"{operand} contains a blank line, and a field ends at the first line that is "
+            f"blank: what follows is written at twelve spaces, which the step-file parser "
+            f"reads as no field at all and drops, so every reader of this field — INV-5, "
+            f"the Stop arrival gate, anything quoting it — would see the text above the "
+            f"blank line alone. Multi-line is fine: pass the paragraphs as consecutive "
+            f"lines, with no blank line between them")
+
+
 def step_id_ceiling_problem(root):
     """S097 (2026-08-09_adversarial-F01): past the recognised id width the
     allocator produced an id no scanner can read. The file was on disk, the entry
@@ -2467,6 +2495,9 @@ def step_done(root, config, step_id, stamp):
                               f"drop {other_id} first")
     if not stamp or not stamp.strip():
         return refuse(f"--step done needs --stamp \"<what proves this step is finished>\"")
+    blank = blank_line_problem("--stamp", stamp)
+    if blank:
+        return refuse(blank)
     gate = run_test_command(root, config)
     if gate is not None:
         return gate
