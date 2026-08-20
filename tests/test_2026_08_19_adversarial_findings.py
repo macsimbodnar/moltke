@@ -57,7 +57,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from fixtures import audit_report, marked_repo, workflow_repo
+from fixtures import audit_report, marked_repo, step_file, workflow_repo
 from surface import REPO, moltke
 
 MOLTKE = REPO / "bin" / "moltke.py"
@@ -896,6 +896,13 @@ class TestIdScannersReadAnyWidth(unittest.TestCase):
         path.write_text("\n".join(body) + "\n", encoding="utf-8")
         return path
 
+    def step(self, root, step_id, **fields):
+        """A plan_todo step listed in plan.md, so INV-3 stays satisfied."""
+        step_file(Path(root) / "adocs" / "plan_todo", step_id, "x", goal="g", **fields)
+        plan = Path(root) / "adocs" / "plan.md"
+        plan.write_text(plan.read_text(encoding="utf-8") + f"2. {step_id}  x\n",
+                        encoding="utf-8")
+
     def test_a_four_digit_dec_id_is_read_by_inv_9(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = workflow_repo(tmp)
@@ -905,6 +912,12 @@ class TestIdScannersReadAnyWidth(unittest.TestCase):
             self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
             self.assertIn("INV-9", result.stdout)
             self.assertIn("DEC-1000", result.stdout)
+            # The word, not just the id: the malformed-heading branch below
+            # reports the same id with the same INV number, so narrowing
+            # DEC_ID_DIGITS back to three would still satisfy the two assertions
+            # above while the duplicate went unseen (found by the S152 fast
+            # check, which survived exactly that mutation).
+            self.assertIn("duplicate", result.stdout)
 
     def test_a_three_digit_dec_id_is_still_read(self):
         # Non-vacuity anchor: the width in use today keeps working, so the test
@@ -950,6 +963,75 @@ class TestIdScannersReadAnyWidth(unittest.TestCase):
             self.assertIn(f"{stem}-F100", result.stdout)
             listing = run_moltke(root, "--audit", "list")
             self.assertIn(f"{stem}-F100", listing.stdout)
+
+    def test_a_well_formed_wide_finding_is_accepted_and_can_be_closed(self):
+        # The acceptance side of the widening, which nothing asserted: under a
+        # stem rule still spelled two digits, a correctly named -F100 raises a
+        # false "should read <stem>-F<nn>" and no test noticed (S152 fast check).
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            stem = "2026-08-01_adversarial"
+            audit_report(root, [(f"{stem}-F100", "open")])
+            self.step(root, "S900", closes=f"{stem}-F100")
+            result = run_moltke(root, "--validate")
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            listing = run_moltke(root, "--audit", "list")
+            self.assertIn(f"{stem}-F100  open  (closed by S900)", listing.stdout)
+
+    def test_a_wider_id_does_not_discharge_the_finding_it_starts_with(self):
+        # Found by the S152 fast check. `finding_id not in references` was a
+        # substring test, safe only while every id was exactly two digits;
+        # widening made -F10 a prefix of -F100, so a step closing a finding that
+        # does not exist discharged an open one that does. The defect S136 and
+        # S141 fixed for step ids, arriving one document over.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            stem = "2026-08-01_adversarial"
+            audit_report(root, [(f"{stem}-F10", "open")])
+            self.step(root, "S900", closes=f"{stem}-F100")
+            result = run_moltke(root, "--validate")
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn("INV-10", result.stdout)
+            self.assertIn(f"{stem}-F10", result.stdout)
+            listing = run_moltke(root, "--audit", "list")
+            self.assertIn(f"{stem}-F10  open  (no reference)", listing.stdout)
+
+    def test_a_hidden_wide_finding_is_still_listed_as_hidden(self):
+        # own_finding_headings reads the raw text with its own width; a fence
+        # swallowing a -F100 left --audit list reporting a complete report.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            stem = "2026-08-01_adversarial"
+            report = Path(root) / "adocs" / "audit" / f"{stem}.md"
+            report.parent.mkdir(parents=True, exist_ok=True)
+            report.write_text(f"# Audit\n\n```\n### {stem}-F100  high  swallowed\n\n"
+                              f"Status: open\n```\n", encoding="utf-8")
+            listing = run_moltke(root, "--audit", "list")
+            self.assertIn(f"{stem}-F100  hidden", listing.stdout)
+
+    def test_a_decision_heading_may_carry_ordinary_punctuation(self):
+        # The S152 fast check again: matching the id against the whole token
+        # made `## DEC-061: title` a violation, and INV-9 is a cheap check, so
+        # an agent writing that heading wedged its own Stop gate. Emphasis and a
+        # second space were skipped entirely, which is the blindness next door.
+        for heading in ("DEC-061: with a colon", "DEC-061, and a comma",
+                        "DEC-061/DEC-062  a merged pair", "**DEC-061** emphasised",
+                        " DEC-061  an extra space"):
+            with tempfile.TemporaryDirectory() as tmp:
+                root = workflow_repo(tmp)
+                self.decisions(root, heading)
+                result = run_moltke(root, "--validate")
+                self.assertEqual(result.returncode, 0, (heading, result.stdout))
+
+    def test_the_id_is_still_read_out_of_a_punctuated_heading(self):
+        # Non-vacuity for the tolerance above: tolerating the punctuation must
+        # not mean skipping the entry, which is what it replaced.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = workflow_repo(tmp)
+            self.decisions(root, "DEC-061: first", "**DEC-061** duplicate")
+            result = run_moltke(root, "--validate")
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn("duplicate decision id DEC-061", result.stdout)
 
     def test_a_wide_finding_id_still_has_to_carry_its_own_report_name(self):
         # Widening the read does not widen what is accepted: INV-10's stem rule

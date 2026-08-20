@@ -655,8 +655,27 @@ FINDING_STATUSES = ("open", "planned", "closed", "accepted")
 DEC_ID_DIGITS = r"\d{3,}"
 FINDING_ID_DIGITS = r"\d{2,}"
 FINDING_RE = re.compile(rf"^###\s+(\S*-F{FINDING_ID_DIGITS})\b", re.M)
-DEC_HEADING_RE = re.compile(r"^## (DEC-\S*)", re.M)
+# `\s+` and the emphasis characters because a heading is prose: `##  DEC-061`
+# and `## **DEC-061**` were skipped by a single literal space, which is the same
+# blindness one line over. The id is read from the front of the token rather
+# than matched against the whole of it, so ordinary punctuation after it — a
+# colon, a comma, a second id — is a heading style and not a violation (S152
+# fast check, which wedged the Stop gate on `## DEC-061: title`).
+DEC_HEADING_RE = re.compile(r"^##\s+[*_`]*(DEC-\S*)", re.M)
 DEC_ID_RE = re.compile(rf"DEC-{DEC_ID_DIGITS}")
+
+
+def references_finding(text, finding_id):
+    """Whether text names this finding and not a wider one.
+
+    A plain `in` was safe only while every id was exactly two digits: widening
+    to F100 made F10 a prefix of it, so a `closes:` naming a finding that does
+    not exist discharged an open one that does, and `--audit list` printed it
+    closed (S152 fast check). More digits is the only way one finding id
+    contains another, so that is the whole rule — the same defect S136 and S141
+    fixed for step ids, one document over.
+    """
+    return re.search(rf"{re.escape(finding_id)}(?!\d)", text) is not None
 
 
 def inv_9_unique_dec_ids(root, config):
@@ -665,13 +684,15 @@ def inv_9_unique_dec_ids(root, config):
         return []
     seen, violations = set(), []
     text = read_stripped(path)
-    for dec_id in DEC_HEADING_RE.findall(text):
-        if not DEC_ID_RE.fullmatch(dec_id):
-            violations.append(f"INV-9: {dec_id} heads an entry in decisions.md and is not a "
-                              f"decision id; ids read DEC- followed by three digits or more, "
-                              f"so an entry headed anything else is skipped by everything "
-                              f"that scans for one")
+    for heading in DEC_HEADING_RE.findall(text):
+        match = DEC_ID_RE.match(heading)
+        if match is None:
+            violations.append(f"INV-9: {heading} heads an entry in decisions.md and does not "
+                              f"start with a decision id; ids read DEC- followed by three "
+                              f"digits or more, so an entry headed anything else is skipped "
+                              f"by everything that scans for one")
             continue
+        dec_id = match.group(0)
         if dec_id in seen:
             violations.append(f"INV-9: duplicate decision id {dec_id} in decisions.md; "
                               f"renumber the new entry to the next free DEC id")
@@ -764,7 +785,7 @@ def inv_10_audit_findings(root, config):
             if status not in FINDING_STATUSES:
                 violations.append(f"INV-10: finding {finding_id} in {report.name} has status "
                                   f"{status!r}; set one of {', '.join(FINDING_STATUSES)}")
-            elif status == "open" and finding_id not in references:
+            elif status == "open" and not references_finding(references, finding_id):
                 violations.append(f"INV-10: open finding {finding_id} in {report.name} has no "
                                   f"step closes: reference and no decisions.md entry; plan it "
                                   f"or record why it is accepted")
@@ -2975,10 +2996,10 @@ def audit_list(root, config):
         for finding_id, status in findings:
             total += 1
             closers = [s for dirname in PLAN_DIRS for s, _p, fields in steps[dirname]
-                       if finding_id in field_value(fields, "closes")]
+                       if references_finding(field_value(fields, "closes"), finding_id)]
             if closers:
                 where = f"closed by {', '.join(closers)}"
-            elif finding_id in references:
+            elif references_finding(references, finding_id):
                 where = "referenced in decisions.md"
             else:
                 where = "no reference"
