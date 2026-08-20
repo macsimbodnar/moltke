@@ -25,7 +25,6 @@ which is why the audit's own steps sit in front of everything it did not raise.
 That run's verdicts closed three of the 2026-08-18 findings and left the other
 three accepted.
 
-146. S151  the reviewer fence refuses overwriting another report and permits correcting its own new test
 147. S152  DEC and finding id scanners are not blind past their width, and AGENTS.md 5's lint claim is enforced or dropped
 148. S153  the self-host checks name what they check, and the audit commit shape is stated
 149. S154  the lifecycle can undo a claim, returning a step to plan_todo/ without a by-hand move

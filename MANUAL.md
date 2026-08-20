@@ -192,7 +192,8 @@ author, so a merge of two branches each carrying its owner's active step is
 green.
 
 What merges how: the scaffolded `.gitattributes` union-merges `adocs/testing.md`
-(append-only rows, both sides kept) and `adocs/status.md` — status is derived,
+(rows are only added, so both sides are kept; a union merge can restore a row the
+other side pruned, which a voluntary ledger survives) and `adocs/status.md` — status is derived,
 so after any merge run `bin/moltke.py --step status` and commit the
 regeneration. `adocs/plan.md` is left to merge honestly: its order is a human
 decision, and a conflict there is a real question, not noise. Step-id
