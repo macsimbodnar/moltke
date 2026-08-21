@@ -471,12 +471,14 @@ inherited a finished run's dating and could overwrite that run's report by name.
 A file git cannot see at all is not dated either, and is permitted where it
 stands. `git status --porcelain -uall` omits ignored files, so a `tests/` path
 under `.gitignore` is missing from both snapshots for the same reason at both
-ends; subtracting them called it older than the run whoever wrote it, and
-refusing it pushed the write into `Bash`, where nothing is fenced. It is not on
-the evidence trail — it cannot be committed with the report, and `--audit check`
-cannot report it — so there is nothing there to protect. Tracked files are
-excepted, because git excepts them: a committed report stays visible however the
-patterns read. Being invisible to git is the whole of it. A path git can see is
+ends; subtracting them called it older than the run whoever wrote it. Refusing
+stated a fact nothing had established, and pushed the write into `Bash`, where
+nothing is fenced at all. Detection is not given up with it: a run that commits
+such a file — `git add -f`, since nothing else stages it — puts it back where
+`--audit check` reads it, and the check, not the fence, is the guarantee
+(DEC-022) in any case. Tracked files are excepted, because git excepts them: a
+committed report stays visible however the patterns read. Being invisible to git
+is the whole of it. A path git can see is
 dated correctly however tangled its history — a rename source the run recreated
 reports both the rename and its own untracked line, and the line of its own
 wins, so it is permitted.

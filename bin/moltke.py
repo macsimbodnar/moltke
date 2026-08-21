@@ -1125,12 +1125,7 @@ def reviewer_write_refusal(root, rel):
                 f"Open your own with --audit new <type>.")
     if _invisible_to_git(root, rel):
         return None
-    if ended:
-        # A finished run's snapshot dates nothing: "not there when that run
-        # opened" is not "this reviewer wrote it". Each half falls back to what
-        # it does with no baseline at all, below.
-        baseline = None
-    arrived = _arrived_during_the_run(root, rel, baseline)
+    arrived = _arrived_during_the_run(root, rel, baseline, ended=ended)
     if arrived is None:
         # No run recorded here to date the file against — no --audit new, or a
         # record that will not parse. Each half falls back to what it did before
@@ -2884,12 +2879,12 @@ def _invisible_to_git(root, rel):
     `worktree_state` is `git status --porcelain -uall`, which omits ignored
     files, and so is the baseline built from it: an ignored path is absent from
     both snapshots for the same reason at both ends, and subtracting them said
-    "was here before this run" about a file git has never seen (S158). What the
-    fence protects is the evidence trail, and a file git cannot see is not on
-    it — it cannot be committed with the report and `--audit check` cannot
-    report it either — so it is permitted rather than refused with a claim
-    nothing established. Refusing pushed the write into Bash, where nothing is
-    fenced or classified, which is the harm F11 was about.
+    "was here before this run" about a file git has never seen (S158). It is
+    permitted rather than refused with a claim nothing established: refusing
+    pushed the write into Bash, where nothing is fenced or classified, which is
+    the harm F11 was about. Detection is not given up with it — a run that
+    commits the file with `git add -f` puts it back where `--audit check` reads
+    it, and DEC-022 made the check the guarantee in any case.
 
     `check-ignore` consults the index, so a tracked file matching a pattern is
     not ignored and stays visible here. Asked per path rather than by widening
@@ -2900,7 +2895,7 @@ def _invisible_to_git(root, rel):
     return result is not None and result.returncode == 0
 
 
-def _arrived_during_the_run(root, rel, baseline):
+def _arrived_during_the_run(root, rel, baseline, ended=False):
     """Whether rel is in the worktree now but was not when this run's baseline
     was taken. None when nothing here can date it.
 
@@ -2924,6 +2919,15 @@ def _arrived_during_the_run(root, rel, baseline):
     entry = str(rel)
     if entry in tree:
         return False        # already here and already changed before the run
+    if ended:
+        # Only the arrival half goes stale when a run ends (S158 fast check).
+        # "Not in the tree when that run opened" is every file written since,
+        # by anyone, so it cannot mean this reviewer wrote it; "already in the
+        # tree when it opened" is older still and holds afterwards. Dropping
+        # the whole snapshot permitted an uncommitted earlier report — the one
+        # state the gap this closed existed in, since a committed one is
+        # already refused by _tracked_and_unchanged.
+        return None
     now = state.get(entry)
     return now is not None and not _is_departure(now[0]) and _is_new_file(now[0])
 

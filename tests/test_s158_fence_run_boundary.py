@@ -143,6 +143,28 @@ class TestTheFenceKnowsWhenARunEnded(FenceCase):
             refused = self.fence(root, f"adocs/audit/{TODAY}_adversarial.md")
             self.assertEqual(refused.returncode, 2, refused.stdout + refused.stderr)
 
+    def test_an_ended_run_still_knows_what_was_there_when_it_opened(self):
+        # Found by the S158 fast check: ending a run must drop the *arrival*
+        # inference and nothing else. "Not in the tree when that run opened" is
+        # every file written since, by anyone, so it cannot say this reviewer
+        # wrote it — but "already in the tree when it opened" is older still,
+        # and it is what refuses an earlier report that is not the baseline's
+        # own. Discarding the whole snapshot moved the S158 harm one file over:
+        # an uncommitted earlier report, which is the only state the original
+        # gap existed in, since a committed one is already refused.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.opened_run(tmp)
+            first = f"adocs/audit/{TODAY}_adversarial.md"
+            second = run_moltke(root, "--audit", "new", "adversarial")
+            self.assertEqual(second.returncode, 0, second.stdout + second.stderr)
+            live = self.fence(root, first)
+            self.assertEqual(live.returncode, 2, live.stdout + live.stderr)
+            check = run_moltke(root, "--audit", "check")
+            self.assertEqual(check.returncode, 0, check.stdout + check.stderr)
+            after = self.fence(root, first)
+            self.assertEqual(after.returncode, 2, after.stdout + after.stderr)
+            self.assertIn("never overwritten", after.stderr)
+
     def test_the_end_is_recorded_where_the_baseline_is(self):
         # §11: watch state is derivable from the filesystem and so is this. The
         # record lives in the git directory beside the baseline it belongs to,
@@ -172,16 +194,23 @@ class TestTheFenceDoesNotDateWhatGitCannotSee(FenceCase):
 
     def test_a_visible_test_that_predates_the_run_is_still_a_patch(self):
         # Non-vacuity: the widening is "git cannot see it", not "it is under
-        # tests/". An untracked file the run merely found stays refused.
+        # tests/". Both visible shapes stay refused — a committed one, absent
+        # from worktree_state, and an untracked one the run merely found, which
+        # is in the baseline's own snapshot. The .gitignore is present and
+        # names neither, so what separates them from the permitted case above
+        # is visibility and nothing else. Sharpened by the S158 fast check: the
+        # untracked half was claimed here and only the committed one was run.
         with tempfile.TemporaryDirectory() as tmp:
-            root = self.opened_run(tmp, extra=[(".gitignore", self.IGNORE)])
-            write(root, "tests/test_someone_elses.py", "# uncommitted, predates the run\n")
-            # Written after --audit new, so only the baseline separates it from
-            # the permitted case above.
-            git(root, "add", "tests/test_someone_elses.py")
-            git(root, "commit", "-qm", "someone else's test")
-            result = self.fence(root, "tests/test_someone_elses.py")
-            self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+            root = workflow_repo(tmp)
+            write(root, ".gitignore", self.IGNORE)
+            write(root, "tests/test_committed.py", "# committed before the run\n")
+            git_baseline(root)
+            write(root, "tests/test_untracked.py", "# uncommitted, predates the run\n")
+            opened = run_moltke(root, "--audit", "new", "adversarial")
+            self.assertEqual(opened.returncode, 0, opened.stdout + opened.stderr)
+            for path in ("tests/test_committed.py", "tests/test_untracked.py"):
+                result = self.fence(root, path)
+                self.assertEqual(result.returncode, 2, (path, result.stdout, result.stderr))
 
     def test_a_tracked_file_matching_an_ignore_pattern_is_still_visible(self):
         # git ignores patterns for tracked files, and so must this: a report
