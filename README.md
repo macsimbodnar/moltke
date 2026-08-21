@@ -56,8 +56,9 @@ python3 bin/moltke.py --validate
 ```
 
 The audit gate, after a reviewer run: the first reconciles what the run changed
-against the baseline `--audit new` recorded, the second refuses while an open
-finding has neither a plan step nor a decision.
+against the baseline `--audit new` recorded and marks that run ended, so the
+reviewer write fence stops dating files against it; the second refuses while an
+open finding has neither a plan step nor a decision.
 
 ```
 python3 bin/moltke.py --audit check

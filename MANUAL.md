@@ -304,7 +304,7 @@ Cursor) must, since hooks exist only in Claude Code.
 | `--step status` | regenerate `status.md` from the filesystem, keeping the Parked list |
 | `--audit new <type>` | open `adocs/audit/YYYY-MM-DD_<type>.md`; never overwrites a report — a same-day re-run becomes `YYYY-MM-DD_<type>.2.md`, and its findings are numbered from that name. The type must match `[A-Za-z0-9_-]+`, so it stays a filename and cannot collide with that `.2` suffix. Also records a working-tree baseline for `--audit check` |
 | `--audit list` | every finding, its status, and what references it; exits 1 while an open finding has neither a step nor a decision, or while a report names a finding a code fence hides, which lists as `hidden` (INV-14) |
-| `--audit check` | reconcile what the run changed against that baseline: the report and new files under `tests/` are expected, anything else exits 1. Run it after the reviewer returns, before acting on a finding |
+| `--audit check` | reconcile what the run changed against that baseline: the report and new files under `tests/` are expected, anything else exits 1. Run it after the reviewer returns, before acting on a finding — which is what ends the run, so the write fence stops treating that baseline as the current one |
 | `--watch <log> <regex> --ceiling <dur>` | self-terminating watcher for long runs; see "Watching long runs". Optional `--pid <p>`, `--fail-re <regex>`, `--interval <dur>` |
 | `--session-start` | SessionStart hook: emit the stack and derived next step as context |
 | `--pre-write` | PreToolUse hook for Write and Edit: refuse writes into `plan_done/`, step files outside the plan directories, and reviewer writes other than the evidence this run produced under `adocs/audit/` and `tests/` |
@@ -459,12 +459,24 @@ out of the report it is writing. With one exception git settles on its own: a
 file it tracks with no change against `HEAD` is a report from an earlier run
 whatever this run is, and is refused there too.
 
-Two gaps in that dating shipped with 0.13.0 and are open as step S158. A
-baseline records that a run started and nothing records that one ended, so a
-reviewer holding a finished run's baseline is still dated against it. And a file
-git cannot see at all is read as older than the run: a `tests/` path under
-`.gitignore` is refused as having been here before, though this run wrote it.
-Being invisible to git is the whole of that second gap. A path git can see is
+A run also has an end (step S158). `--audit check` is it — the skill and the
+table above both run it once the reviewer has returned — and it stamps the
+baseline `ended` beside the tree it recorded. An ended run dates nothing: a
+write to the report it names is refused outright, pointing at `--audit new
+<type>`, and every other path falls back to the no-baseline halves above. Up to
+and including 0.13.0 the baseline recorded only that a run had started, and
+recorded it forever, so a reviewer spawned with no `--audit new` of its own
+inherited a finished run's dating and could overwrite that run's report by name.
+
+A file git cannot see at all is not dated either, and is permitted where it
+stands. `git status --porcelain -uall` omits ignored files, so a `tests/` path
+under `.gitignore` is missing from both snapshots for the same reason at both
+ends; subtracting them called it older than the run whoever wrote it, and
+refusing it pushed the write into `Bash`, where nothing is fenced. It is not on
+the evidence trail — it cannot be committed with the report, and `--audit check`
+cannot report it — so there is nothing there to protect. Tracked files are
+excepted, because git excepts them: a committed report stays visible however the
+patterns read. Being invisible to git is the whole of it. A path git can see is
 dated correctly however tangled its history — a rename source the run recreated
 reports both the rename and its own untracked line, and the line of its own
 wins, so it is permitted.

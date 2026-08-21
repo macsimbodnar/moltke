@@ -79,6 +79,12 @@ python3 ${CLAUDE_PLUGIN_ROOT}/bin/moltke.py --audit check
 
 It compares the tree against the baseline `--audit new` recorded. The report and
 any new files under `tests/` are expected; anything else exits 1 and is listed.
+
+Running it ends the run. The fence dates the reviewer's writes against that
+baseline, and an ended one dates nothing: after this, a write to the report is
+refused by name. So run it once the reviewer has returned, not while it is
+still working, and close a finding by opening a new run at step 1 rather than
+by reopening this report.
 Review each one with `git diff` and keep or revert it deliberately, before any
 finding is acted on — a report produced by a run that also patched the code is
 not evidence of what was there.

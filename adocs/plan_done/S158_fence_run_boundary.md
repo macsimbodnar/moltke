@@ -18,4 +18,6 @@ decisions:
 closes:
 blocks:
 paused_by:
-done:
+done:      2026-08-21. --audit check now stamps the baseline `ended`, which is the end of a run because MANUAL's table and the audit skill both run it once the reviewer has returned; the fence refuses a write to an ended run's report by name and lets an ended baseline date nothing else, falling back to the no-baseline halves. A path git cannot see at all is permitted where it stands: _invisible_to_git asks `git check-ignore -q --` per path, so worktree_state is not widened to --ignored, which --audit check shares. Accepted cost, stated in the skill: a reviewer that runs --audit check itself through Bash locks itself out of its own report, a loud block over a silent pass.
+            Red observed on both halves before the fix (5 of 11 failing); the rename-source case S158's accepts named as a second red test came back green on arrival, as the S155 fast check predicted. check-ignore's index awareness mutation-checked with --no-index. Suite 538 OK, --validate green. README, MANUAL, specs.md and skills/audit/SKILL.md updated; testing.md carries five rows.
+author:    Maksym Bodnar

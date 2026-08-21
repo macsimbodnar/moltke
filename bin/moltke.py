@@ -1098,6 +1098,13 @@ def reviewer_write_refusal(root, rel):
     nothing is fenced or classified — the 2026-08-19 run did exactly that. The
     question is not whether the file exists but whether this run made it, and
     --audit new records precisely that.
+
+    Two ways that dating went wrong shipped with 0.13.0 and are closed here
+    (S158). A baseline recorded that a run started and nothing recorded that
+    one ended, so a reviewer spawned later — no --audit new, so no baseline of
+    its own — was dated against a finished run and could overwrite that run's
+    report by name. And a file git cannot see at all was called older than the
+    run, whoever wrote it.
     """
     parts = rel.parts
     under_audit = parts[:2] == (DOCS, "audit")
@@ -1108,10 +1115,21 @@ def reviewer_write_refusal(root, rel):
                 f"someone else.")
     if not (root / rel).exists():
         return None     # creating evidence is what the reviewer is spawned to do
-    baseline = audit_baseline(root)
-    report = baseline.get("report") if isinstance(baseline, dict) else None
+    baseline = audit_baseline(root) or {}
+    ended, report = bool(baseline.get("ended")), baseline.get("report")
     if report is not None and str(rel) == report:
+        if not ended:
+            return None
+        return (f"{rel} belongs to a run that --audit check already reconciled, and a "
+                f"report is evidence that is added to, never overwritten (AGENTS.md §2). "
+                f"Open your own with --audit new <type>.")
+    if _invisible_to_git(root, rel):
         return None
+    if ended:
+        # A finished run's snapshot dates nothing: "not there when that run
+        # opened" is not "this reviewer wrote it". Each half falls back to what
+        # it does with no baseline at all, below.
+        baseline = None
     arrived = _arrived_during_the_run(root, rel, baseline)
     if arrived is None:
         # No run recorded here to date the file against — no --audit new, or a
@@ -2860,6 +2878,28 @@ def _tracked_and_unchanged(root, rel):
     return state is not None and str(rel) not in state
 
 
+def _invisible_to_git(root, rel):
+    """Whether git is ignoring this path, so nothing here can date it.
+
+    `worktree_state` is `git status --porcelain -uall`, which omits ignored
+    files, and so is the baseline built from it: an ignored path is absent from
+    both snapshots for the same reason at both ends, and subtracting them said
+    "was here before this run" about a file git has never seen (S158). What the
+    fence protects is the evidence trail, and a file git cannot see is not on
+    it — it cannot be committed with the report and `--audit check` cannot
+    report it either — so it is permitted rather than refused with a claim
+    nothing established. Refusing pushed the write into Bash, where nothing is
+    fenced or classified, which is the harm F11 was about.
+
+    `check-ignore` consults the index, so a tracked file matching a pattern is
+    not ignored and stays visible here. Asked per path rather than by widening
+    `worktree_state` to `--ignored`, which `--audit check` shares and which
+    would start reporting every ignored file as something the run produced.
+    """
+    result = _git_run(["git", "-C", str(root), "check-ignore", "-q", "--", str(rel)])
+    return result is not None and result.returncode == 0
+
+
 def _arrived_during_the_run(root, rel, baseline):
     """Whether rel is in the worktree now but was not when this run's baseline
     was taken. None when nothing here can date it.
@@ -3005,6 +3045,31 @@ def _is_new_file(status):
 # classify, and a worklog file, if one exists, is judged like any other path.
 
 
+def _record_run_ended(root, saved):
+    """Stamp the baseline as a run that is over.
+
+    `--audit check` is the end of a run, and nothing else here observes one:
+    MANUAL and the audit skill both say to run it once the reviewer returns, so
+    by the time it reads the tree the spawn is gone. Until S158 a baseline said
+    only that a run had started, and said it forever (§11: the record is beside
+    the baseline in the git directory, so the boundary is derivable from the
+    filesystem rather than from a session's memory).
+
+    Failing to record it is not failing to check: the reconcile the operator
+    asked for has already run, and a missed stamp costs the old behaviour
+    rather than a wrong one.
+    """
+    path = _audit_baseline_path(root)
+    if path is None or saved.get("ended"):
+        return
+    try:
+        path.write_text(json.dumps({**saved, "ended": True}), encoding="utf-8")
+    except OSError as exc:
+        print(f"moltke: could not record that this run ended ({exc}); the reviewer write "
+              f"fence will keep dating files against this baseline as though the run were "
+              f"still open.", file=sys.stderr)
+
+
 def audit_check(root, config):
     """DEC-022: prevention gave way to detection. Report what the run actually
     changed, so a contaminated report is known before any finding is acted on."""
@@ -3017,6 +3082,7 @@ def audit_check(root, config):
     if current is None:
         return refuse("--audit check needs a git worktree: it compares git status against the "
                       "baseline recorded by --audit new")
+    _record_run_ended(root, saved)
 
     before, report = saved["tree"], saved.get("report", "")
     expected, unexpected = [], []
