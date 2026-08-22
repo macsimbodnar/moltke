@@ -39,7 +39,8 @@ keeps no record of how far you got.
 Classify it before touching anything.
 
 - **Trivial and in scope** — fix it now, no new step. A defect still gets a
-  red-first regression test and a `testing.md` row. Note it in the recap.
+  red-first regression test and a `testing.md` row. Note it in the step stamp
+  and the commit message.
 - **Blocking** — `--step block <parent_id> <short_name>`. Creates the child in
   `plan_current/` with `blocks:` set, and pauses the parent with `paused_by:`.
 - **Independent** — `--step new <name>` and leave it in `plan_todo/`, however
