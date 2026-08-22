@@ -641,32 +641,66 @@ class TestComponentDocsNameOnlyWhatExists(unittest.TestCase):
                          "deleted, so an operator following it expects a change no mode "
                          "produces and a gate no hook applies")
 
-    # The recap as a place to write is what DEC-046 deleted; the bare word is
-    # not. DEC-037 and DEC-038 put a short recap in the console and DEC-046 kept
-    # it there, so a skill may still name one. Only a destination is dead, and
-    # the whole text is searched rather than each line, since `\s+` spans the
-    # wrap this repository's prose puts in the middle of a phrase.
-    RECAP_AS_DESTINATION = re.compile(r"\b(?:in|into|to|under)\s+the\s+recap\b",
-                                      re.IGNORECASE)
+    # What DEC-046 deleted is the recap as a place to *write*; DEC-037 and
+    # DEC-038 keep a short recap in the console, and a doc may say so. The two
+    # are not told apart by the preposition — "prints it in the recap" is legal
+    # console prose — so the one live destination is named and exempted, and any
+    # other is refused. A skill needing one is a decision, not a test edit.
+    # Modifiers are matched because "in the step recap" is the same drift with a
+    # word inserted, and plurals for the same reason. Two limits, both stated
+    # rather than silent: one modifier, so "in the final step recap" slips; and
+    # the exemption takes "console" at its word, so a durable note aimed at
+    # console output — the same §11 defect one word over — is not this scan's.
+    RECAP_AS_DESTINATION = re.compile(
+        r"\b(?:in|into|to|under)\s+(?:the|a|its|his|her|their|our|one)?\s*"
+        r"(?!console\b)(?:\w+\s+)?recaps?\b",
+        re.IGNORECASE)
+
+    def recap_destinations(self, body):
+        r"""Every "write it in the recap" in `body`, as `line: phrase`.
+
+        The whole text is searched rather than each line, since a phrase this
+        repository wraps mid-way is still one phrase, and `\s+` spans the break.
+        """
+        return [f"{body.count(chr(10), 0, match.start()) + 1}: "
+                f"{' '.join(match.group(0).split())}"
+                for match in self.RECAP_AS_DESTINATION.finditer(body)]
+
+    def test_the_recap_scan_catches_what_it_claims_to(self):
+        """Non-vacuity for the scan below, whose corpus is clean by construction
+        once S159 lands: the helper is run over prose instead, so neither the
+        pattern nor the whole-text search can rot into something that finds
+        nothing and still reports a clean tree."""
+        for prose, why in [
+                ("note it in the recap.", "the phrasing S159 removed"),
+                ("noted in\nthe recap", "a phrase broken over a line, which is how "
+                                        "this repository wraps prose, and the only "
+                                        "case the per-line scan would miss"),
+                ("note it in the step recap", "the same drift with a word inserted"),
+                ("write it in a recap", "an article other than `the`"),
+                ("recorded in their recaps", "a plural")]:
+            with self.subTest(prose=prose):
+                self.assertTrue(self.recap_destinations(prose),
+                                f"the scan no longer sees {why}")
+        for legal, why in [
+                ("prints it in the console recap", "DEC-037's console recap, which is "
+                                                   "live and is written in"),
+                ("the recap is two sentences", "the bare word, which DEC-046 kept")]:
+            with self.subTest(prose=legal):
+                self.assertEqual(self.recap_destinations(legal), [],
+                                 f"the scan refuses {why}")
 
     def test_no_component_doc_sends_a_note_to_the_recap(self):
         """S159: the step skill routed a trivial in-scope fix "in the recap" —
         the worklog era's word, in a file saying stamp everywhere else — so the
         one instruction for recording a drive-by fix pointed at nothing. Same
         component_docs() set as the worklog scan above."""
-        self.assertRegex("note it in the recap.", self.RECAP_AS_DESTINATION,
-                         "the pattern stopped matching the phrasing S159 removed")
-        self.assertRegex("noted in\nthe recap", self.RECAP_AS_DESTINATION,
-                         "the pattern misses a phrase broken over a line, which is "
-                         "how this repository wraps prose")
         docs = self.component_docs()
         self.assertTrue(docs, "no component doc to scan; the scan below would be vacuous")
-        naming = []
-        for doc in docs:
-            body = doc.read_text(encoding="utf-8")
-            naming += [f"{doc.relative_to(REPO)}:{body.count(chr(10), 0, m.start()) + 1}: "
-                       f"{m.group(0)}"
-                       for m in self.RECAP_AS_DESTINATION.finditer(body)]
+        naming = [f"{doc.relative_to(REPO)}:{hit}"
+                  for doc in docs
+                  for hit in self.recap_destinations(
+                      doc.read_text(encoding="utf-8"))]
         self.assertEqual(naming, [],
                          "a shipped skill or agent definition sends a durable note to "
                          "the recap, which DEC-046 left as console output and commit "

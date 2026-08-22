@@ -44,7 +44,7 @@ Full suite:
 python3 -m unittest discover -s tests
 ```
 
-540 tests, 3 of which skip on a case-sensitive filesystem. A test whose
+541 tests, 3 of which skip on a case-sensitive filesystem. A test whose
 precondition is genuinely absent skips with a message saying what would activate
 it, rather than passing silently.
 
