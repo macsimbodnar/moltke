@@ -1,9 +1,9 @@
 # This machine
 
-Machine-local instructions for agents working in this repository. moltke
-created this file, keeps it out of git via `.git/info/exclude`, and injects
-its content into every session's context — so keep it small: every line here
-is paid for in every session.
+Machine-local instructions for agents working in this repository. This file
+stays out of git (`.moltke.local.md` is in `.gitignore`) and is read during
+the Orient step of `AGENTS.md` — so keep it small: every line here is paid
+for in every session.
 
 What belongs here is what is true on this machine only and would be wrong or
 meaningless on another:
