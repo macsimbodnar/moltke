@@ -13,7 +13,7 @@ overrides `## Project rules`, which overrides the base ruleset above it.
 
 ## Orient
 
-Start every session with two small reads, in this order:
+Start every session by reading, in this order:
 
 1. `adocs/status.md` — last done, in progress, next, blocked, parked.
 2. `adocs/plan.md` — what is being built, and the ordered open steps.
@@ -100,8 +100,9 @@ first entry there.
   writes. Trivial → fix now. Real → a new step. Nothing → one line, move on.
 - **Full audit**: `/moltke:audit` — an adversarial reviewer on a clean
   context writes a dated report under `adocs/audit/`; findings become steps
-  or recorded decisions. Reports are evidence: never overwrite or edit an
-  earlier one.
+  or recorded decisions. Reports are evidence: never overwrite one, and the
+  only edit an earlier report takes is a finding's `Status:` line moving
+  (open → planned / closed / accepted).
 
 ## Project rules
 

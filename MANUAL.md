@@ -93,8 +93,9 @@ state. Things you might do yourself:
 Everything is tracked files, so branches and merges work normally. Two
 habits keep merges clean: after merging, rewrite `status.md` from the plan
 directories (the directories win); and if two branches allocated the same
-step id, rename one side's file and entry before merging — ids are never
-reused, so the collision is visible in the filename.
+step id, the not-yet-merged side takes the next free id — file and `plan.md`
+entry — before merging, noted in the merge commit. That is the one renumber
+the never-reuse rule sanctions, because two files claiming one id is worse.
 
 ## Migrating from 0.x
 

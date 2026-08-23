@@ -14,9 +14,12 @@ result — the rules work because agents read them, so write them exactly.
 - `adocs/` exists and `AGENTS.md` has a `## Project rules` section: already
   set up. Read `adocs/status.md` and `adocs/plan.md` back to the user (the
   Orient order), mention `/moltke:rules` for changing rules, stop.
-- `AGENTS.md` exists but is not moltke's ruleset: never overwrite it. Offer to
-  append the ruleset as a clearly marked section, or to stop; an existing
-  ruleset may be another tool's or a house standard.
+- `AGENTS.md` exists but is not moltke's ruleset: never overwrite it. Offer
+  to continue and append instead, or to stop — an existing ruleset may be
+  another tool's or a house standard. If appending: run the interview as
+  normal, and in step 3 append the whole ruleset — base sections and the
+  recorded `## Project rules` together — to the existing file as one clearly
+  marked section, instead of creating `AGENTS.md`.
 - Neither: continue.
 
 If the user declines at any point: write nothing, mark nothing, and say they
