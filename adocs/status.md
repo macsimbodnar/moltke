@@ -3,7 +3,7 @@
 Convenience view, rewritten at the end of every work turn. The filesystem beats
 this file: on disagreement, `plan_current/` wins.
 
-Updated: 2026-08-22 by `moltke --step status`.
+Updated: 2026-08-23 by `moltke --step status`.
 
 - Last done: S159
 - In progress: none
@@ -23,14 +23,9 @@ Updated: 2026-08-22 by `moltke --step status`.
     `.moltke.local.md`; the general rule is in MANUAL's Install section.
   - nothing in a session reports which install is answering, so a stale or absent
     root fails silently — S139 excluded the fix as a behaviour change (DEC-057),
-    and it is unstepped. Live as of S155: the two roots now run different
-    versions, and no session says which one it is talking to.
-  - master is unpushed ahead of origin/master (`b37ed95`, S134); the CLI root runs
-    `6ca6455` at 0.12.0, and stays there until master is pushed, because its git
-    source cannot see a bump that exists only in the checkout — 0.13.0 shipped
-    with that root unreached (DEC-061). Pushes are Max's own. The count was
-    written as 2 and was 30 by 2026-08-20 — no number here survives a commit, so
-    it is not kept.
+    and it is unstepped. Both roots reached 0.13.0 once master was pushed and the
+    CLI root updated, so nothing is stale right now — the next divergence is
+    silent again.
   - the merge (DEC-052) could not be a git merge: with both branches' `plan_done/`
     trees as ancestors, INV-6 and INV-7 contradict each other and no resolution
     validates. It is a graft instead, and `watch-primitive-a304293` holds the
