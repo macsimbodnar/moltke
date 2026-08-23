@@ -12,15 +12,14 @@ Order lives here and nowhere else. Step detail lives in the step files.
 
 ## Open
 
-1. S160  replace the enforcement product with the v1 rules product
-2. S161  release 1.0.0: bump the manifest, Max pushes, update both config roots
+1. S161  release 1.0.0: Max pushes, update both config roots (the manifest already says 1.0.0)
 
 ## Done recently
 
 Last five; the full record is `plan_done/`.
 
-- S155  release 0.13.0 and reinstall it in both config roots
 - S156  testing.md's header says what the tool does to it
 - S157  the init skill stops promising a worklog recap gate
 - S158  the reviewer fence knows when a run ended
 - S159  the step skill stops pointing a drive-by fix at the recap
+- S160  replace the enforcement product with the v1 rules product

@@ -1,38 +1,24 @@
 # Status
 
-Convenience view, rewritten at the end of every work turn. The filesystem beats
-this file: on disagreement, `plan_current/` wins.
+Convenience view, rewritten by hand at the end of any turn that changed plan
+state. The filesystem beats this file: on disagreement, `plan_current/` wins
+and this file is rewritten to match it.
 
-Updated: 2026-08-23 by `moltke --step status`.
+Updated: 2026-08-23 by hand (S160 completion).
 
-- Last done: S159
+- Last done: S160
 - In progress: none
-- Next: no steps left in plan.md
+- Next: S161
 - Blocked: none
 - Parked:
-  - two Claude config roots on this machine, each with its own plugin registry and
-    its own install (DEC-057), and the two take a release by different routes:
-    `~/.claude-work` for the desktop app from a `directory` source on the
-    checkout, `~/.claude` for the CLI from the `git` source, which resolves
-    against `origin/master`. The directory source's cache is a snapshot, and an
-    edit reaches the live hooks only after `version` is bumped **and**
-    `claude plugin update moltke@moltke` is run in that root — the update
-    compares `version` alone, so without the bump it reports success and copies
-    nothing (S155, DEC-061). Scope is per install: a root holding both `user`
-    and `project` scope needs the update twice. Machine detail is in
-    `.moltke.local.md`; the general rule is in MANUAL's Install section.
-  - nothing in a session reports which install is answering, so a stale or absent
-    root fails silently — S139 excluded the fix as a behaviour change (DEC-057),
-    and it is unstepped. Both roots reached 0.13.0 once master was pushed and the
-    CLI root updated, so nothing is stale right now — the next divergence is
-    silent again.
-  - the merge (DEC-052) could not be a git merge: with both branches' `plan_done/`
-    trees as ancestors, INV-6 and INV-7 contradict each other and no resolution
-    validates. It is a graft instead, and `watch-primitive-a304293` holds the
-    pre-merge tip and its worklog. The branch's plan_done commits can never be an
-    ancestor of a green master.
-  - DEC-041's audit stop stands: the next full audit is a proposal or an ask
-    away; the per-step fast check is the habit in between (DEC-044).
-  - DEC-020: the repository root is also the plugin root; `plugin/` subdirectory
-    move is the escape hatch.
-  - GitHub configuration and pushes are Max's own (DEC-014).
+  - the 2026-08-18 merge (DEC-052) was a graft, not a git merge;
+    `watch-primitive-a304293` holds the pre-merge tip. The INV-6/INV-7
+    contradiction that forced the graft retired with DEC-062, but the branch
+    stays as the archive of the unmerged line.
+  - DEC-020: the repository root is also the plugin root; a `plugin/`
+    subdirectory move is the escape hatch if the root gets crowded.
+  - pruned on the v1 pivot (S160), deliberately: the two 0.x install-route
+    notes (both config roots install from the git source since 2026-08-23,
+    detail in `.moltke.local.md`), and the DEC-041 audit-stop and DEC-014
+    git-surface lines, which are now the AUDIT and GIT Project rules in
+    AGENTS.md.
