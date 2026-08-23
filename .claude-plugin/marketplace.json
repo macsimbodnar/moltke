@@ -1,6 +1,6 @@
 {
   "name": "moltke",
-  "description": "Single-plugin marketplace distributing moltke, a document-driven development workflow enforced by hooks in repositories that opt in.",
+  "description": "Single-plugin marketplace distributing moltke, a document-driven development workflow shipped as rules and skills - no hooks, no enforcement.",
   "owner": {
     "name": "Maksym Bodnar"
   },
