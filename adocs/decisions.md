@@ -67,6 +67,7 @@ Compacted (S106, DEC-042): ids stable, never reused, newest last. Full context a
 - DEC-061 2026-08-20 — A release reaches the roots the agent can reach, and says which it did not
 - DEC-062 2026-08-23 — v1: the workflow is rules, not enforcement
 - DEC-063 2026-08-23 — Project rules are interview answers, recorded per repository
+- DEC-064 2026-08-23 — The migration prompt is an operator note in adocs/, not shipped documentation
 
 
 ## DEC-001  2026-08-01  Package as a plugin, not a loose skill
@@ -349,3 +350,8 @@ Why: the original intent was a cheap orientation protocol for agents, and the en
 Tags: init, rules, v1
 Decision: (Max, chat 2026-08-23) `/moltke:init` interviews the user over a fixed catalog — GIT, AGENTS, TESTS, PLAN, DOCS, REVIEW, AUDIT, DEPS, COMMITS — each question carrying options and a default, with an accept-all-defaults fast path. Answers land in `AGENTS.md` under `## Project rules`, one line per rule, stable id first. `/moltke:rules` shows, adds, changes, or drops lines afterwards, and every change is also a `decisions.md` entry. A separate rules file was rejected: the ruleset the agent already reads is where its parameters belong.
 Why: per-project rules the user actually chose beat a fixed ruleset nobody remembers agreeing to.
+
+## DEC-064  2026-08-23  The migration prompt is an operator note in adocs/, not shipped documentation
+Tags: docs, migration, v1
+Decision: (Max, chat 2026-08-23) the 0.x -> 1.0 migration prompt lives at `adocs/migration_prompt.md` so it travels in git and can be copy-pasted on any machine. It is not part of the product: a root `MIGRATION.md` wired into MANUAL and README was drafted and reverted on Max's redirect, before any commit. MANUAL's own Migrating section stays as the shipped summary.
+Why: moltke's docs describe the product; how Max drives his own fleet through the migration is his operator memory, and adocs/ is where this project keeps memory.

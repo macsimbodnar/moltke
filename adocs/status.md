@@ -4,9 +4,9 @@ Convenience view, rewritten by hand at the end of any turn that changed plan
 state. The filesystem beats this file: on disagreement, `plan_current/` wins
 and this file is rewritten to match it.
 
-Updated: 2026-08-23 by hand (S160 completion).
+Updated: 2026-08-23 by hand (S162 completion).
 
-- Last done: S160
+- Last done: S162
 - In progress: none
 - Next: S161
 - Blocked: none
