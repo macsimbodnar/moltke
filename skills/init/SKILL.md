@@ -74,7 +74,8 @@ Two of these are entry points, and a kept file is not a wired one. If an
 existing `CLAUDE.md` lacks an `@AGENTS.md` reference, offer to append that
 one line — append, never rewrite — and report it as `wired` rather than
 `kept`; the same offer for an existing `.cursor/rules/moltke.mdc` that does
-not reference the ruleset. Skipping this leaves sessions reading the old
+not reference `@AGENTS.md` (the line to append is the template's: "Follow
+the rules in @AGENTS.md."). Skipping this leaves sessions reading the old
 entry point and never seeing the ruleset: nothing fails and nothing warns,
 the workflow is simply not in force.
 
