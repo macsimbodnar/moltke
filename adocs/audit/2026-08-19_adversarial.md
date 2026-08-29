@@ -87,7 +87,7 @@ longer reports them.
 
 ### 2026-08-19_adversarial-F01  high  `--step done` matches step ids by substring, so it clears a pause on work that is still open
 
-Status: planned
+Status: closed  (re-run 2026-08-29_adversarial)
 
 Evidence. Three comparisons in `step_done` ask whether an id occurs anywhere in a
 field's text, while every other reader of those same two fields matches a token:
@@ -154,7 +154,7 @@ reader uses: `pauser_id(parent_fields) == step_id` for the two `paused_by` sites
 
 ### 2026-08-19_adversarial-F02  medium  the hook wiring is unguarded: the suite stays green with the write fence unwired and the Stop hook pointed at `--roadmap`
 
-Status: planned
+Status: closed  (re-run 2026-08-29_adversarial)
 
 Evidence. `hooks/hooks.json` is what makes any of the enforcement fire, and the
 golden reads only the *set* of event names (`declared_hook_events`,
@@ -200,7 +200,7 @@ here.
 
 ### 2026-08-19_adversarial-F03  medium  `--watch` registers nothing when `.git` is not a directory, and says "no .git found" where git is present
 
-Status: planned
+Status: closed  (re-run 2026-08-29_adversarial)
 
 Evidence. The watch subsystem tests `.git` for directory-ness instead of asking
 git, in both directions:
@@ -266,7 +266,7 @@ registered" warning for the genuinely ungitted case. Not applied here.
 
 ### 2026-08-19_adversarial-F04  medium  `--audit check` calls a staged rename into `tests/` an expected new test, and never reports the source it removed
 
-Status: planned
+Status: closed  (re-run 2026-08-29_adversarial)
 
 Evidence. `worktree_state` keys each porcelain line on its *last* path only:
 
@@ -311,7 +311,7 @@ unexpected deletion is classified today. Not applied here.
 
 ### 2026-08-19_adversarial-F05  medium  an out-of-range pid ends `--stop`, `--session-start` and `--watch` in a Python traceback
 
-Status: planned
+Status: closed  (re-run 2026-08-29_adversarial)
 
 Evidence. `_pid_alive` catches `ProcessLookupError` and `OSError`;
 `os.kill` raises `OverflowError` for a pid outside C `long`, and nothing catches
@@ -374,7 +374,7 @@ argument is already validated. Not applied here.
 
 ### 2026-08-19_adversarial-F06  low  `MOLTKE_UNBOUNDED_OK` also switches off the single-match-follow refusal that INV-17 says is refused always
 
-Status: planned
+Status: closed  (re-run 2026-08-29_adversarial)
 
 Evidence. The escape hatch is consulted before both branches, so it disables both:
 
@@ -409,7 +409,7 @@ in the refusal that this form has no escape. Not applied here.
 
 ### 2026-08-19_adversarial-F07  low  `--decline` rewrites an already-declined marker, discarding what was in it
 
-Status: planned
+Status: closed  (re-run 2026-08-29_adversarial)
 
 Evidence. INV-11: "`--scaffold` and `--decline` ... both leave a declined
 repository untouched." `mode_decline` returns early only when the marker exists
@@ -440,7 +440,7 @@ the same "left untouched" message `--scaffold` prints. Not applied here.
 
 ### 2026-08-19_adversarial-F08  low  the shipped audit skill still documents the worklog and `--log-prompt`, removed in 0.11.0
 
-Status: planned
+Status: closed  (re-run 2026-08-29_adversarial)
 
 Evidence. `--log-prompt` is not a flag; argparse lists the thirteen that exist
 and refuses it. The skill that drives every audit still describes it as live:
@@ -473,7 +473,7 @@ here.
 
 ### 2026-08-19_adversarial-F09  low  a multi-line `--stamp` is truncated at its first blank line by the parser that reads it back
 
-Status: planned
+Status: closed  (re-run 2026-08-29_adversarial)
 
 Evidence. `with_field` renders continuations at twelve spaces
 (bin/moltke.py:2127), including for a blank line, which becomes a whitespace-only
@@ -504,7 +504,7 @@ newline in a one-line field. Not applied here.
 
 ### 2026-08-19_adversarial-F10  low  INV-11's "every mode" test covers six of the thirteen modes
 
-Status: planned
+Status: closed  (re-run 2026-08-29_adversarial)
 
 Evidence. `ALL_MODES` (tests/test_s002_marker.py:16) is a hand-written list of six:
 `--session-start`, `--pre-write`, `--post-write`, `--stop`, `--validate`,
@@ -535,7 +535,7 @@ list the same four. Not applied here.
 
 ### 2026-08-19_adversarial-F11  low  the write fence lets the reviewer overwrite an existing audit report, and blocks it from correcting its own new test
 
-Status: planned
+Status: closed  (re-run 2026-08-29_adversarial)
 
 Evidence. `reviewer_may_write` permits anything whose first two components are
 `adocs/audit`, and permits a path under `tests/` only while it does not exist
@@ -570,7 +570,7 @@ writes to a `tests/` file the same run created — the baseline in
 
 ### 2026-08-19_adversarial-F12  low  the DEC and finding id scanners are blind past three and two digits, the same width defect S136 just fixed for steps
 
-Status: planned
+Status: closed  (re-run 2026-08-29_adversarial)
 
 Evidence. Two scanners still read a fixed width, unanchored on the right in the
 way S136's own comment calls "worse than blind":
@@ -616,7 +616,7 @@ so the gate runs it, or drop "lint" from AGENTS.md §5.
 
 ### 2026-08-19_adversarial-F13  low  the prescribed audit output makes the suite red, and the two tests that fail name neither audits nor INV-10
 
-Status: planned
+Status: closed  (re-run 2026-08-29_adversarial)
 
 Evidence. Two tests bind `--validate` on this repository into the suite:
 

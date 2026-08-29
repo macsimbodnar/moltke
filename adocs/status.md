@@ -4,11 +4,12 @@ Convenience view, rewritten by hand at the end of any turn that changed plan
 state. The filesystem beats this file: on disagreement, `plan_current/` wins
 and this file is rewritten to match it.
 
-Updated: 2026-08-29 by hand (S163 dropped).
+Updated: 2026-08-29 by hand (audit triage).
 
 - Last done: S161
 - In progress: none
-- Next: none — nothing is planned past 1.0.0
+- Next: S164 — first of seven steps from the 2026-08-29 audit (1 medium,
+  6 low planned; 1 low accepted, DEC-067; 19 prior findings closed)
 - Blocked: none
 - Parked:
   - the 2026-08-18 merge (DEC-052) was a graft, not a git merge;

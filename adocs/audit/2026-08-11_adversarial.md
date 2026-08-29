@@ -55,7 +55,7 @@ call the 2026-08-09 run made, for the same reason.
 
 ### 2026-08-11_adversarial-F01  medium  in a linked worktree the `.moltke.local.md` exclusion is written where git never reads it, and the Stop gate then blocks on moltke's own file — with "commit the change" as the printed way out
 
-Status: planned  (S112)
+Status: closed  (S112; re-run 2026-08-29_adversarial)
 
 Evidence.
 
@@ -126,7 +126,7 @@ shape.
 
 ### 2026-08-11_adversarial-F02  low  on a case-insensitive filesystem the `--pre-write` deny rules are bypassed by case-variant paths, and legitimate case-variant paths are refused with a false message
 
-Status: planned  (S113)
+Status: closed  (S113; re-run 2026-08-29_adversarial)
 
 Evidence.
 
@@ -187,7 +187,7 @@ case-sensitive filesystems, pins it.
 
 ### 2026-08-11_adversarial-F03  low  a pause naming a completed step strands the parent behind refusals that name each other, and the state is one the CLI itself leaves behind
 
-Status: planned  (S114)
+Status: closed  (S114; re-run 2026-08-29_adversarial)
 
 Evidence.
 
@@ -245,7 +245,7 @@ prescribing `--step done` on a step that is already in `plan_done/`.
 
 ### 2026-08-11_adversarial-F04  low  `--step unpause` prints a false reason on every non-phantom clear
 
-Status: planned  (S115)
+Status: closed  (S115; re-run 2026-08-29_adversarial)
 
 Evidence.
 
@@ -277,7 +277,7 @@ no step file …").
 
 ### 2026-08-11_adversarial-F05  low  the tool's own `--help` omits `--step unpause` and `--audit check`
 
-Status: planned  (S116)
+Status: closed  (S116; re-run 2026-08-29_adversarial)
 
 Evidence.
 
@@ -313,7 +313,7 @@ the golden indirectly.
 
 ### 2026-08-11_adversarial-F06  low  the decisions.md index is missing its two newest entries, and the body is not newest-last
 
-Status: planned  (S117)
+Status: closed  (S117; re-run 2026-08-29_adversarial)
 
 Evidence.
 

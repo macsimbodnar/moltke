@@ -12,7 +12,13 @@ Order lives here and nowhere else. Step detail lives in the step files.
 
 ## Open
 
-Nothing open. 1.0.0 is released; the next step gets an id above S163.
+1. S164  init wires the ruleset into an existing CLAUDE.md (2026-08-29 audit, medium)
+2. S165  init's Detect table covers a moltke AGENTS.md without adocs/
+3. S166  init records adoption under the next free DEC id
+4. S167  MANUAL and the ruleset agree on the merge-collision renumber
+5. S168  the audit id grammar can express its own re-run suffix
+6. S169  MANUAL discloses that an install ships this repository whole
+7. S170  README's Ship order commits the bump before the push
 
 ## Done recently
 

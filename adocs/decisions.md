@@ -69,6 +69,8 @@ Compacted (S106, DEC-042): ids stable, never reused, newest last. Full context a
 - DEC-063 2026-08-23 — Project rules are interview answers, recorded per repository
 - DEC-064 2026-08-23 — The migration prompt is an operator note in adocs/, not shipped documentation
 - DEC-065 2026-08-29 — Machine-local Claude configuration is scrubbed from the living documents, and history is left alone
+- DEC-066 2026-08-29 — Seventeen 0.x audit findings close by retirement of their target, named here
+- DEC-067 2026-08-29 — The stale machine-local notes file is the operator's to fix, not a plan step
 
 
 ## DEC-001  2026-08-01  Package as a plugin, not a loose skill
@@ -361,3 +363,13 @@ Why: moltke's docs describe the product; how Max drives his own fleet through th
 Tags: docs, decisions, privacy, install, git
 Decision: (Max, chat 2026-08-29, from agent-supplied options) Detail about one operator's Claude config roots — which root a client uses, what each was named, which account or marketplace source each was pointed at — does not belong in this repository at all: it is environment, it goes stale silently, and it was already stale here. DEC-057 and DEC-061 keep their rule and lose their machine specifics; the parked install-route note in `status.md` goes; S161's accepts stops naming particular roots and scopes and says every root present on the machine instead. `plan_done/`, `adocs/audit/` and git history are left untouched: a rewrite was scoped at 165 of 224 commits and a force-push of a public `master` and `v1`, and Max declined it — nothing secret is in those commits, only home-directory paths and a public clone URL, and the repository's own rules forbid editing a finished stamp or an audit report. MANUAL and the migration prompt keep `~/.claude` and `CLAUDE_CONFIG_DIR`, which are product facts rather than this machine's arrangement.
 Why: a document that records one machine's setup is wrong on every other machine and eventually on that one too, and the cost of carrying it is paid at every read.
+
+## DEC-066  2026-08-29  Seventeen 0.x audit findings close by retirement of their target, named here
+Tags: audit, findings, v1
+Decision: (Max's standing rules, applied by the 2026-08-29 audit) the seventeen `planned` findings that targeted the 0.x enforcement product — `2026-08-11_adversarial-F01..F05` and `2026-08-19_adversarial-F01..F07,F09..F13` — move to `closed`: DEC-062/S160 deleted `bin/moltke.py`, the hooks, the fences, `--watch`, `--audit check`, and the suite wholesale, so each finding's reproduction has nothing left to run against, in the tree or in the shipped product (grep evidence in `adocs/audit/2026-08-29_adversarial.md`). DEC-062 did not name these ids; this entry is the discharge that does. `2026-08-11_adversarial-F06` and `2026-08-19_adversarial-F08` close separately, re-measured against the living files by the same run.
+Why: a finding whose target no longer exists cannot be closed by a reproduction re-run, and leaving nineteen `planned` markers pointing at deleted code is drift the next auditor pays for.
+
+## DEC-067  2026-08-29  The stale machine-local notes file is the operator's to fix, not a plan step
+Tags: audit, findings, machine-local
+Decision: `2026-08-29_adversarial-F08` is accepted: `.moltke.local.md` on this machine still carries 0.x template wording, but the file is untracked, invisible to any clone, and DEC-065 already ruled machine-local state out of this repository's documents — so no step is created; the operator replaces its body directly (done in the same session, after this entry, outside the commit).
+Why: a plan step that changes nothing tracked cannot be verified from the repository, which is what steps are for.
