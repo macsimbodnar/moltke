@@ -65,6 +65,14 @@ reporting anything that already exists (report it as `kept`):
 - offer `.moltke.local.md` from `templates/moltke_local.md` for machine-local
   notes; if taken, add `.moltke.local.md` to `.gitignore`
 
+Two of these are entry points, and a kept file is not a wired one. If an
+existing `CLAUDE.md` lacks an `@AGENTS.md` reference, offer to append that
+one line — append, never rewrite — and report it as `wired` rather than
+`kept`; the same offer for an existing `.cursor/rules/moltke.mdc` that does
+not reference the ruleset. Skipping this leaves sessions reading the old
+entry point and never seeing the ruleset: nothing fails and nothing warns,
+the workflow is simply not in force.
+
 Then record the adoption as the first decision in `adocs/decisions.md`:
 `DEC-001`, the chosen rules in one entry, and any option the user rejected
 with a reason worth keeping.
