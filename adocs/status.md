@@ -18,7 +18,5 @@ Updated: 2026-08-23 by hand (S162 completion).
   - DEC-020: the repository root is also the plugin root; a `plugin/`
     subdirectory move is the escape hatch if the root gets crowded.
   - pruned on the v1 pivot (S160), deliberately: the two 0.x install-route
-    notes (both config roots install from the git source since 2026-08-23,
-    detail in `.moltke.local.md`), and the DEC-041 audit-stop and DEC-014
-    git-surface lines, which are now the AUDIT and GIT Project rules in
-    AGENTS.md.
+    notes, and the DEC-041 audit-stop and DEC-014 git-surface lines, which
+    are now the AUDIT and GIT Project rules in AGENTS.md.
