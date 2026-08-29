@@ -12,15 +12,14 @@ Order lives here and nowhere else. Step detail lives in the step files.
 
 ## Open
 
-1. S169  MANUAL discloses that an install ships this repository whole
-2. S170  README's Ship order commits the bump before the push
+1. S170  README's Ship order commits the bump before the push
 
 ## Done recently
 
 Last five; the full record is `plan_done/`.
 
-- S164  init wires the ruleset into an existing CLAUDE.md
 - S165  init's Detect table covers a moltke AGENTS.md without adocs/
 - S166  init records adoption under the next free DEC id
 - S167  MANUAL and the ruleset agree on the merge-collision renumber
 - S168  the audit id grammar can express its own re-run suffix
+- S169  MANUAL discloses that an install ships this repository whole
