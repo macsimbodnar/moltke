@@ -79,9 +79,10 @@ the rules in @AGENTS.md."). Skipping this leaves sessions reading the old
 entry point and never seeing the ruleset: nothing fails and nothing warns,
 the workflow is simply not in force.
 
-Then record the adoption as the first decision in `adocs/decisions.md`:
-`DEC-001`, the chosen rules in one entry, and any option the user rejected
-with a reason worth keeping.
+Then record the adoption in `adocs/decisions.md` under the next free
+`DEC-<nnn>` — `DEC-001` only when the file is fresh from the template, since
+ids are never reused: the chosen rules in one entry, and any option the user
+rejected with a reason worth keeping.
 
 ## 4. First plan
 

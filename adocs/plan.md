@@ -12,18 +12,17 @@ Order lives here and nowhere else. Step detail lives in the step files.
 
 ## Open
 
-1. S166  init records adoption under the next free DEC id
-2. S167  MANUAL and the ruleset agree on the merge-collision renumber
-3. S168  the audit id grammar can express its own re-run suffix
-4. S169  MANUAL discloses that an install ships this repository whole
-5. S170  README's Ship order commits the bump before the push
+1. S167  MANUAL and the ruleset agree on the merge-collision renumber
+2. S168  the audit id grammar can express its own re-run suffix
+3. S169  MANUAL discloses that an install ships this repository whole
+4. S170  README's Ship order commits the bump before the push
 
 ## Done recently
 
 Last five; the full record is `plan_done/`.
 
-- S160  replace the enforcement product with the v1 rules product
 - S162  keep the 0.x -> 1.0 migration prompt in the repo's memory
 - S161  1.0.0 released: master carries the v1 tree, the config root serves it
 - S164  init wires the ruleset into an existing CLAUDE.md
 - S165  init's Detect table covers a moltke AGENTS.md without adocs/
+- S166  init records adoption under the next free DEC id
