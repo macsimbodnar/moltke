@@ -120,7 +120,7 @@ existing 0.x repository:
 - One plugin install per Claude config root, and updates are per scope —
   see Install.
 - An install ships this repository whole — moltke's own `adocs/` plan and
-  audit history included, which is most of the roughly 1 MB an install
+  audit history included, which is most of the megabyte-plus an install
   weighs — cached once per config root and per version. The repository root
   is the plugin root by choice (DEC-020); a `plugin/` subdirectory move is
   the parked escape hatch if the weight starts to matter.
