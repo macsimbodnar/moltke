@@ -90,9 +90,11 @@ rejected with a reason worth keeping.
 
 ## 4. First plan
 
-The scaffold leaves `specs.md` and `plan.md` holding comments — the two
+Fresh from the templates, `specs.md` and `plan.md` hold comments — the two
 things this skill cannot write for the user. Do this now, in the same
-conversation, unless the user asks to stop:
+conversation, unless the user asks to stop — and where a file was kept
+rather than created, fill only what is empty and extend rather than restate
+what is already recorded:
 
 1. **Prime directive.** One sentence: the property this project must never
    violate. Propose one from what the repository already does and let the
@@ -104,13 +106,15 @@ conversation, unless the user asks to stop:
    everything else rests on come first. Write the description paragraph at
    the top of `plan.md`.
 4. **Step files.** Create one per planned step in `adocs/plan_todo/`, by
-   hand, in the format `AGENTS.md` shows — ids from S001 in creation order —
-   and list each in `plan.md`'s Open list. `accepts` is the field that
-   matters: it is what completion is judged against.
+   hand, in the format `AGENTS.md` shows — ids from the next free `S<nnn>`
+   (S001 only when the plan directories are empty), in creation order — and
+   list each in `plan.md`'s Open list. `accepts` is the field that matters:
+   it is what completion is judged against.
 5. **Decisions.** Scope, order, and anything the user chose against — into
    `decisions.md` while it is fresh.
-6. **Status.** Fill `status.md`: nothing done, nothing in progress, next is
-   the first Open entry.
+6. **Status.** Rewrite `status.md` to match the plan directories — on a
+   fresh scaffold that is: nothing done, nothing in progress, next is the
+   first Open entry.
 7. **Commit**, per the COMMITS rule just recorded.
 
 Starting work is a separate turn: move the first step to `plan_current/`,

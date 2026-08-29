@@ -12,15 +12,14 @@ Order lives here and nowhere else. Step detail lives in the step files.
 
 ## Open
 
-1. S173  init's first-plan step respects kept files
-2. S171  release 1.1.0, tagged (in progress, paused behind S173)
+1. S171  release 1.1.0, tagged (in progress)
 
 ## Done recently
 
 Last five; the full record is `plan_done/`.
 
-- S167  MANUAL and the ruleset agree on the merge-collision renumber
 - S168  the audit id grammar can express its own re-run suffix
 - S169  MANUAL discloses that an install ships this repository whole
 - S170  README's Ship order commits the bump before the push
 - S172  re-running init repairs unwired entry points
+- S173  init's first-plan step respects kept files
