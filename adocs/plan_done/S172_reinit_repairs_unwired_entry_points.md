@@ -7,5 +7,11 @@ accepts:    Detect branch (a) — already set up — still checks the entry-poin
 touches:    skills/init/SKILL.md
 excludes:   any change to the interview or the rules recording
 closes:     2026-08-29_adversarial.2-F02
-author:
-done:
+author:     Maksym Bodnar
+done:       2026-08-29: Detect branch (a) checks the repair cases before it
+            stops — unwired entry points get the step 3 wiring offer,
+            missing scaffold-list files get the offer to create them.
+            Verified by hand-walking a 1.0.0-initialised repo with an
+            unwired CLAUDE.md: branch (a) matches, the wiring offer now
+            fires before the stop. README and MANUAL unchanged, checked.
+            No suite, per the TESTS rule.

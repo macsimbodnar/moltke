@@ -7,5 +7,6 @@ accepts:    plugin.json says 1.1.0; the release commit carries an annotated
 touches:    .claude-plugin/plugin.json, git tags, plan.md, status.md
 excludes:   any product change beyond the version field
 closes:     2026-08-29_adversarial.2-F01
+paused_by:  S173
 author:     Maksym Bodnar
 done:
