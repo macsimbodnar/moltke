@@ -25,8 +25,8 @@ checked by dogfooding and review rather than by code:
   decision `DEC-<nnn>`, audit finding `YYYY-MM-DD_<type>[.N]-F<nn>`
   (`.N` marks a same-day re-run; type is `[A-Za-z0-9_-]+`). One
   exception: when two branches allocated the same step id, the not-yet-merged
-  side takes the next free id before merging, noted in the merge commit —
-  two files claiming one id is worse.
+  side takes the next free id — file and `plan.md` entry — before merging,
+  noted in the merge commit; two files claiming one id is worse.
 
 ## What is being built
 
