@@ -31,7 +31,7 @@ No suite exists to run, per the TESTS rule.
 
 ### 2026-08-29_adversarial.2-F01  medium  plan.md and status.md both misstate plan state at the release commit — S171 is in progress and invisible to Orient
 
-Status: planned  (S171)
+Status: closed  (S171; re-run 2026-08-29_adversarial.3)
 
 Evidence: `adocs/plan_current/S171_release_1_1_0.md` exists with
 `author: Maksym Bodnar` set and an empty `done:` stamp — the step is started
@@ -67,7 +67,7 @@ truly free id.
 
 ### 2026-08-29_adversarial.2-F02  low  init's "already set up" branch checks nothing but existence, so 1.0.0-initialised repositories can never be repaired by re-running init
 
-Status: planned  (S172)
+Status: closed  (S172; re-run 2026-08-29_adversarial.3)
 
 Evidence: `skills/init/SKILL.md:14-16` — Detect branch (a): "`adocs/` exists
 and `AGENTS.md` has a `## Project rules` section: already set up. Read
@@ -95,7 +95,7 @@ never-overwrite unchanged.
 
 ### 2026-08-29_adversarial.2-F03  low  init step 4 assumes fresh-template adocs and, on the kept-files paths, instructs allocating "ids from S001" into a plan that already holds them
 
-Status: planned  (S173)
+Status: closed  (S173; re-run 2026-08-29_adversarial.3)
 
 Evidence: `skills/init/SKILL.md:90-91` — step 4 opens "The scaffold leaves
 `specs.md` and `plan.md` holding comments" and runs unconditionally after

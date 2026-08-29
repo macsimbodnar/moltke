@@ -4,11 +4,13 @@ Convenience view, rewritten by hand at the end of any turn that changed plan
 state. The filesystem beats this file: on disagreement, `plan_current/` wins
 and this file is rewritten to match it.
 
-Updated: 2026-08-29 by hand (S171 completion).
+Updated: 2026-08-30 by hand (.3 re-run triage).
 
 - Last done: S171 — 1.1.0 released, tag v1.1.0 on the completion commit
 - In progress: none
-- Next: none — awaiting the user's push of commits and tag
+- Next: S174-S179, the .3 re-run's round — user decides if it ships as
+  1.1.1 or waits; the release itself awaits the user's push (commits and
+  tag, --follow-tags)
 - Blocked: none
 - Parked:
   - the 2026-08-18 merge (DEC-052) was a graft, not a git merge;

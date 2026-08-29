@@ -72,6 +72,7 @@ Compacted (S106, DEC-042): ids stable, never reused, newest last. Full context a
 - DEC-066 2026-08-29 — Seventeen 0.x audit findings close by retirement of their target, named here
 - DEC-067 2026-08-29 — The stale machine-local notes file is the operator's to fix, not a plan step
 - DEC-068 2026-08-29 — The merge-collision renumber becomes INV-20's stated exception, not MANUAL's secret
+- DEC-069 2026-08-30 — The v1.1.0 tag moved once before any push, and tags stop moving at first push
 
 
 ## DEC-001  2026-08-01  Package as a plugin, not a loose skill
@@ -379,3 +380,8 @@ Why: a plan step that changes nothing tracked cannot be verified from the reposi
 Tags: ids, merge, specs, docs
 Decision: (S167, closing 2026-08-29_adversarial-F04) MANUAL's Teams remedy stands — when two branches allocated the same step id, the not-yet-merged side takes the next free id before merging, noted in the merge commit — and the ruleset now says so: INV-20 and the never-reuse line in both AGENTS.md copies carry the exception explicitly. Dropping the remedy from MANUAL was rejected: the collision needs an answer, and two files claiming one id breaks the plan directories in a way a noted renumber does not.
 Why: docs promising a behaviour the ruleset forbids leaves an agent mid-merge with no legal move; one sentence in three files removes the contradiction.
+
+## DEC-069  2026-08-30  The v1.1.0 tag moved once before any push, and tags stop moving at first push
+Tags: release, git, tags, audit
+Decision: (session 2026-08-29/30, closing 2026-08-29_adversarial.3-F04 as accepted) v1.1.0 was first cut on the bump commit e52b91d and re-cut on the release's last commit 6cc8f96 after the same-day .2 re-run surfaced two lows worth shipping in the release; the .2 report's line naming e52b91d as tagged is evidence of the moment it was written and is not edited. The re-cut was legitimate only because nothing had been pushed; once a tag leaves the machine it never moves. Several commits sharing version 1.1.0 with different bytes is the known consequence of version-on-manifest releasing (DEC-061 established updates compare version only) — the tag, not the manifest, names the released tree.
+Why: a movable published tag breaks every downstream assumption; a movable unpublished one is just a draft, and saying where the line sits costs one entry.

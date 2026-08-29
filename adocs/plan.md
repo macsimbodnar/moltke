@@ -12,7 +12,15 @@ Order lives here and nowhere else. Step detail lives in the step files.
 
 ## Open
 
-Nothing open. 1.1.0 is tagged; the next id is S174.
+The 2026-08-29 .3 re-run's round, unstarted — the user decides whether it
+ships as 1.1.1 or waits:
+
+1. S174  init's status step stops contradicting INV-19 (.3 medium)
+2. S175  the repair branch reconciles view files it creates
+3. S176  first-plan ids use highest-ever-allocated
+4. S177  the Ship order includes the release tag
+5. S178  rules Drop points catalog topics at their none option
+6. S179  the 0.x archive branch exists somewhere real, or the claim goes
 
 ## Done recently
 
