@@ -20,7 +20,12 @@ result — the rules work because agents read them, so write them exactly.
   normal, and in step 3 append the whole ruleset — base sections and the
   recorded `## Project rules` together — to the existing file as one clearly
   marked section, instead of creating `AGENTS.md`.
-- Neither: continue.
+- `AGENTS.md` is moltke's ruleset (it has `## Project rules`) but `adocs/`
+  is missing: partial state. Skip the interview — the rules are already
+  recorded — and scaffold only what is missing in step 3; the existing
+  `AGENTS.md` stays untouched, and changing its rules is `/moltke:rules`'
+  section rewrite, never a second ruleset.
+- None of the above: continue.
 
 If the user declines at any point: write nothing, mark nothing, and say they
 can ask again any time. Nothing in v1 nags, so nothing needs a durable "no".
