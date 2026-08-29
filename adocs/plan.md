@@ -12,7 +12,9 @@ Order lives here and nowhere else. Step detail lives in the step files.
 
 ## Open
 
-Nothing open past the 2026-08-29 audit steps; the next id is S171.
+1. S171  release 1.1.0, tagged (in progress)
+2. S172  re-running init repairs unwired entry points
+3. S173  init's first-plan step respects kept files
 
 ## Done recently
 

@@ -24,7 +24,7 @@ the tree (markdown and two JSON manifests only, no executables, no hooks).
 
 ### 2026-08-29_adversarial-F01  medium  init never wires the ruleset into an existing `CLAUDE.md`, so the product is silently inert for the most common adopter
 
-Status: planned  (S164)
+Status: closed  (S164; re-run 2026-08-29_adversarial.2)
 
 Evidence: `skills/init/SKILL.md:52-59` — scaffold is "never overwrite",
 "skipping and reporting anything that already exists (report it as `kept`)",
@@ -51,7 +51,7 @@ same offer for an existing `.cursor/rules/moltke.mdc`.
 
 ### 2026-08-29_adversarial-F02  low  init's Detect table does not cover its input space, and the uncovered case discards the interview
 
-Status: planned  (S165)
+Status: closed  (S165; re-run 2026-08-29_adversarial.2)
 
 Evidence: `skills/init/SKILL.md:12-23` defines three branches: (a) `adocs/`
 exists AND `AGENTS.md` has `## Project rules` → already set up, stop; (b)
@@ -75,7 +75,7 @@ performs), never the whole file.
 
 ### 2026-08-29_adversarial-F03  low  init hardcodes the adoption decision as `DEC-001`, which instructs an INV-20 violation whenever `decisions.md` pre-exists
 
-Status: planned  (S166)
+Status: closed  (S166; re-run 2026-08-29_adversarial.2)
 
 Evidence: `skills/init/SKILL.md:68-69`: "record the adoption as the first
 decision in `adocs/decisions.md`: `DEC-001`" — unconditionally. Scaffold
@@ -94,7 +94,7 @@ Suggested resolution: word it as the migration prompt does — the next free
 
 ### 2026-08-29_adversarial-F04  low  MANUAL's Teams section sanctions a renumber that INV-20 and the shipped ruleset forbid without exception
 
-Status: planned  (S167)
+Status: closed  (S167; re-run 2026-08-29_adversarial.2)
 
 Evidence: `MANUAL.md:97-98`: "That is the one renumber the never-reuse rule
 sanctions, because two files claiming one id is worse." Versus
@@ -115,7 +115,7 @@ in the merge commit"), or drop the sanction from MANUAL.
 
 ### 2026-08-29_adversarial-F05  low  the audit skill's type grammar cannot express its own re-run naming, and tracked reports already violate it
 
-Status: planned  (S168)
+Status: closed  (S168; re-run 2026-08-29_adversarial.2)
 
 Evidence: `skills/audit/SKILL.md:15`: type "must match `[A-Za-z0-9_-]+` ...
 since the type becomes part of the filename and of every finding id". Three
@@ -136,7 +136,7 @@ Suggested resolution: name the optional run suffix in both places:
 
 ### 2026-08-29_adversarial-F06  low  the 1.0.0 artifact is 92% moltke's own memory, and the MANUAL disclosure DEC-020 conditioned that on is gone
 
-Status: planned  (S169)
+Status: closed  (S169; re-run 2026-08-29_adversarial.2)
 
 Evidence: `du -sh ~/.claude/plugins/cache/moltke/moltke/1.0.0/` → 1.2M total,
 of which `adocs/` is 1.1M (162 `plan_done/` step files, 13 audit reports, the
@@ -157,7 +157,7 @@ disclosure, or take the DEC-020 escape hatch and move the plugin under
 
 ### 2026-08-29_adversarial-F07  low  README's Ship procedure pushes before the version bump is committed, and step 4 then no-ops
 
-Status: planned  (S170)
+Status: closed  (S170; re-run 2026-08-29_adversarial.2)
 
 Evidence: `README.md:45-47`: "1. commit on `master` ... 2. bump `version` in
 `.claude-plugin/plugin.json` 3. push". No commit between 2 and 3; the same
