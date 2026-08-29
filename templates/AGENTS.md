@@ -61,6 +61,9 @@ done:       <!-- completion stamp: what proves it finished, written last -->
 
 A new id is one more than the highest ever allocated, across all three
 directories — ids are never reused or renumbered, even for a deleted step.
+The one exception is a merge collision: two branches allocated the same id,
+and the not-yet-merged side renumbers to the next free id before merging,
+noted in the merge commit.
 Order lives in `plan.md`'s Open list and nowhere else; the next step is the
 first entry there.
 

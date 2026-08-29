@@ -71,6 +71,7 @@ Compacted (S106, DEC-042): ids stable, never reused, newest last. Full context a
 - DEC-065 2026-08-29 — Machine-local Claude configuration is scrubbed from the living documents, and history is left alone
 - DEC-066 2026-08-29 — Seventeen 0.x audit findings close by retirement of their target, named here
 - DEC-067 2026-08-29 — The stale machine-local notes file is the operator's to fix, not a plan step
+- DEC-068 2026-08-29 — The merge-collision renumber becomes INV-20's stated exception, not MANUAL's secret
 
 
 ## DEC-001  2026-08-01  Package as a plugin, not a loose skill
@@ -373,3 +374,8 @@ Why: a finding whose target no longer exists cannot be closed by a reproduction 
 Tags: audit, findings, machine-local
 Decision: `2026-08-29_adversarial-F08` is accepted: `.moltke.local.md` on this machine still carries 0.x template wording, but the file is untracked, invisible to any clone, and DEC-065 already ruled machine-local state out of this repository's documents — so no step is created; the operator replaces its body directly (done in the same session, after this entry, outside the commit).
 Why: a plan step that changes nothing tracked cannot be verified from the repository, which is what steps are for.
+
+## DEC-068  2026-08-29  The merge-collision renumber becomes INV-20's stated exception, not MANUAL's secret
+Tags: ids, merge, specs, docs
+Decision: (S167, closing 2026-08-29_adversarial-F04) MANUAL's Teams remedy stands — when two branches allocated the same step id, the not-yet-merged side takes the next free id before merging, noted in the merge commit — and the ruleset now says so: INV-20 and the never-reuse line in both AGENTS.md copies carry the exception explicitly. Dropping the remedy from MANUAL was rejected: the collision needs an answer, and two files claiming one id breaks the plan directories in a way a noted renumber does not.
+Why: docs promising a behaviour the ruleset forbids leaves an agent mid-merge with no legal move; one sentence in three files removes the contradiction.
