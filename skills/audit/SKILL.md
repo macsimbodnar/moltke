@@ -11,12 +11,12 @@ needs none of the machinery below.
 
 ## 1. Open the report
 
-The report is `adocs/audit/YYYY-MM-DD_<type>.md`. Types are yours to pick but
-must match `[A-Za-z0-9_-]+` — `adversarial`, `security`, and `bugs` are the
-usual ones — since the type becomes part of the filename and of every finding
-id. A report is evidence of one run and is never overwritten: if the name is
-taken, this is a same-day re-run — use `.2`, then `.3`, and number the
-findings from that name. Create the file with a title line naming the commit
+The report is `adocs/audit/YYYY-MM-DD_<type>[.N].md`. Types are yours to
+pick but must match `[A-Za-z0-9_-]+` — `adversarial`, `security`, and `bugs`
+are the usual ones — since the type becomes part of the filename and of every
+finding id. A report is evidence of one run and is never overwritten: if the
+name is taken, this is a same-day re-run — the `.N` suffix, `.2` then `.3`,
+and the findings are numbered from that full name. Create the file with a title line naming the commit
 audited; the reviewer appends the findings.
 
 ## 2. Run the reviewer, on a clean context

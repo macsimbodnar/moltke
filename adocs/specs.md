@@ -22,7 +22,8 @@ checked by dogfooding and review rather than by code:
 - INV-19 `init` never overwrites an existing file; everything it skips is
   reported as kept.
 - INV-20 allocated ids are never reused or renumbered: step `S<nnn>`,
-  decision `DEC-<nnn>`, audit finding `YYYY-MM-DD_<type>-F<nn>`. One
+  decision `DEC-<nnn>`, audit finding `YYYY-MM-DD_<type>[.N]-F<nn>`
+  (`.N` marks a same-day re-run; type is `[A-Za-z0-9_-]+`). One
   exception: when two branches allocated the same step id, the not-yet-merged
   side takes the next free id before merging, noted in the merge commit —
   two files claiming one id is worse.
