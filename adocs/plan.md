@@ -12,7 +12,7 @@ Order lives here and nowhere else. Step detail lives in the step files.
 
 ## Open
 
-1. S163  give this machine its second Claude config root and put 1.0.0 in it
+Nothing open. 1.0.0 is released; the next step gets an id above S163.
 
 ## Done recently
 
