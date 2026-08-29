@@ -12,14 +12,14 @@ Order lives here and nowhere else. Step detail lives in the step files.
 
 ## Open
 
-1. S161  release 1.0.0: Max pushes, update both config roots (the manifest already says 1.0.0)
+1. S163  give this machine its second Claude config root and put 1.0.0 in it
 
 ## Done recently
 
 Last five; the full record is `plan_done/`.
 
-- S157  the init skill stops promising a worklog recap gate
 - S158  the reviewer fence knows when a run ended
 - S159  the step skill stops pointing a drive-by fix at the recap
 - S160  replace the enforcement product with the v1 rules product
 - S162  keep the 0.x -> 1.0 migration prompt in the repo's memory
+- S161  1.0.0 released: master carries the v1 tree, the config root serves it
