@@ -42,8 +42,9 @@ of every change that touches either.
 
 A release is a deliberate act, in this order:
 
-1. commit on `master` (agents commit; Max pushes)
-2. bump `version` in `.claude-plugin/plugin.json`
+1. bump `version` in `.claude-plugin/plugin.json`
+2. commit on `master` — the bump commit is the release commit (agents
+   commit; Max pushes)
 3. push
 4. `claude plugin update moltke@moltke` in each Claude config root (and each
    scope) that has it installed — updates compare `version` and nothing else
