@@ -1,32 +1,25 @@
 # Plan
 
-Build the `moltke` Claude Code plugin: a document-driven development workflow
-giving an agent durable, cross-session, cross-tool memory of a project,
-distributed as a git repository plus a plugin marketplace entry, enforced by
-hooks in marked repositories. Spec: `adocs/specs.md`.
+moltke 1.0: the document-driven workflow shipped as rules, not enforcement
+(DEC-062). The plugin is markdown only — `/moltke:init` interviews the user and
+records per-project rules in `AGENTS.md` (DEC-063), the plan lives as step
+files moved by hand between three directories, and a slim `/moltke:audit`
+keeps the adversarial reviewer. The 0.x enforcement product — hooks, checker,
+watchers, fences — is deleted; its record is `plan_done/` and git history.
+Spec: `adocs/specs.md`.
 
-This repository self-hosts the workflow (DEC-012). The first step was worked by
-hand; from the second onward the workflow enforces itself.
+Order lives here and nowhere else. Step detail lives in the step files.
 
-Order lives here and nowhere else (DEC-008). Step detail lives in the step files.
+## Open
 
-Two branches diverged at the adocs rename and were merged 2026-08-18 (DEC-052).
-The watcher primitive and its arm-time lint arrive from the local branch with
-new ids, since the ids they were minted under mean other work here. Three of the
-six 2026-08-18 findings did not survive re-triage against this code (DEC-053).
-Step ids belong in the numbered list below and nowhere else in this file: the
-derived next step is the first id in document order, so an id mentioned in prose
-above the list becomes the next step instead.
+1. S161  release 1.0.0: Max pushes, update both config roots (the manifest already says 1.0.0)
 
-The 2026-08-19 adversarial run against the merged tree produced thirteen
-findings — one high, four medium, eight low — and each has its own step below,
-one to one. The list is ordered severity first: correctness ahead of politeness,
-which is why the audit's own steps sit in front of everything it did not raise.
-That run's verdicts closed three of the 2026-08-18 findings and left the other
-three accepted.
+## Done recently
 
-150. S155  release 0.13.0 and reinstall it in both config roots
-151. S156  testing.md's header says what the tool does to it: rows leave with their plan entry, so "Append only" reads as write discipline, not as nothing is ever removed
-152. S157  the init skill stops promising a worklog recap gate
-153. S158  the reviewer fence knows when a run ended, and dates a file git cannot see
-154. S159  the step skill stops pointing a drive-by fix at the recap, the worklog era's word for a place that is gone
+Last five; the full record is `plan_done/`.
+
+- S157  the init skill stops promising a worklog recap gate
+- S158  the reviewer fence knows when a run ended
+- S159  the step skill stops pointing a drive-by fix at the recap
+- S160  replace the enforcement product with the v1 rules product
+- S162  keep the 0.x -> 1.0 migration prompt in the repo's memory

@@ -1,7 +1,9 @@
 # Specs
 
-What the software must do. Precedence: specs beat plan beat status. Code that
-disagrees with this file is a bug or an unrecorded decision.
+What the software must do — current state only. Precedence: specs beat plan
+beat status. Code that disagrees with this file is a bug or an unrecorded
+decision. The narrative of how a rule got its wording lives in commits and
+`plan_done/`, not here.
 
 ## Prime directive
 
@@ -9,8 +11,10 @@ disagrees with this file is a bug or an unrecorded decision.
 
 ## Invariants
 
-Numbered, testable properties. Referenced by number from code comments, test
-names, and commit messages. Each one gets a test and a `testing.md` row.
+Numbered, testable properties, referenced by number from code comments, test
+names, and commit messages. An invariant nothing could check is a wish —
+reword it until it is checkable. Numbers are never reused; a retired one
+stays listed as retired.
 
 - INV-1
 - INV-2
@@ -18,8 +22,8 @@ names, and commit messages. Each one gets a test and a `testing.md` row.
 ## Behaviour
 
 <!-- What the software does, surface by surface. Doc claims are claims about
-     code: trace each to the code path that produces it. Spec edits carry a
-     dated inline note in the same commit as the behaviour change. -->
+     code: trace each to the code path that produces it. A behaviour change
+     updates this wording in the same commit. -->
 
 ## Non-goals
 

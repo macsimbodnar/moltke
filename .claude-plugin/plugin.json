@@ -1,8 +1,8 @@
 {
   "name": "moltke",
   "displayName": "moltke",
-  "version": "0.13.0",
-  "description": "Document-driven development workflow with blocking enforcement: durable plan, decision, testing, and audit state in the repository, checked by hooks in repositories that opt in.",
+  "version": "1.0.0",
+  "description": "Document-driven development workflow as rules: an init interview records per-project agent rules in AGENTS.md, the plan lives as step files in the repository, and an evidence-first audit skill keeps an adversarial reviewer. Markdown only - no hooks, no enforcement.",
   "author": {
     "name": "Maksym Bodnar"
   },

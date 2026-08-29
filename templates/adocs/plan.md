@@ -5,10 +5,14 @@
 Order lives here and nowhere else. Step detail lives in the step files under
 `plan_todo/`, `plan_current/`, and `plan_done/`. Ids are allocated in creation
 order and never renumbered, so reordering is a one-line edit to this list.
+Every open step file appears as an entry under Open, and every Open entry has
+a step file — keep both true by hand. An id named in prose is prose: it does
+not change the order.
 
-Order is read from the list entries below, the lines starting `1.`, `-`, or `*`.
-An id named in a sentence anywhere else in this file is prose: it does not change
-the order, and it is not checked. Every step file must appear as a list entry, and
-every list entry must have a step file — both are INV-3.
+## Open
 
 <!-- 1. S001  short goal -->
+
+## Done recently
+
+Last five; the full record is `plan_done/`.
