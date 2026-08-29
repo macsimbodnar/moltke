@@ -57,10 +57,11 @@ reports whatever you did either way.
 
 ## What to record
 
-One report per run at `adocs/audit/YYYY-MM-DD_<type>.md`, created for you.
-Append findings to it, most severe first. Every finding needs:
+One report per run at `adocs/audit/YYYY-MM-DD_<type>[.N].md`, created for
+you (`.N` marks a same-day re-run). Append findings to it, most severe
+first. Every finding needs:
 
-- an id, `YYYY-MM-DD_<type>-F<nn>`, carrying this report's own name; two
+- an id, `YYYY-MM-DD_<type>[.N]-F<nn>`, carrying this report's own name; two
   digits or more, so a hundredth finding is read like the first
 - a severity, and a one-line title
 - `Status: open` (only a later re-run can make it `closed`)
