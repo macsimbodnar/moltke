@@ -5,5 +5,5 @@ accepts:    master carries the v1 tree at version 1.0.0; Max has pushed; both
             CLI root, user and project scopes in the desktop root)
 touches:    git (merge v1 into master), the installed plugin registries
 excludes:   any product change
-author:
+author:     Maksym Bodnar
 done:
