@@ -21,10 +21,11 @@ result — the rules work because agents read them, so write them exactly.
   recorded `## Project rules` together — to the existing file as one clearly
   marked section, instead of creating `AGENTS.md`.
 - `AGENTS.md` is moltke's ruleset (it has `## Project rules`) but `adocs/`
-  is missing: partial state. Skip the interview — the rules are already
-  recorded — and scaffold only what is missing in step 3; the existing
-  `AGENTS.md` stays untouched, and changing its rules is `/moltke:rules`'
-  section rewrite, never a second ruleset.
+  is missing: partial state. Skip step 2 entirely — the rules are already
+  recorded — and go straight to step 3, which runs in full: never-overwrite
+  skips what exists, entry-point wiring included. The existing `AGENTS.md`
+  stays untouched, and changing its rules is `/moltke:rules`' section
+  rewrite, never a second ruleset.
 - None of the above: continue.
 
 If the user declines at any point: write nothing, mark nothing, and say they
