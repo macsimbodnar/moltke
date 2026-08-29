@@ -12,11 +12,13 @@ result — the rules work because agents read them, so write them exactly.
 ## 1. Detect
 
 - `adocs/` exists and `AGENTS.md` has a `## Project rules` section: already
-  set up. Before stopping, check the repair cases: entry points that exist
-  but lack their ruleset reference get the step 3 wiring offer, and anything
-  from the step 3 scaffold list that is missing gets the offer to create it.
-  Then read `adocs/status.md` and `adocs/plan.md` back to the user (the
-  Orient order), mention `/moltke:rules` for changing rules, stop.
+  set up. Before stopping, check the repair cases and apply what the user
+  accepts, here in this branch, exactly as step 3 specifies them: entry
+  points that exist but lack their ruleset reference get the wiring offer,
+  and anything step 3 would create unprompted that is missing gets the offer
+  to create it (the optional `.moltke.local.md` stays optional — do not
+  re-offer it). Then read `adocs/status.md` and `adocs/plan.md` back to the
+  user (the Orient order), mention `/moltke:rules` for changing rules, stop.
 - `AGENTS.md` exists but is not moltke's ruleset: never overwrite it. Offer
   to continue and append instead, or to stop — an existing ruleset may be
   another tool's or a house standard. If appending: run the interview as
