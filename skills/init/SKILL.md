@@ -107,15 +107,16 @@ what is already recorded:
 3. **First plan.** Discuss order before writing: correctness and the things
    everything else rests on come first. Write the description paragraph at
    the top of `plan.md`.
-4. **Step files.** Create one per planned step in `adocs/plan_todo/`, by
-   hand, in the format `AGENTS.md` shows — ids from the next free `S<nnn>`
-   (S001 only when the plan directories are empty), in creation order — and
-   list each in `plan.md`'s Open list. `accepts` is the field that matters:
+4. **Step files.** Create one per planned step not already present in
+   `adocs/plan_todo/`, by hand, in the format `AGENTS.md` shows — ids from
+   the next free `S<nnn>` (S001 only when the plan directories are empty),
+   in creation order — and list each in `plan.md`'s Open list. `accepts` is the field that matters:
    it is what completion is judged against.
 5. **Decisions.** Scope, order, and anything the user chose against — into
    `decisions.md` while it is fresh.
-6. **Status.** Rewrite `status.md` to match the plan directories — on a
-   fresh scaffold that is: nothing done, nothing in progress, next is the
+6. **Status.** Rewrite `status.md` to match the plan directories, fresh or
+   kept — the directories are the state, this file is the view. On a fresh
+   scaffold that reads: nothing done, nothing in progress, next is the
    first Open entry.
 7. **Commit**, per the COMMITS rule just recorded.
 
