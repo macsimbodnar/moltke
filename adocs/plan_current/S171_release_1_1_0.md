@@ -5,5 +5,5 @@ accepts:    plugin.json says 1.1.0; the bump commit is the release commit and
             config root present takes the update once master carries it
 touches:    .claude-plugin/plugin.json, git tags
 excludes:   any product change beyond the version field
-author:
+author:     Maksym Bodnar
 done:
