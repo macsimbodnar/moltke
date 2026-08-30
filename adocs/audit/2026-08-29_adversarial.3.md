@@ -35,7 +35,7 @@ where it limits a finding.
 
 ### 2026-08-29_adversarial.3-F01  medium  init's step 4 rewrites a kept status.md — contradicting INV-19, S173's own accepts, and the Parked carry-forward rule
 
-Status: planned  (S174)
+Status: closed  (S174)
 
 Evidence: `skills/init/SKILL.md:117-118`, step 4 item 6: "**Status.**
 Rewrite `status.md` to match the plan directories, fresh or kept — the

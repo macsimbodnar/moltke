@@ -15,19 +15,18 @@ Order lives here and nowhere else. Step detail lives in the step files.
 The 2026-08-29 .3 re-run's round, unstarted — the user decides whether it
 ships as 1.1.1 or waits:
 
-1. S174  init's status step stops contradicting INV-19 (.3 medium)
-2. S175  the repair branch reconciles view files it creates
-3. S176  first-plan ids use highest-ever-allocated
-4. S177  the Ship order includes the release tag
-5. S178  rules Drop points catalog topics at their none option
-6. S179  the 0.x archive branch exists somewhere real, or the claim goes
+1. S175  the repair branch reconciles view files it creates
+2. S176  first-plan ids use highest-ever-allocated
+3. S177  the Ship order includes the release tag
+4. S178  rules Drop points catalog topics at their none option
+5. S179  the 0.x archive branch exists somewhere real, or the claim goes
 
 ## Done recently
 
 Last five; the full record is `plan_done/`.
 
-- S169  MANUAL discloses that an install ships this repository whole
 - S170  README's Ship order commits the bump before the push
 - S172  re-running init repairs unwired entry points
 - S173  init's first-plan step respects kept files
 - S171  1.1.0 released and tagged
+- S174  init's status step stops contradicting INV-19

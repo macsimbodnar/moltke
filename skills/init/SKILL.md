@@ -114,10 +114,11 @@ what is already recorded:
    it is what completion is judged against.
 5. **Decisions.** Scope, order, and anything the user chose against — into
    `decisions.md` while it is fresh.
-6. **Status.** Rewrite `status.md` to match the plan directories, fresh or
-   kept — the directories are the state, this file is the view. On a fresh
-   scaffold that reads: nothing done, nothing in progress, next is the
-   first Open entry.
+6. **Status.** Fill `status.md` only when it is fresh from the template:
+   nothing done, nothing in progress, next is the first Open entry. A kept
+   `status.md` is not this skill's to rewrite (INV-19) — the ruleset's own
+   status rule covers it: the session that changed plan state rewrites the
+   view, carrying `Parked:` forward.
 7. **Commit**, per the COMMITS rule just recorded.
 
 Starting work is a separate turn: move the first step to `plan_current/`,

@@ -4,13 +4,14 @@ Convenience view, rewritten by hand at the end of any turn that changed plan
 state. The filesystem beats this file: on disagreement, `plan_current/` wins
 and this file is rewritten to match it.
 
-Updated: 2026-08-30 by hand (.3 re-run triage).
+Updated: 2026-08-30 by hand (S174 done).
 
-- Last done: S171 — 1.1.0 released, tag v1.1.0 on the completion commit
+- Last done: S174 — init's step 4 fills status.md only when fresh from the
+  template; kept files go to the ruleset's status rule
 - In progress: none
-- Next: S174-S179, the .3 re-run's round — user decides if it ships as
-  1.1.1 or waits. 1.1.0 is pushed, tagged on origin, and installed in the
-  config root.
+- Next: S175-S179, the rest of the .3 re-run's round — user decides if it
+  ships as 1.1.1 or waits. 1.1.0 is pushed, tagged on origin, and installed
+  in the config root.
 - Blocked: none
 - Parked:
   - the 2026-08-18 merge (DEC-052) was a graft, not a git merge;
