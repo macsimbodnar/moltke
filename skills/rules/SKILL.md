@@ -20,9 +20,10 @@ stable id first. This skill edits that section and nothing else in the file.
   rules or a specs.md entry.
 - **Drop**: delete the line — non-catalog ids only. Catalog topics are
   changed, never dropped: the base ruleset reads PLAN, TESTS, DOCS, REVIEW,
-  and COMMITS by id, so a dropped line leaves it referencing an undefined
-  rule where the catalog has a recorded none/off option — turning a topic
-  off is a Change to that option.
+  and COMMITS by id, and a dropped line leaves it referencing an undefined
+  rule. Wanting a topic off is a Change — to its none/off option where the
+  catalog records one (TESTS, DOCS, REVIEW), to its loosest option otherwise
+  (PLAN unlimited, COMMITS on request).
 
 Every add, change, or drop also gets a `decisions.md` entry — heading,
 `Tags: rules`, `Decision:` the new line (or what was dropped) and by whom,
