@@ -202,7 +202,7 @@ claim) to say the tip is lost.
 
 ### 2026-08-29_adversarial.3-F07  low  /moltke:rules sanctions dropping any Project rules line while the base ruleset hard-references five catalog ids
 
-Status: planned  (S178)
+Status: closed  (S178)
 
 Evidence: `skills/rules/SKILL.md:21`: "**Drop**: delete the line." — no
 restriction on which. The shipped base ruleset depends on catalog ids being

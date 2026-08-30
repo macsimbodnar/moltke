@@ -4,12 +4,12 @@ Convenience view, rewritten by hand at the end of any turn that changed plan
 state. The filesystem beats this file: on disagreement, `plan_current/` wins
 and this file is rewritten to match it.
 
-Updated: 2026-08-30 by hand (S177 done).
+Updated: 2026-08-30 by hand (S178 done).
 
-- Last done: S177 — README's Ship order tags the release commit (annotated
-  v<version>) and pushes commits and tag together (--follow-tags)
+- Last done: S178 — rules Drop is non-catalog ids only; catalog topics
+  change to their none/off option instead of being deleted
 - In progress: none
-- Next: S178-S179, the rest of the .3 re-run's round — user decides if it
+- Next: S179, the last of the .3 re-run's round — user decides if it
   ships as 1.1.1 or waits. 1.1.0 is pushed, tagged on origin, and installed
   in the config root.
 - Blocked: none
