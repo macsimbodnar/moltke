@@ -9,8 +9,8 @@ Updated: 2026-08-30 by hand (.3 re-run triage).
 - Last done: S171 — 1.1.0 released, tag v1.1.0 on the completion commit
 - In progress: none
 - Next: S174-S179, the .3 re-run's round — user decides if it ships as
-  1.1.1 or waits; the release itself awaits the user's push (commits and
-  tag, --follow-tags)
+  1.1.1 or waits. 1.1.0 is pushed, tagged on origin, and installed in the
+  config root.
 - Blocked: none
 - Parked:
   - the 2026-08-18 merge (DEC-052) was a graft, not a git merge;
