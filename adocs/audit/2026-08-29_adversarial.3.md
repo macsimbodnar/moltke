@@ -178,7 +178,7 @@ procedure.
 
 ### 2026-08-29_adversarial.3-F06  low  the archive branch status.md and DEC-052 point at does not exist in this clone or its fetched remote refs
 
-Status: planned  (S179)
+Status: closed  (S179; DEC-070 — the tip is gone, the claim withdrawn)
 
 Evidence: `adocs/status.md:14-17` (Parked): "`watch-primitive-a304293`
 holds the pre-merge tip … the branch stays as the archive of the unmerged

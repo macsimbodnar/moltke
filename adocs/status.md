@@ -4,20 +4,21 @@ Convenience view, rewritten by hand at the end of any turn that changed plan
 state. The filesystem beats this file: on disagreement, `plan_current/` wins
 and this file is rewritten to match it.
 
-Updated: 2026-08-30 by hand (S178 done).
+Updated: 2026-08-30 by hand (S179 done — the .3 re-run's round complete).
 
-- Last done: S178 — rules Drop is non-catalog ids only; catalog topics
-  change to their none/off option instead of being deleted
+- Last done: S179 — the 0.x archive branch is lost; DEC-070 records it and
+  the parked note stops claiming otherwise
 - In progress: none
-- Next: S179, the last of the .3 re-run's round — user decides if it
-  ships as 1.1.1 or waits. 1.1.0 is pushed, tagged on origin, and installed
-  in the config root.
+- Next: nothing planned. The .3 re-run's round (S174-S179) is done — user
+  decides whether it ships as 1.1.1 or waits, and whether a closing audit
+  re-run confirms the six fixes. 1.1.0 is pushed, tagged on origin, and
+  installed in the config root.
 - Blocked: none
 - Parked:
-  - the 2026-08-18 merge (DEC-052) was a graft, not a git merge;
-    `watch-primitive-a304293` holds the pre-merge tip. The INV-6/INV-7
-    contradiction that forced the graft retired with DEC-062, but the branch
-    stays as the archive of the unmerged line.
+  - the 2026-08-18 merge (DEC-052) was a graft, not a git merge, and the
+    pre-merge tip is lost: `watch-primitive-a304293` exists neither on
+    origin nor anywhere in this clone (DEC-070). The unmerged 0.x line's
+    record is `plan_done/`, the audit reports, and DEC-052.
   - DEC-020: the repository root is also the plugin root; a `plugin/`
     subdirectory move is the escape hatch if the root gets crowded.
   - pruned on the v1 pivot (S160), deliberately: the two 0.x install-route

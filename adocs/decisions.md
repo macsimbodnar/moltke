@@ -73,6 +73,7 @@ Compacted (S106, DEC-042): ids stable, never reused, newest last. Full context a
 - DEC-067 2026-08-29 — The stale machine-local notes file is the operator's to fix, not a plan step
 - DEC-068 2026-08-29 — The merge-collision renumber becomes INV-20's stated exception, not MANUAL's secret
 - DEC-069 2026-08-30 — The v1.1.0 tag moved once before any push, and tags stop moving at first push
+- DEC-070 2026-08-30 — The 0.x pre-merge tip is lost; the archive claim is withdrawn
 
 
 ## DEC-001  2026-08-01  Package as a plugin, not a loose skill
@@ -385,3 +386,8 @@ Why: docs promising a behaviour the ruleset forbids leaves an agent mid-merge wi
 Tags: release, git, tags, audit
 Decision: (session 2026-08-29/30, closing 2026-08-29_adversarial.3-F04 as accepted) v1.1.0 was first cut on the bump commit e52b91d and re-cut on the release's last commit 6cc8f96 after the same-day .2 re-run surfaced two lows worth shipping in the release; the .2 report's line naming e52b91d as tagged is evidence of the moment it was written and is not edited. The re-cut was legitimate only because nothing had been pushed; once a tag leaves the machine it never moves. Several commits sharing version 1.1.0 with different bytes is the known consequence of version-on-manifest releasing (DEC-061 established updates compare version only) — the tag, not the manifest, names the released tree.
 Why: a movable published tag breaks every downstream assumption; a movable unpublished one is just a draft, and saying where the line sits costs one entry.
+
+## DEC-070  2026-08-30  The 0.x pre-merge tip is lost; the archive claim is withdrawn
+Tags: git, merge, archive, audit
+Decision: (session 2026-08-30, closing 2026-08-29_adversarial.3-F06) `watch-primitive-a304293` — the branch DEC-052 and status.md's parked note said holds the pre-merge 0.x tip — exists nowhere reachable: origin holds only `master` and `v1` (GitHub API, checked 2026-08-30 twice), and this clone, the machine DEC-052 was recorded on, has no such ref, no object `a304293`, and no reflog trace. The parked note now records the loss; DEC-052's archive claim is superseded on that one point, the merge it records stands. Recreating the content from history was excluded by S179; what the unmerged line did survives in `plan_done/`, the audit reports, and DEC-052 itself.
+Why: an archive pointer nobody can dereference is worse than a recorded loss — the prime directive wants state derivable from tracked files, and the note now is.
