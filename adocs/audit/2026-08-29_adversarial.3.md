@@ -154,7 +154,7 @@ that the .2 report's tag line describes the tag's first position.
 
 ### 2026-08-29_adversarial.3-F05  low  releases now carry an annotated tag, but README's Ship procedure never mentions tagging — and S171's stamp skipped the DOCS check that gates completion
 
-Status: planned  (S177)
+Status: closed  (S177)
 
 Evidence: `adocs/plan_done/S171_release_1_1_0.md` accepts: "the release
 commit carries an annotated tag v1.1.0"; stamp: "Max pushes commits and

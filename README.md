@@ -45,8 +45,12 @@ A release is a deliberate act, in this order:
 1. bump `version` in `.claude-plugin/plugin.json`
 2. commit on `master` — the bump commit is the release commit (agents
    commit; Max pushes)
-3. push
-4. `claude plugin update moltke@moltke` in each Claude config root (and each
+3. tag the release commit with an annotated `v<version>`
+   (`git tag -a v<version>`), after every release-bound change has landed —
+   the tag, not the manifest, names the released tree, and a pushed tag
+   never moves (DEC-069)
+4. push commits and tag together (`git push --follow-tags`)
+5. `claude plugin update moltke@moltke` in each Claude config root (and each
    scope) that has it installed — updates compare `version` and nothing else
 
 The 0.x enforcement product — `bin/moltke.py`, hooks, the suite — is git
