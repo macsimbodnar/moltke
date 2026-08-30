@@ -114,10 +114,12 @@ what is already recorded:
    everything else rests on come first. Write the description paragraph at
    the top of `plan.md`.
 4. **Step files.** Create one per planned step not already present in
-   `adocs/plan_todo/`, by hand, in the format `AGENTS.md` shows — ids from
-   the next free `S<nnn>` (S001 only when the plan directories are empty),
-   in creation order — and list each in `plan.md`'s Open list. `accepts` is the field that matters:
-   it is what completion is judged against.
+   `adocs/plan_todo/`, by hand, in the format `AGENTS.md` shows — each id
+   one more than the highest ever allocated across the three plan
+   directories (S001 only when they are empty; a gap is a burned id, never
+   re-issued), in creation order — and list each in `plan.md`'s Open list.
+   `accepts` is the field that matters: it is what completion is judged
+   against.
 5. **Decisions.** Scope, order, and anything the user chose against — into
    `decisions.md` while it is fresh.
 6. **Status.** Fill `status.md` only when it is fresh from the template:

@@ -100,7 +100,7 @@ or `plan.md` from the template, rewrite them from the plan directories
 
 ### 2026-08-29_adversarial.3-F03  low  "ids from the next free S<nnn>" re-issues burned ids in any plan with gaps — the reading AGENTS.md forbids
 
-Status: planned  (S176)
+Status: closed  (S176)
 
 Evidence: `skills/init/SKILL.md:110-113`, step 4 item 4: step files get
 "ids from the next free `S<nnn>` (S001 only when the plan directories are
