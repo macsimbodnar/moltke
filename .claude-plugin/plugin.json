@@ -1,7 +1,7 @@
 {
   "name": "moltke",
   "displayName": "moltke",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Document-driven development workflow as rules: an init interview records per-project agent rules in AGENTS.md, the plan lives as step files in the repository, and an evidence-first audit skill keeps an adversarial reviewer. Markdown only - no hooks, no enforcement.",
   "author": {
     "name": "Maksym Bodnar"

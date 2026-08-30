@@ -12,15 +12,15 @@ Order lives here and nowhere else. Step detail lives in the step files.
 
 ## Open
 
-Nothing open. The 2026-08-29 .3 re-run's round (S174-S179) is done; the
-user decides whether it ships as 1.1.1 or waits. The next id is S180.
+Nothing open. The 2026-08-29 .3 re-run's round (S174-S179) shipped as
+1.1.1 (S180). The next id is S181.
 
 ## Done recently
 
 Last five; the full record is `plan_done/`.
 
-- S175  the repair branch reconciles view files it creates
 - S176  first-plan ids use highest-ever-allocated
 - S177  the Ship order includes the release tag
 - S178  rules Drop points catalog topics at their none option
 - S179  the 0.x archive branch is lost, the claim withdrawn (DEC-070)
+- S180  release 1.1.1 — the .3 re-run fixes ship, tagged
