@@ -73,7 +73,7 @@ in it. S173's stamp is history; the correction is a new step, not an edit.
 
 ### 2026-08-29_adversarial.3-F02  low  the already-set-up repair path scaffolds template-fresh status.md/plan.md over real history, then reads the false view back as orientation
 
-Status: planned  (S175)
+Status: closed  (S175)
 
 Evidence: `skills/init/SKILL.md:14-21`, Detect branch (a): "anything step 3
 would create unprompted that is missing gets the offer to create it …

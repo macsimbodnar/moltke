@@ -17,8 +17,14 @@ result — the rules work because agents read them, so write them exactly.
   points that exist but lack their ruleset reference get the wiring offer,
   and anything step 3 would create unprompted that is missing gets the offer
   to create it (the optional `.moltke.local.md` stays optional — do not
-  re-offer it). Then read `adocs/status.md` and `adocs/plan.md` back to the
-  user (the Orient order), mention `/moltke:rules` for changing rules, stop.
+  re-offer it). A `status.md` or `plan.md` created here starts template-fresh
+  over real history: before reading it back, bring it to match the plan
+  directories — status.md's view fields from what the three directories hold,
+  plan.md's Open list one entry per open step file (the lost file was the
+  only holder of order and of the description paragraph; propose both and
+  let the user correct them). Then read `adocs/status.md` and `adocs/plan.md`
+  back to the user (the Orient order), mention `/moltke:rules` for changing
+  rules, stop.
 - `AGENTS.md` exists but is not moltke's ruleset: never overwrite it. Offer
   to continue and append instead, or to stop — an existing ruleset may be
   another tool's or a house standard. If appending: run the interview as

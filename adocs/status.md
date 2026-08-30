@@ -4,12 +4,12 @@ Convenience view, rewritten by hand at the end of any turn that changed plan
 state. The filesystem beats this file: on disagreement, `plan_current/` wins
 and this file is rewritten to match it.
 
-Updated: 2026-08-30 by hand (S174 done).
+Updated: 2026-08-30 by hand (S175 done).
 
-- Last done: S174 — init's step 4 fills status.md only when fresh from the
-  template; kept files go to the ruleset's status rule
+- Last done: S175 — init's Detect branch (a) reconciles a status.md or
+  plan.md it creates with the plan directories before reading it back
 - In progress: none
-- Next: S175-S179, the rest of the .3 re-run's round — user decides if it
+- Next: S176-S179, the rest of the .3 re-run's round — user decides if it
   ships as 1.1.1 or waits. 1.1.0 is pushed, tagged on origin, and installed
   in the config root.
 - Blocked: none
