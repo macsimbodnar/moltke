@@ -4,15 +4,15 @@ Convenience view, rewritten by hand at the end of any turn that changed plan
 state. The filesystem beats this file: on disagreement, `plan_current/` wins
 and this file is rewritten to match it.
 
-Updated: 2026-08-30 by hand (S179 done — the .3 re-run's round complete).
+Updated: 2026-08-30 by hand (the .3 round closed by Max, no audit re-run).
 
 - Last done: S179 — the 0.x archive branch is lost; DEC-070 records it and
   the parked note stops claiming otherwise
 - In progress: none
-- Next: nothing planned. The .3 re-run's round (S174-S179) is done — user
-  decides whether it ships as 1.1.1 or waits, and whether a closing audit
-  re-run confirms the six fixes. 1.1.0 is pushed, tagged on origin, and
-  installed in the config root.
+- Next: nothing planned. The .3 re-run's round (S174-S179) is done and
+  closed — Max declined a closing audit re-run (AUDIT is on-demand only).
+  Open call: ship the round as 1.1.1 or wait. 1.1.0 is pushed, tagged on
+  origin, and installed in the config root.
 - Blocked: none
 - Parked:
   - the 2026-08-18 merge (DEC-052) was a graft, not a git merge, and the
