@@ -4,14 +4,13 @@ Convenience view, rewritten by hand at the end of any turn that changed plan
 state. The filesystem beats this file: on disagreement, `plan_current/` wins
 and this file is rewritten to match it.
 
-Updated: 2026-08-30 by hand (S180 done: 1.1.1 released and tagged).
+Updated: 2026-08-30 by hand (1.1.1 pushed and installed, per Max).
 
 - Last done: S180 — 1.1.1 released: the .3 re-run round (S174-S179) ships;
-  annotated tag v1.1.1 on the release commit
+  annotated tag v1.1.1 on the release commit, pushed to origin and updated
+  in the config root (Max confirmed; not verifiable from the sandbox)
 - In progress: none
-- Next: nothing planned. Max pushes commits and tag
-  (`git push --follow-tags`), then updates each installed config root
-  (`claude plugin update moltke@moltke`).
+- Next: nothing planned.
 - Blocked: none
 - Parked:
   - the 2026-08-18 merge (DEC-052) was a graft, not a git merge, and the
